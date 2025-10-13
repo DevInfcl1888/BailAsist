@@ -1,20 +1,39 @@
-import express from "express";
-// import type { Request, Response } from "express";
-import cors from "cors"
+import express, { Request, Response } from "express";
+import Routes from "./routes/routes.js";
 import dotenv from "dotenv";
+import cookieParser from "cookie-parser";
+import cors from "cors";
+import connectDB from "./db/db.js";
 dotenv.config();
 
-const app = express();
 const PORT = process.env.PORT || 8000;
+const app = express();
 
-app.use(express.json())
-app.use(cors())
+// Middleware
+app.use(cors());
+app.use(express.json({ limit: "16kb" }));
+app.use(cookieParser());
+app.use(express.urlencoded({ extended: true }));
 
-// app.get('/', (req: Request, res: Response) => {
-//   res.send('🚀 TypeScript Backend is running!');
-// });
+// Routes
+app.use("/api/user", Routes);
 
 
-app.listen(PORT, () => {
-  console.log(`✅ Server is running on http://localhost:${PORT}`);
-});
+// DB Connect
+const startServer = async () => {
+  await connectDB()
+    .then(() => {
+      app.listen(process.env.PORT, () => {
+        console.log(`DB Connected success on ${process.env.PORT}`);
+      });
+    })
+    .catch((err) => {
+      console.log(`Error: ${err}`);
+      process.exit(1);
+    });
+};
+
+// sever start
+startServer();
+
+export {};
