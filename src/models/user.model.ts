@@ -4,10 +4,20 @@ import jwt, { SignOptions } from "jsonwebtoken";
 
 interface userModel {
   name: string;
+  surname: string;
+  streetName: string;
+  homeAddress: string;
+  workPlace: string;
+  workPlaceAddress: string;
+  vehicalInfo: { model: string; vehicalNumber: string }[];
+  vehicalColor: string;
+  tags: string[];
+  partnerAddress: string;
   email: string;
   password: string;
   phoneNo: string;
   refreshToken: string;
+  isAgreed: boolean;
   isCorrectPassword(password: string): Promise<boolean>;
   generateAccessToken(): string;
   generateRefreshToken(): string;
@@ -18,6 +28,48 @@ const userSchema: Schema<userModel> = new Schema({
     type: String,
     required: true,
     trim: true,
+  },
+  surname: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  streetName: {
+    type: String,
+    required: true,
+  },
+  homeAddress: {
+    type: String,
+    required: true,
+  },
+  workPlace: {
+    type: String,
+    required: true,
+  },
+  workPlaceAddress: {
+    type: String,
+    required: true,
+  },
+  vehicalInfo: [
+    {
+      model: { type: String, required: true },
+      vehicalNumber: { type: String, required: true },
+    },
+  ],
+  vehicalColor: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  tags: [
+    {
+      type: String,
+      required: true,
+    },
+  ],
+  partnerAddress: {
+    type: String,
+    required: true,
   },
   email: {
     type: String,
@@ -35,6 +87,11 @@ const userSchema: Schema<userModel> = new Schema({
   },
   refreshToken: {
     type: String,
+  },
+  isAgreed: {
+    type: Boolean,
+    default:false,
+    required: true,
   },
 });
 
