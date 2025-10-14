@@ -36,18 +36,22 @@ const userSchema: Schema<userModel> = new Schema({
   },
   streetName: {
     type: String,
+    trim: true,
     required: true,
   },
   homeAddress: {
     type: String,
+    trim: true,
     required: true,
   },
   workPlace: {
     type: String,
+    trim: true,
     required: true,
   },
   workPlaceAddress: {
     type: String,
+    trim: true,
     required: true,
   },
   vehicalInfo: [

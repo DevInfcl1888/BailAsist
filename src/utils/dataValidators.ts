@@ -1,5 +1,5 @@
 export function isValidEmail(email: string): boolean {
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  const emailRegex = /^[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*@([a-zA-Z0-9]+)\.com$/;
   return emailRegex.test(email);
 }
 
@@ -9,7 +9,8 @@ export const isValidPassword = (password: string): boolean => {
   return passwordRegex.test(password);
 };
 
-export const isValidTag = (tag: string): boolean => {
+export const isValidTag = (tags: string[]): boolean => {
   const tagsRegex = /^#[A-Za-z0-9_]+$/;
-  return tagsRegex.test(tag);
+  // Check each tag in array
+  return Array.isArray(tags) && tags.every(tag => tagsRegex.test(tag));
 };

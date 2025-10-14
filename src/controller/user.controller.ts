@@ -31,13 +31,13 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     !name?.trim() ||
     !surname?.trim() ||
     !Array.isArray(tags) ||
-    !streetName||
-    !homeAddress||
-    !workPlace||
-    !workPlaceAddress||
-    !vehicalColor||
-    
+    !streetName ||
+    !homeAddress ||
+    !workPlace ||
+    !workPlaceAddress ||
+    !vehicalColor ||
     tags.length === 0 ||
+    !partnerAddress ||
     !vehicalInfo ||
     Object.keys(vehicalInfo).length === 0 ||
     !isAgreed ||
@@ -56,9 +56,11 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     res.status(404).json({ message: "Invalid phone no." });
   }
   if (!isValidEmail(email)) {
-    res.status(404).json({ message: "Invalid email" });
+    console.log("k", isValidEmail(email));
+    return res.status(404).json({ message: "Invalid email" });
   }
-  if (!isValidTag(tags)) res.status(404).json({ message: "Invalid email" });
+  if (!isValidTag(tags))
+    return res.status(404).json({ message: "Invalid tag" });
   const checkUserExistence = await User.findOne({
     $or: [
       {
@@ -97,7 +99,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
   ).select("-refreshToken -password");
 
   if (!isUserRegisteredSuccessFully)
-    res
+    return res
       .status(400)
       .json({ message: "Internal server error during registration" });
 
@@ -159,6 +161,18 @@ const login = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const logout = asyncHandler(async (req: Request, res: Response) => {
+  // remove refresh token from DB
+  await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $unset: {
+        refreshToken: 1,
+      },
+    },
+    {
+      new: true,
+    }
+  );
   const { refreshToken } = req.cookies;
 
   // extract refresh token from cookies
@@ -218,16 +232,85 @@ const changePassword = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email } = req.body;
+  const {
+    name,
+    surname,
+    streetName,
+    homeAddress,
+    workPlace,
+    workPlaceAddress,
+    vehicalInfo,
+    vehicalColor,
+    tags,
+    partnerAddress,
+    isAgreed,
+    email,
+    phoneNo,
+    password,
+  } = req.body;
+
+  // Data validation
+
+  if (
+    !name?.trim() ||
+    !surname?.trim() ||
+    !Array.isArray(tags) ||
+    !streetName ||
+    !homeAddress ||
+    !workPlace ||
+    !workPlaceAddress ||
+    !vehicalColor ||
+    tags.length === 0 ||
+    !vehicalInfo ||
+    !partnerAddress ||
+    Object.keys(vehicalInfo).length === 0 ||
+    !email?.trim() ||
+    !phoneNo?.trim()
+  ) {
+    return res.status(400).json({ msg: "All credentials are required" });
+  }
+  if (phoneNo.length !== 10 || !/^\d{10}$/.test(phoneNo)) {
+    return res.status(404).json({ message: "Invalid phone no." });
+  }
+  if (!isValidEmail(email)) {
+    return res.status(404).json({ message: "Invalid email" });
+  }
+  if (!isValidTag(tags))
+    return res.status(404).json({ message: "Invalid tags" });
+  if (email !== req.user?.email) {
+    const emailExists = await User.findOne({ email });
+    if (emailExists) {
+      return res.status(403).json({ message: "Email already in use" });
+    }
+  }
   const user = await User.findById(req.user?._id);
   if (!user)
-    return res.status(404).json({ message: "User not found or maybe logout" });
-  if (!email || !isValidEmail(email)) {
-    res.status(404).json({ message: "Invalid email" });
-  }
-  if (name) user.name = name;
-  if (email) user.email = email;
-  const updatedUser = await user.save({ validateBeforeSave: false });
+    return res
+      .status(404)
+      .json({ message: "User not found or maybe you logout" });
+  let data = {
+    name,
+    surname,
+    streetName,
+    homeAddress,
+    workPlace,
+    workPlaceAddress,
+    vehicalInfo,
+    vehicalColor,
+    tags,
+    partnerAddress,
+    email,
+    phoneNo,
+  };
+
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user?._id,
+    { $set: data },
+    {
+      new: true,
+    }
+  );
+
   if (!updatedUser)
     return res.status(401).json({
       message:
@@ -251,10 +334,19 @@ const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
     user,
   });
 });
+
 const getdata = async (req: Request, res: Response) => {
   if (req.user?._id) {
     return res.status(200).json({ msg: "user still login" });
   }
   return res.status(401).json({ msg: "user not login" });
 };
-export { registration, login, logout, changePassword, getUserProfile, getdata };
+export {
+  registration,
+  login,
+  logout,
+  changePassword,
+  getUserProfile,
+  updateUserDetails,
+  getdata,
+};
