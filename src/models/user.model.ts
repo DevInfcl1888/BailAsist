@@ -8,6 +8,9 @@ interface userModel {
   password: string;
   phoneNo: string;
   refreshToken: string;
+  isCorrectPassword(password: string): Promise<boolean>;
+  generateAccessToken(): string;
+  generateRefreshToken(): string;
 }
 
 const userSchema: Schema<userModel> = new Schema({
