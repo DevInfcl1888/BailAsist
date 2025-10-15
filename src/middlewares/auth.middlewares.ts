@@ -35,7 +35,7 @@ export const authMiddleware = asyncHandler(
       token = isExistAuthToken.split(" ")[1];
     else if (req.cookies?.accessToken) token = req.cookies.accessToken;
 
-    if (!token) return res.status(401).json({ message: "Token is missing" });
+    if (!token) return res.status(401).json({ message: "Token n is missing" });
 
     // verify token
     const decode = jwt.verify(

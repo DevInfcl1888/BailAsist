@@ -2,9 +2,16 @@ import { Schema, model, Document } from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt, { SignOptions } from "jsonwebtoken";
 
-interface userModel {
+interface contactInfoModel {
   name: string;
-  surname: string;
+  middleName:string;
+  lastName: string;
+  cellNumber:string;
+  currentAddress:string;
+email: string;
+
+}
+interface residenceInfo{
   streetName: string;
   homeAddress: string;
   workPlace: string;
@@ -13,7 +20,7 @@ interface userModel {
   vehicalColor: string;
   tags: string[];
   partnerAddress: string;
-  email: string;
+  
   password: string;
   phoneNo: string;
   refreshToken: string;
@@ -23,7 +30,7 @@ interface userModel {
   generateRefreshToken(): string;
 }
 
-const userSchema: Schema<userModel> = new Schema({
+const userSchema: Schema<contactInfoModel> = new Schema({
   name: {
     type: String,
     required: true,
@@ -94,7 +101,7 @@ const userSchema: Schema<userModel> = new Schema({
   },
   isAgreed: {
     type: Boolean,
-    default:false,
+    default: false,
     required: true,
   },
 });
