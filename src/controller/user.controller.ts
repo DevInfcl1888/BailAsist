@@ -8,6 +8,7 @@ import {
 import { User } from "../models/user.model.js";
 import { generateOTP, sendOTPfun, otpStore } from "../utils/OTPsender.js";
 import bcrypt from "bcryptjs";
+import { ResidenceType } from "../models/user.model.js";
 
 const registration = asyncHandler(async (req: Request, res: Response) => {
   const {
@@ -17,6 +18,14 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     email,
     password,
     phoneNo,
+    yearsAtCurrentAddress, // how many years you spent in your current address (in Yr)
+    residenceType, // Own, Rent
+    landlordName,
+    landlordAddress,
+    homeAddress,
+    placeholderForZipCode_1,
+    currentAddress,
+    placeholderForZipCode_2,
     isAgreed,
   } = req.body as {
     firstName: string;
@@ -25,6 +34,14 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     email: string;
     password: string;
     phoneNo: string;
+    yearsAtCurrentAddress: string; // how many years you spent in your current address (in Yr)
+    residenceType: ResidenceType; // Own, Rent
+    landlordName: string;
+    landlordAddress: string;
+    homeAddress: string;
+    placeholderForZipCode_1: string;
+    currentAddress: string;
+    placeholderForZipCode_2: string;
     isAgreed: boolean;
   };
   // Data validation
@@ -386,7 +403,6 @@ const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
     .status(200)
     .json({ message: "User profile deleted", deletedUserInfo });
 });
-
 
 // dummy testing
 const uninstalled = async (req: Request, res: Response) => {
