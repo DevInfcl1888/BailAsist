@@ -94,19 +94,17 @@ const login = asyncHandler(async (req: Request, res: Response) => {
     password: string;
     rememberMe: boolean;
   };
-console.log("req.body",req.body)
-// Data validation
-if (!email || !password)
-  return res.status(401).json({ message: "Credentials are missing" });
-if (!isValidEmail(email)) {
-  return res.status(404).json({ message: "Invalid email" });
-}
-if (!isValidPassword(password))
-  return res.status(401).json({ message: "Invalid password" });
+  // Data validation
+  if (!email || !password)
+    return res.status(401).json({ message: "Credentials are missing" });
+  if (!isValidEmail(email)) {
+    return res.status(404).json({ message: "Invalid email" });
+  }
+  if (!isValidPassword(password))
+    return res.status(401).json({ message: "Invalid password" });
 
-// check user existence
-const user = await User.findOne({ "signUp.email": email });
-  console.log("user", user);
+  // check user existence
+  const user = await User.findOne({ "signUp.email": email });
 
   if (!user)
     return res
@@ -122,7 +120,7 @@ const user = await User.findOne({ "signUp.email": email });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
 
-  user.refreshToken = refreshToken;
+  user.signUp.refreshToken = refreshToken;
   await user.save({ validateBeforeSave: false });
 
   const expiresIn = rememberMe ? 10 * 24 * 60 * 60 * 1000 : 15 * 60 * 1000; // 10 Days or 15 mins
@@ -149,39 +147,29 @@ const user = await User.findOne({ "signUp.email": email });
 });
 
 const logout = asyncHandler(async (req: Request, res: Response) => {
-  // remove refresh token from DB
-  await User.findByIdAndUpdate(
-    req.user?._id,
-    {
-      $unset: {
-        refreshToken: 1,
-      },
-    },
-    {
-      new: true,
-    }
-  );
+  // Extract refresh token from cookies
   const { refreshToken } = req.cookies;
 
-  // extract refresh token from cookies
   if (!refreshToken)
     return res.status(404).json({ message: "No refresh token found" });
 
-  // check user existence
-  const user = await User.findOne({ refreshToken: refreshToken });
+  // Step 1: Remove refresh token from DB (by matching token)
+  const user = await User.findOne({ "signUp.refreshToken": refreshToken });
+
   if (user) {
-    // remove refreshToken from DB and save
-    user.refreshToken = "";
+    // Step 2: Clear refreshToken in DB
+    user.signUp.refreshToken = "";
     await user.save({ validateBeforeSave: false });
   }
-  // sending the response and remove refreshToken and accessToken from DB and cookies.
-  return res
-    .clearCookie("accessToken", { httpOnly: true, secure: true })
-    .clearCookie("refreshToken", { httpOnly: true, secure: true })
-    .status(200)
-    .json({
-      message: "User logout successfully",
-    });
+
+  // Step 3: Clear cookies from browser
+  res.clearCookie("accessToken", { httpOnly: true, secure: true });
+  res.clearCookie("refreshToken", { httpOnly: true, secure: true });
+
+  // Step 4: Return response
+  return res.status(200).json({
+    message: "User logged out successfully",
+  });
 });
 
 const changePassword = asyncHandler(async (req: Request, res: Response) => {
@@ -233,7 +221,6 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
   };
 
   // Data validation
-
   if (
     !firstName?.trim() ||
     !middleName?.trim() ||
@@ -249,17 +236,12 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
   if (!isValidEmail(email)) {
     return res.status(404).json({ message: "Invalid email" });
   }
-  if (email !== req.user?.email) {
-    const emailExists = await User.findOne({ "signUp.email": email });
-    if (emailExists) {
-      return res.status(403).json({ message: "Email already in use" });
-    }
-  }
   const user = await User.findById(req.user?._id);
   if (!user)
     return res
       .status(404)
       .json({ message: "User not found or maybe you logout" });
+
   let data = {
     firstName,
     middleName,
@@ -270,17 +252,26 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
 
   const updatedUser = await User.findByIdAndUpdate(
     req.user?._id,
-    { $set: { signUp: data } },
+    {
+      $set: {
+        "signUp.firstName": data.firstName,
+        "signUp.middleName": data.middleName,
+        "signUp.lastName": data.lastName,
+        "signUp.email": data.email,
+        "signUp.phoneNo": data.phoneNo,
+      },
+    },
     {
       new: true,
     }
-  );
+  ).select("-signUp.password -signUp.refreshToken -signUp.isAgreed");
 
   if (!updatedUser)
     return res.status(401).json({
       message:
         "Internal Server error so details are not updated. try again !..",
     });
+
   return res
     .status(200)
     .json({ message: "Details updated successfully", updatedUser });
@@ -288,7 +279,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
 
 const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user?._id).select(
-    "-password -refreshToken"
+    "-signUp.password -signUp.refreshToken -signUp.isAgreed"
   );
   if (!user)
     return res
@@ -307,10 +298,10 @@ const sendOTP = asyncHandler(async (req: Request, res: Response) => {
     return res.status(401).json({ message: "Inavlid email" });
   // generate OTP
   const generate_OTP: string = await generateOTP(email);
-  console.log("generate_OTP", generate_OTP);
+  // console.log("generate_OTP", generate_OTP);
 
   const send_OTP: string = await sendOTPfun(email, generate_OTP);
-  console.log("send_OTP", send_OTP);
+  // console.log("send_OTP", send_OTP);
 
   return res.status(200).json({
     message: `OTP send successfully to your registered email : ${email}`,
@@ -326,7 +317,7 @@ const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
   const stored = otpStore.get(email);
   if (!stored)
     return res.status(400).json({ message: "OTP not found or expired" });
-  console.log("stored", stored);
+  // console.log("stored", stored);
 
   if (Date.now() > stored.expiresAt) {
     otpStore.delete(email);
@@ -345,7 +336,6 @@ const getdata = async (req: Request, res: Response) => {
   if (req.user?._id) {
     return res.status(200).json({ msg: "user still login" });
   }
-  return res.status(401).json({ msg: "user not login" });
 };
 
 const resetPassword = asyncHandler(async (req: Request, res: Response) => {
@@ -367,6 +357,7 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
 
   // update password in DB
   user.signUp.password = newPassword;
+  user.signUp.refreshToken = "";
   // user.password = newPassword;
   const updatedUserPassword = await user.save({ validateBeforeSave: false });
 
@@ -395,6 +386,27 @@ const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
     .status(200)
     .json({ message: "User profile deleted", deletedUserInfo });
 });
+
+
+// dummy testing
+const uninstalled = async (req: Request, res: Response) => {
+  try {
+    const { event, tokens } = req.body;
+    // console.log("req.body", req.body);
+
+    if (event !== "UNINSTALLED" || !Array.isArray(tokens)) {
+      return res.status(400).json({ error: "invalid payload" });
+    }
+
+    console.log("unistalled");
+
+    res.json({ message: "uninstalled" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "internal error" });
+  }
+};
+
 export {
   registration,
   login,
@@ -407,4 +419,5 @@ export {
   sendOTP,
   resetPassword,
   verifyOTP,
+  uninstalled,
 };

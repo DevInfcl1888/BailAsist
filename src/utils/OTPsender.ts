@@ -16,7 +16,7 @@ export const generateOTP = async (email: string): Promise<string> => {
       Date.now() + (Number(process.env.OTP_EXPIRE_TIME!) || 300) * 1000, // 5 min
   });
 
-  console.log("OTP store updated:", otpStore);
+  // console.log("OTP store updated:", otpStore);
   return otp;
 };
 

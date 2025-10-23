@@ -15,6 +15,11 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
+
+app.get("/", (req: Request, res: Response) => {
+  res.send("Server started and running successfully!");
+});
+
 // Routes
 app.use("/api/user", router);
 
@@ -30,6 +35,7 @@ const startServer = async () => {
       console.log(`Error: ${err}`);
       process.exit(1);
     });
+    // res.end("Server started")
 };
 
 // sever start

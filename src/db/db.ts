@@ -8,6 +8,7 @@ const connectDB = async () => {
     await mongoose.connect(
       `${process.env.MONGO_DB_URL}/${process.env.DB_NAME}` as string
     );
+    // res.end("Server started")
   } catch (err) {
     console.log(`Err: ${err}`);
     process.exit(1);

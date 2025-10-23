@@ -150,6 +150,7 @@ interface signUp {
   password: string;
   phoneNo: string;
   isAgree: boolean;
+  refreshToken:string
 }
 
 //  --------------------- Login Information --------------------
@@ -444,8 +445,6 @@ const userSchema = new Schema<IUser>({
       type: String,
       required: true,
       trim: true,
-      unique: true,
-      index: true,
     },
     password: {
       type: String,
@@ -456,14 +455,16 @@ const userSchema = new Schema<IUser>({
       required: true,
       trim: true,
     },
-    isAgreed: { type: Boolean, default: false, trim: true, required: true },
+    isAgreed: { type: Boolean, required: true, immutable: true },
+    refreshToken: { type: String },
   },
 });
+userSchema.index({ "signUp.email": 1 }, { unique: true });
+
 const loggedInSchema = new Schema<login>({
   email: {
     type: String,
     required: true,
-    unique: true,
     trim: true,
   },
   password: {
