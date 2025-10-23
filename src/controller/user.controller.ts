@@ -11,58 +11,33 @@ import bcrypt from "bcryptjs";
 
 const registration = asyncHandler(async (req: Request, res: Response) => {
   const {
-    name,
-    surname,
-    streetName,
-    homeAddress,
-    workPlace,
-    workPlaceAddress,
-    vehicalInfo,
-    vehicalColor,
-    tags,
-    partnerAddress,
+    firstName,
+    middleName,
+    lastName,
     email,
     password,
     phoneNo,
     isAgreed,
   } = req.body as {
-    name: string;
-    surname: string;
-    streetName: string;
-    homeAddress: string;
-    workPlace: string;
-    workPlaceAddress: string;
-    vehicalInfo: { model: string; vehicalNumber: string }[];
-    vehicalColor: string;
-    tags: string[];
-    partnerAddress: string;
+    firstName: string;
+    middleName: string;
+    lastName: string;
     email: string;
     password: string;
     phoneNo: string;
     isAgreed: boolean;
   };
-
   // Data validation
-
   if (
-    !name?.trim() ||
-    !surname?.trim() ||
-    !Array.isArray(tags) ||
-    !streetName ||
-    !homeAddress ||
-    !workPlace ||
-    !workPlaceAddress ||
-    !vehicalColor ||
-    tags.length === 0 ||
-    !partnerAddress ||
-    !vehicalInfo ||
-    Object.keys(vehicalInfo).length === 0 ||
-    !isAgreed ||
+    !firstName?.trim() ||
+    !middleName?.trim() ||
+    !lastName?.trim() ||
+    isAgreed === false ||
     !email?.trim() ||
     !phoneNo?.trim() ||
     !password?.trim()
   ) {
-    res.status(400).json({ msg: "All credentials are required" });
+    return res.status(400).json({ msg: "All credentials are required" });
   }
   if (!isValidPassword(password))
     return res.status(401).json({
@@ -70,23 +45,14 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
         "Password must contain at least 1 uppercase, lowercase, number, and special character, and password should be upto 6 characters long",
     });
   if (phoneNo.length !== 10 || !/^\d{10}$/.test(phoneNo)) {
-    res.status(404).json({ message: "Invalid phone no." });
+    return res.status(404).json({ message: "Invalid phone no." });
   }
   if (!isValidEmail(email)) {
     console.log("k", isValidEmail(email));
     return res.status(404).json({ message: "Invalid email" });
   }
-  if (!isValidTag(tags))
-    return res.status(404).json({ message: "Invalid tag" });
   const checkUserExistence = await User.findOne({
-    $or: [
-      {
-        email: email,
-      },
-      {
-        name: name,
-      },
-    ],
+    "signUp.email": email,
   });
 
   if (checkUserExistence)
@@ -94,26 +60,22 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
 
   // User created
   const createdUser = await User.create({
-    name,
-    surname,
-    email,
-    phoneNo,
-    password,
-    streetName,
-    homeAddress,
-    workPlace,
-    workPlaceAddress,
-    vehicalInfo,
-    vehicalColor,
-    tags,
-    partnerAddress,
-    isAgreed,
+    signUp: {
+      firstName,
+      middleName,
+      lastName,
+      email,
+      password,
+      phoneNo,
+      isAgreed,
+    },
   });
 
   // check user existence
   const isUserRegisteredSuccessFully = await User.findById(
     createdUser?._id
-  ).select("-refreshToken -password");
+  ).select("-signUp.password -refreshToken");
+  console.log("isUserRegisteredSuccessFully", isUserRegisteredSuccessFully);
 
   if (!isUserRegisteredSuccessFully)
     return res
@@ -127,23 +89,34 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const login = asyncHandler(async (req: Request, res: Response) => {
-  const { email, password } = req.body as { email: string; password: string };
+  const { email, password, rememberMe } = req.body as {
+    email: string;
+    password: string;
+    rememberMe: boolean;
+  };
+console.log("req.body",req.body)
+// Data validation
+if (!email || !password)
+  return res.status(401).json({ message: "Credentials are missing" });
+if (!isValidEmail(email)) {
+  return res.status(404).json({ message: "Invalid email" });
+}
+if (!isValidPassword(password))
+  return res.status(401).json({ message: "Invalid password" });
 
-  // Data validation
-  if (!email || !password)
-    return res.status(401).json({ message: "Credentials are missing" });
-  if (!isValidEmail(email)) {
-    res.status(404).json({ message: "Invalid email" });
-  }
-  if (!isValidPassword(password))
-    return res.status(401).json({ message: "Invalid password" });
+// check user existence
+const user = await User.findOne({ "signUp.email": email });
+  console.log("user", user);
 
-  // check user existence
-  const user = await User.findOne({ email });
   if (!user)
     return res
       .status(404)
       .json({ message: "User not found with these credentials" });
+
+  // check password
+  const isMatchPassword = await user.isCorrectPassword(password);
+  if (!isMatchPassword)
+    return res.status(401).json({ message: "Invalid password" });
 
   // generate accessToken and refreshToken
   const accessToken = user.generateAccessToken();
@@ -152,28 +125,26 @@ const login = asyncHandler(async (req: Request, res: Response) => {
   user.refreshToken = refreshToken;
   await user.save({ validateBeforeSave: false });
 
-  // check password
-  const isMatchPassword = await user.isCorrectPassword(password);
-  if (!isMatchPassword)
-    return res.status(401).json({ message: "Invalid password" });
-
+  const expiresIn = rememberMe ? 10 * 24 * 60 * 60 * 1000 : 15 * 60 * 1000; // 10 Days or 15 mins
   // sending response
   return res
     .cookie("accessToken", accessToken, {
       httpOnly: true,
       secure: true,
-      maxAge: 15 * 60 * 1000, // 15 min
+      maxAge: expiresIn, // 10 Days or 15 min
     })
     .cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     })
     .status(200)
     .json({
       message: "User login successfully",
-      user: user.name,
-      email: user.email,
+      user: `${user.signUp?.firstName ?? ""} ${
+        user.signUp?.lastName ?? ""
+      }`.trim(),
+      email: user.signUp?.email,
     });
 });
 
@@ -237,7 +208,7 @@ const changePassword = asyncHandler(async (req: Request, res: Response) => {
     return res.status(401).json({ message: "Password has no change" });
 
   // update password in DB
-  user.password = newPassword;
+  user.signUp.password = newPassword;
   const updatedUserPassword = await user.save({ validateBeforeSave: false });
 
   if (!updatedUserPassword)
@@ -253,30 +224,10 @@ const changePassword = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
-  const {
-    name,
-    surname,
-    streetName,
-    homeAddress,
-    workPlace,
-    workPlaceAddress,
-    vehicalInfo,
-    vehicalColor,
-    tags,
-    partnerAddress,
-    email,
-    phoneNo,
-  } = req.body as {
-    name: string;
-    surname: string;
-    streetName: string;
-    homeAddress: string;
-    workPlace: string;
-    workPlaceAddress: string;
-    vehicalInfo: { model: string; vehicalNumber: string }[];
-    vehicalColor: string;
-    tags: string[];
-    partnerAddress: string;
+  const { firstName, middleName, lastName, email, phoneNo } = req.body as {
+    firstName: string;
+    middleName: string;
+    lastName: string;
     email: string;
     phoneNo: string;
   };
@@ -284,22 +235,13 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
   // Data validation
 
   if (
-    !name?.trim() ||
-    !surname?.trim() ||
-    !Array.isArray(tags) ||
-    !streetName ||
-    !homeAddress ||
-    !workPlace ||
-    !workPlaceAddress ||
-    !vehicalColor ||
-    tags.length === 0 ||
-    !vehicalInfo ||
-    !partnerAddress ||
-    Object.keys(vehicalInfo).length === 0 ||
+    !firstName?.trim() ||
+    !middleName?.trim() ||
+    !lastName?.trim() ||
     !email?.trim() ||
     !phoneNo?.trim()
   ) {
-    return res.status(400).json({ msg: "All credentials are required" });
+    res.status(400).json({ msg: "All credentials are required" });
   }
   if (phoneNo.length !== 10 || !/^\d{10}$/.test(phoneNo)) {
     return res.status(404).json({ message: "Invalid phone no." });
@@ -307,10 +249,8 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
   if (!isValidEmail(email)) {
     return res.status(404).json({ message: "Invalid email" });
   }
-  if (!isValidTag(tags))
-    return res.status(404).json({ message: "Invalid tags" });
   if (email !== req.user?.email) {
-    const emailExists = await User.findOne({ email });
+    const emailExists = await User.findOne({ "signUp.email": email });
     if (emailExists) {
       return res.status(403).json({ message: "Email already in use" });
     }
@@ -321,23 +261,16 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
       .status(404)
       .json({ message: "User not found or maybe you logout" });
   let data = {
-    name,
-    surname,
-    streetName,
-    homeAddress,
-    workPlace,
-    workPlaceAddress,
-    vehicalInfo,
-    vehicalColor,
-    tags,
-    partnerAddress,
+    firstName,
+    middleName,
+    lastName,
     email,
     phoneNo,
   };
 
   const updatedUser = await User.findByIdAndUpdate(
     req.user?._id,
-    { $set: data },
+    { $set: { signUp: data } },
     {
       new: true,
     }
@@ -421,7 +354,7 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
     newPassword: string;
     confirmPassword: string;
   };
-  const user = await User.findOne({ email: email });
+  const user = await User.findOne({ "signUp.email": email });
 
   if (!user)
     return res.status(404).json({ message: "User not found or maybe logout" });
@@ -433,7 +366,7 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
       .json({ message: "New and old password must be same" });
 
   // update password in DB
-  user.password = newPassword;
+  user.signUp.password = newPassword;
   // user.password = newPassword;
   const updatedUserPassword = await user.save({ validateBeforeSave: false });
 
@@ -446,7 +379,9 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
     .status(200)
     .clearCookie("accessToken", { httpOnly: true, secure: true })
     .clearCookie("refreshToken", { httpOnly: true, secure: true })
-    .json({ message: "Password changed successfully, please try to login again" });
+    .json({
+      message: "Password changed successfully, please try to login again",
+    });
 });
 
 const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {

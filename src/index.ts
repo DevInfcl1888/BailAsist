@@ -1,5 +1,5 @@
 import express, { Request, Response } from "express";
-import routes from "./routes/routes.js";
+import router from "./routes/routes.js";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import cors from "cors";
@@ -16,7 +16,7 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use("/api/user", routes);
+app.use("/api/user", router);
 
 // DB Connect
 const startServer = async () => {
