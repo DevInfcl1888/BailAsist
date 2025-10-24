@@ -1,10 +1,6 @@
 import express, { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import {
-  isValidEmail,
-  isValidPassword,
-  isValidTag,
-} from "../utils/dataValidators.js";
+import { isValidEmail, isValidPassword } from "../utils/dataValidators.js";
 import { User } from "../models/user.model.js";
 import { generateOTP, sendOTPfun, otpStore } from "../utils/OTPsender.js";
 import bcrypt from "bcryptjs";
@@ -45,14 +41,28 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     isAgreed: boolean;
   };
   // Data validation
+  if (!residenceType || !Object.values(ResidenceType).includes(residenceType)) {
+    return res.status(400).json({
+      msg: `Invalid residenceType. Must be one of: ${Object.values(
+        ResidenceType
+      ).join(", ")}.`,
+    });
+  }
   if (
     !firstName?.trim() ||
     !middleName?.trim() ||
     !lastName?.trim() ||
-    isAgreed === false ||
     !email?.trim() ||
+    !password?.trim() ||
     !phoneNo?.trim() ||
-    !password?.trim()
+    !yearsAtCurrentAddress?.trim() ||
+    !landlordName?.trim() ||
+    !landlordAddress?.trim() ||
+    !homeAddress?.trim() ||
+    !placeholderForZipCode_1?.trim() ||
+    !currentAddress?.trim() ||
+    !placeholderForZipCode_2?.trim() ||
+    isAgreed === false
   ) {
     return res.status(400).json({ msg: "All credentials are required" });
   }
@@ -68,6 +78,18 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     console.log("k", isValidEmail(email));
     return res.status(404).json({ message: "Invalid email" });
   }
+  if (landlordAddress === landlordName)
+    return res
+      .status(400)
+      .json({ message: "Landlord address and name shouldn't be same" });
+  if (yearsAtCurrentAddress.length > 3)
+    return res.status(400).json({ Message: "Put number of years only." });
+  if (
+    placeholderForZipCode_1.length > 11 ||
+    placeholderForZipCode_2.length > 11
+  )
+    return res.status(400).json({ Message: "ZIP code is too long" });
+
   const checkUserExistence = await User.findOne({
     "signUp.email": email,
   });
@@ -84,6 +106,16 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
       email,
       password,
       phoneNo,
+      residenceInfo: {
+        yearsAtCurrentAddress: `${yearsAtCurrentAddress} Yr`,
+        residenceType: residenceType, // Own, Rent
+        landlordName: landlordName,
+        landlordAddress: landlordAddress,
+      },
+      homeAddress,
+      placeholderForZipCode_1,
+      currentAddress,
+      placeholderForZipCode_2,
       isAgreed,
     },
   });
@@ -106,22 +138,33 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const login = asyncHandler(async (req: Request, res: Response) => {
-  const { email, password, rememberMe } = req.body as {
+  const { email, phoneNo, password, rememberMe } = req.body as {
     email: string;
+    phoneNo: string;
     password: string;
     rememberMe: boolean;
   };
   // Data validation
-  if (!email || !password)
+  if (!email && !phoneNo)
+    return res.status(401).json({ message: "Email or PhoneNo are missing" });
+  if ((!email && !phoneNo) || !password)
     return res.status(401).json({ message: "Credentials are missing" });
-  if (!isValidEmail(email)) {
-    return res.status(404).json({ message: "Invalid email" });
+  if (phoneNo) {
+    if (phoneNo.length !== 10 || !/^\d{10}$/.test(phoneNo))
+      return res.status(404).json({ message: "Invalid phone no." });
+  }
+  if (email) {
+    if (!isValidEmail(email))
+      return res.status(404).json({ message: "Invalid email" });
   }
   if (!isValidPassword(password))
     return res.status(401).json({ message: "Invalid password" });
 
   // check user existence
-  const user = await User.findOne({ "signUp.email": email });
+  const user = await User.findOne({
+    $or: [{ "signUp.email": email }, { "signUp.phoneNo": phoneNo }],
+  });
+  console.log(user);
 
   if (!user)
     return res
@@ -229,23 +272,58 @@ const changePassword = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
-  const { firstName, middleName, lastName, email, phoneNo } = req.body as {
+  const {
+    firstName,
+    middleName,
+    lastName,
+    email,
+    phoneNo,
+    yearsAtCurrentAddress, // how many years you spent in your current address (in Yr)
+    residenceType, // Own, Rent
+    landlordName,
+    landlordAddress,
+    homeAddress,
+    placeholderForZipCode_1,
+    currentAddress,
+    placeholderForZipCode_2,
+  } = req.body as {
     firstName: string;
     middleName: string;
     lastName: string;
     email: string;
     phoneNo: string;
+    yearsAtCurrentAddress: string; // how many years you spent in your current address (in Yr)
+    residenceType: ResidenceType; // Own, Rent
+    landlordName: string;
+    landlordAddress: string;
+    homeAddress: string;
+    placeholderForZipCode_1: string;
+    currentAddress: string;
+    placeholderForZipCode_2: string;
   };
-
+  if (!residenceType || !Object.values(ResidenceType).includes(residenceType)) {
+    return res.status(400).json({
+      msg: `Invalid residenceType. Must be one of: ${Object.values(
+        ResidenceType
+      ).join(" or ")}.`,
+    });
+  }
   // Data validation
   if (
     !firstName?.trim() ||
     !middleName?.trim() ||
     !lastName?.trim() ||
     !email?.trim() ||
-    !phoneNo?.trim()
+    !phoneNo?.trim() ||
+    !yearsAtCurrentAddress?.trim() ||
+    !landlordName?.trim() ||
+    !landlordAddress?.trim() ||
+    !homeAddress?.trim() ||
+    !placeholderForZipCode_1?.trim() ||
+    !currentAddress?.trim() ||
+    !placeholderForZipCode_2?.trim()
   ) {
-    res.status(400).json({ msg: "All credentials are required" });
+    return res.status(400).json({ msg: "All credentials are required" });
   }
   if (phoneNo.length !== 10 || !/^\d{10}$/.test(phoneNo)) {
     return res.status(404).json({ message: "Invalid phone no." });
@@ -253,11 +331,22 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
   if (!isValidEmail(email)) {
     return res.status(404).json({ message: "Invalid email" });
   }
+  if (landlordAddress === landlordName)
+    return res
+      .status(400)
+      .json({ message: "Landlord address and name shouldn't be same" });
+  if (yearsAtCurrentAddress.length > 3)
+    return res.status(400).json({ Message: "Put number of years only." });
+  if (
+    placeholderForZipCode_1.length > 11 ||
+    placeholderForZipCode_2.length > 11
+  )
+    return res.status(400).json({ Message: "ZIP code is too long" });
   const user = await User.findById(req.user?._id);
   if (!user)
     return res
       .status(404)
-      .json({ message: "User not found or maybe you logout" });
+      .json({ Message: "User not found or maybe you logout" });
 
   let data = {
     firstName,
@@ -265,6 +354,14 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     phoneNo,
+    yearsAtCurrentAddress, // how many years you spent in your current address (in Yr)
+    residenceType, // Own, Rent
+    landlordName,
+    landlordAddress,
+    homeAddress,
+    placeholderForZipCode_1,
+    currentAddress,
+    placeholderForZipCode_2,
   };
 
   const updatedUser = await User.findByIdAndUpdate(
@@ -276,12 +373,22 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
         "signUp.lastName": data.lastName,
         "signUp.email": data.email,
         "signUp.phoneNo": data.phoneNo,
+        "signUp.residenceInfo.yearsAtCurrentAddress": `${data.yearsAtCurrentAddress} Yr`,
+        "signUp.residenceInfo.residenceType": data.residenceType, // ["own", "rent"]
+        "signUp.residenceInfo.landlordName": data.landlordName,
+        "signUp.residenceInfo.landlordAddress": data.landlordAddress,
+        "signUp.homeAddress": data.homeAddress,
+        "signUp.placeholderForZipCode_1": data.placeholderForZipCode_1,
+        "signUp.currentAddress": data.currentAddress,
+        "signUp.placeholderForZipCode_2": data.placeholderForZipCode_2,
       },
     },
     {
       new: true,
     }
   ).select("-signUp.password -signUp.refreshToken -signUp.isAgreed");
+
+  // console.log("updatedUser", updatedUser);
 
   if (!updatedUser)
     return res.status(401).json({
@@ -353,7 +460,7 @@ const getdata = async (req: Request, res: Response) => {
   if (req.user?._id) {
     return res.status(200).json({ msg: "user still login" });
   }
-};
+}; // This is only for checking that user still logged in or not
 
 const resetPassword = asyncHandler(async (req: Request, res: Response) => {
   const { email, newPassword, confirmPassword } = req.body as {
@@ -404,25 +511,6 @@ const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
     .json({ message: "User profile deleted", deletedUserInfo });
 });
 
-// dummy testing
-const uninstalled = async (req: Request, res: Response) => {
-  try {
-    const { event, tokens } = req.body;
-    // console.log("req.body", req.body);
-
-    if (event !== "UNINSTALLED" || !Array.isArray(tokens)) {
-      return res.status(400).json({ error: "invalid payload" });
-    }
-
-    console.log("unistalled");
-
-    res.json({ message: "uninstalled" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "internal error" });
-  }
-};
-
 export {
   registration,
   login,
@@ -435,5 +523,4 @@ export {
   sendOTP,
   resetPassword,
   verifyOTP,
-  uninstalled,
 };

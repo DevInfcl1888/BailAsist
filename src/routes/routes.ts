@@ -10,8 +10,7 @@ import {
   deleteUserProfile,
   verifyOTP,
   getdata,
-  resetPassword,
-  uninstalled
+  resetPassword
 } from "../controller/user.controller.js";
 import { authMiddleware } from "../middlewares/auth.middlewares.js";
 import { otpLimiter } from "../utils/rateLimiter.js";
@@ -30,7 +29,5 @@ router.route("/verifyOTP").post(verifyOTP);
 router.route("/deleteUserProfile").delete(authMiddleware, deleteUserProfile);
 router.route("/getdata").get(authMiddleware, getdata);
 
-// dummy testing
-router.route("/fcm/uninstalled").post(uninstalled);
 
 export default router;

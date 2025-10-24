@@ -182,264 +182,264 @@ interface IUser extends Document {
 
 const userSchema = new Schema<IUser>({
   //  --------------------- Contact Information --------------------
-  contactInfo: {
-    firstName: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    middleName: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    lastName: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    email: {
-      type: String,
-      required: true,
-      trim: true,
-      unique: true,
-    },
-    phoneNo: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    currentAddress: {
-      type: String,
-      trim: true,
-      required: true,
-    },
-    isAgree: {
-      type: Boolean,
-      required: true,
-    },
-  },
-  //  --------------------- Personal Refrence Information --------------------
-  personalRefrenceInfo: {
-    weight: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    height: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    race: {
-      type: String,
-      enum: Object.values(RACE),
-      required: true,
-    },
-    gender: {
-      type: String,
-      enum: Object.values(GENDER),
-      required: true,
-    },
-    eyeColor: {
-      type: String,
-      enum: Object.values(EYE_COLOR),
-      required: true,
-    },
-    hairColor: {
-      type: String,
-      enum: Object.values(HAIR_COLOR),
-      required: true,
-    },
-    birthPlace: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    birthDate: {
-      type: Date,
-      required: true,
-    },
-    UScitizen: {
-      type: Boolean,
-      default: false,
-    },
-    nickname: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    maritalStatus: {
-      type: String,
-      enum: Object.values(MARITAL_STATUS),
-      required: true,
-    },
-    spouseName: {
-      type: String,
-      trim: true,
-    },
-    spouseOccupation: {
-      type: String,
-      trim: true,
-    },
-    spouseEmployer: {
-      type: String,
-      trim: true,
-    }, // The name of the company where your husband or wife works.
-    childName_1: {
-      type: String,
-      trim: true,
-    },
-    childAge_1: {
-      type: String,
-      trim: true,
-    },
-    childSchool_1: {
-      type: String,
-      trim: true,
-    },
-    childName_2: {
-      type: String,
-      trim: true,
-    },
-    childAge_2: {
-      type: String,
-      trim: true,
-    },
-    childSchool_2: {
-      type: String,
-      trim: true,
-    },
-    childName_3: {
-      type: String,
-      trim: true,
-    },
-    childAge_3: {
-      type: String,
-      trim: true,
-    },
-    childSchool_3: {
-      type: String,
-      trim: true,
-    },
-    childName_4: {
-      type: String,
-      trim: true,
-    },
-    childAge_4: {
-      type: String,
-      trim: true,
-    },
-    childSchool_4: {
-      type: String,
-      trim: true,
-    },
-    isResponsible: {
-      type: Boolean,
-      default: false,
-    }, // Responsible for anyone else support
-    dependents: {
-      type: String,
-      trim: true,
-    }, // only filled if isResponsible is true
-  },
-  //  --------------------- Legal Information --------------------
-  legalInfo: {
-    attorneyName: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    attorneyAddress: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    attorneyPhoneNo: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-  },
-  //  --------------------- Driver Lic. Information --------------------
-  driversLicInfo: {
-    socialSecurityNumber: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    state: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    drivingLicenseNo: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    havingYourOwnAutomobile: {
-      type: Boolean,
-      default: false,
-    }, //  if yes then fill further info
-    automobileColor: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    automobileMake: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    automobileNumberPlate: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    automobileModel: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-  },
-  //  --------------------- Employement Information --------------------
-  employementInfo: {
-    employementStatus: {
-      type: Boolean,
-      default: false,
-    }, // if yes then fill further info
-    employerName: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    employerSupervisorName: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    employerAddress: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    employerWorkingPeriod: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    automobileColor: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    previousEmployer: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-  },
+  // contactInfo: {
+  //   firstName: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   middleName: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   lastName: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   email: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //     unique: true,
+  //   },
+  //   phoneNo: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   currentAddress: {
+  //     type: String,
+  //     trim: true,
+  //     required: true,
+  //   },
+  //   isAgree: {
+  //     type: Boolean,
+  //     required: true,
+  //   },
+  // },
+  // //  --------------------- Personal Refrence Information --------------------
+  // personalRefrenceInfo: {
+  //   weight: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   height: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   race: {
+  //     type: String,
+  //     enum: Object.values(RACE),
+  //     required: true,
+  //   },
+  //   gender: {
+  //     type: String,
+  //     enum: Object.values(GENDER),
+  //     required: true,
+  //   },
+  //   eyeColor: {
+  //     type: String,
+  //     enum: Object.values(EYE_COLOR),
+  //     required: true,
+  //   },
+  //   hairColor: {
+  //     type: String,
+  //     enum: Object.values(HAIR_COLOR),
+  //     required: true,
+  //   },
+  //   birthPlace: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   birthDate: {
+  //     type: Date,
+  //     required: true,
+  //   },
+  //   UScitizen: {
+  //     type: Boolean,
+  //     default: false,
+  //   },
+  //   nickname: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   maritalStatus: {
+  //     type: String,
+  //     enum: Object.values(MARITAL_STATUS),
+  //     required: true,
+  //   },
+  //   spouseName: {
+  //     type: String,
+  //     trim: true,
+  //   },
+  //   spouseOccupation: {
+  //     type: String,
+  //     trim: true,
+  //   },
+  //   spouseEmployer: {
+  //     type: String,
+  //     trim: true,
+  //   }, // The name of the company where your husband or wife works.
+  //   childName_1: {
+  //     type: String,
+  //     trim: true,
+  //   },
+  //   childAge_1: {
+  //     type: String,
+  //     trim: true,
+  //   },
+  //   childSchool_1: {
+  //     type: String,
+  //     trim: true,
+  //   },
+  //   childName_2: {
+  //     type: String,
+  //     trim: true,
+  //   },
+  //   childAge_2: {
+  //     type: String,
+  //     trim: true,
+  //   },
+  //   childSchool_2: {
+  //     type: String,
+  //     trim: true,
+  //   },
+  //   childName_3: {
+  //     type: String,
+  //     trim: true,
+  //   },
+  //   childAge_3: {
+  //     type: String,
+  //     trim: true,
+  //   },
+  //   childSchool_3: {
+  //     type: String,
+  //     trim: true,
+  //   },
+  //   childName_4: {
+  //     type: String,
+  //     trim: true,
+  //   },
+  //   childAge_4: {
+  //     type: String,
+  //     trim: true,
+  //   },
+  //   childSchool_4: {
+  //     type: String,
+  //     trim: true,
+  //   },
+  //   isResponsible: {
+  //     type: Boolean,
+  //     default: false,
+  //   }, // Responsible for anyone else support
+  //   dependents: {
+  //     type: String,
+  //     trim: true,
+  //   }, // only filled if isResponsible is true
+  // },
+  // //  --------------------- Legal Information --------------------
+  // legalInfo: {
+  //   attorneyName: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   attorneyAddress: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   attorneyPhoneNo: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  // },
+  // //  --------------------- Driver Lic. Information --------------------
+  // driversLicInfo: {
+  //   socialSecurityNumber: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   state: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   drivingLicenseNo: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   havingYourOwnAutomobile: {
+  //     type: Boolean,
+  //     default: false,
+  //   }, //  if yes then fill further info
+  //   automobileColor: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   automobileMake: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   automobileNumberPlate: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   automobileModel: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  // },
+  // //  --------------------- Employement Information --------------------
+  // employementInfo: {
+  //   employementStatus: {
+  //     type: Boolean,
+  //     default: false,
+  //   }, // if yes then fill further info
+  //   employerName: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   employerSupervisorName: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   employerAddress: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   employerWorkingPeriod: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   automobileColor: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  //   previousEmployer: {
+  //     type: String,
+  //     required: true,
+  //     trim: true,
+  //   },
+  // },
   //  --------------------- Sign Up Information --------------------
   signUp: {
     firstName: {

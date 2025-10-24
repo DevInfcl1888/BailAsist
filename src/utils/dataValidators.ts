@@ -9,8 +9,8 @@ export const isValidPassword = (password: string): boolean => {
   return passwordRegex.test(password);
 };
 
-export const isValidTag = (tags: string[]): boolean => {
-  const tagsRegex = /^#[A-Za-z0-9_]+$/;
-  // Check each tag in array
-  return Array.isArray(tags) && tags.every(tag => tagsRegex.test(tag));
-};
+// export const isValidTag = (tags: string[]): boolean => {
+//   const tagsRegex = /^#[A-Za-z0-9_]+$/;
+//   // Check each tag in array
+//   return Array.isArray(tags) && tags.every(tag => tagsRegex.test(tag));
+// };

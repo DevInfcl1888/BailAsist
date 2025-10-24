@@ -35,7 +35,6 @@ const startServer = async () => {
       console.log(`Error: ${err}`);
       process.exit(1);
     });
-    // res.end("Server started")
 };
 
 // sever start
