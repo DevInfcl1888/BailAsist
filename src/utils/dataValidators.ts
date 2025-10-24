@@ -9,6 +9,11 @@ export const isValidPassword = (password: string): boolean => {
   return passwordRegex.test(password);
 };
 
+export const isValidPhone = (phone: string): boolean => {
+  const phoneRegex = /^\d{10}$/;
+  return phoneRegex.test(phone);
+};
+
 // export const isValidTag = (tags: string[]): boolean => {
 //   const tagsRegex = /^#[A-Za-z0-9_]+$/;
 //   // Check each tag in array

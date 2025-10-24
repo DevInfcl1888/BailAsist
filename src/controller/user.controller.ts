@@ -1,10 +1,13 @@
 import express, { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { isValidEmail, isValidPassword } from "../utils/dataValidators.js";
+import {
+  isValidEmail,
+  isValidPassword,
+  isValidPhone,
+} from "../utils/dataValidators.js";
 import { User } from "../models/user.model.js";
 import { generateOTP, sendOTPfun, otpStore } from "../utils/OTPsender.js";
 import bcrypt from "bcryptjs";
-import { ResidenceType } from "../models/user.model.js";
 
 const registration = asyncHandler(async (req: Request, res: Response) => {
   const {
@@ -54,7 +57,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
       message:
         "Password must contain at least 1 uppercase, lowercase, number, and special character, and password should be upto 8 characters long",
     });
-  if (phoneNo.length !== 10 || !/^\d{10}$/.test(phoneNo)) {
+  if (phoneNo.length !== 10 || !isValidPhone(phoneNo)) {
     return res.status(404).json({ message: "Invalid phone no." });
   }
   if (homeAddress.length < 10 || homeAddress.length > 100)
@@ -105,32 +108,23 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const login = asyncHandler(async (req: Request, res: Response) => {
-  const { email, phoneNo, password, rememberMe } = req.body as {
+  const { email, password, rememberMe } = req.body as {
     email: string;
-    phoneNo: string;
     password: string;
     rememberMe: boolean;
   };
   // Data validation
-  if (!email && !phoneNo)
-    return res.status(401).json({ message: "Email or PhoneNo are missing" });
-  if ((!email && !phoneNo) || !password)
+  if (!email || !password)
     return res.status(401).json({ message: "Credentials are missing" });
-  if (phoneNo) {
-    if (phoneNo.length !== 10 || !/^\d{10}$/.test(phoneNo))
-      return res.status(404).json({ message: "Invalid phone no." });
-  }
-  if (email) {
-    if (!isValidEmail(email))
-      return res.status(404).json({ message: "Invalid email" });
-  }
+
+  if (!isValidEmail(email))
+    return res.status(404).json({ message: "Invalid email" });
+
   if (!isValidPassword(password))
     return res.status(401).json({ message: "Invalid password" });
 
   // check user existence
-  const user = await User.findOne({
-    $or: [{ "signUp.email": email }, { "signUp.phoneNo": phoneNo }],
-  });
+  const user = await User.findOne({ "signUp.email": email });
   console.log(user);
 
   if (!user)
@@ -247,7 +241,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     phoneNo,
     homeAddress,
     street,
-    ZipCode
+    ZipCode,
   } = req.body as {
     firstName: string;
     middleName: string;
@@ -267,7 +261,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     !phoneNo?.trim() ||
     !homeAddress?.trim() ||
     !street?.trim() ||
-    !ZipCode?.trim() 
+    !ZipCode?.trim()
   ) {
     return res.status(400).json({ msg: "All credentials are required" });
   }
@@ -313,7 +307,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
         "signUp.phoneNo": data.phoneNo,
         "signUp.homeAddress": data.homeAddress,
         "signUp.street": data.street,
-        "signUp.ZipCode": data.ZipCode
+        "signUp.ZipCode": data.ZipCode,
       },
     },
     {

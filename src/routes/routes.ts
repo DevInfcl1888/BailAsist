@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { authMiddleware } from "../middlewares/auth.middlewares.js";
+import { otpLimiter } from "../utils/rateLimiter.js";
 import {
   registration,
   login,
@@ -10,13 +12,17 @@ import {
   deleteUserProfile,
   verifyOTP,
   getdata,
-  resetPassword
+  resetPassword,
 } from "../controller/user.controller.js";
-import { authMiddleware } from "../middlewares/auth.middlewares.js";
-import { otpLimiter } from "../utils/rateLimiter.js";
+
+import {
+  getUserAgencyInfo,
+  checkIn,
+} from "../controller/homeScreen.controller.js";
 
 const router = Router();
 
+// User Routes
 router.route("/regitration").post(registration);
 router.route("/login").post(login);
 router.route("/logout").post(logout);
@@ -30,4 +36,11 @@ router.route("/deleteUserProfile").delete(authMiddleware, deleteUserProfile);
 router.route("/getdata").get(authMiddleware, getdata);
 
 
+// Home Screen Routes
+router
+  .route("/agency/:userId")
+  .get(authMiddleware, getUserAgencyInfo); // Get Agency Info
+router
+  .route("/checkin/:userId")
+  .post(authMiddleware, checkIn); // Check In
 export default router;

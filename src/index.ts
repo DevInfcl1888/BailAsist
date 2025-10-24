@@ -21,7 +21,7 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 // Routes
-app.use("/api/user", router);
+app.use("/api/v1", router);
 
 // DB Connect
 const startServer = async () => {
