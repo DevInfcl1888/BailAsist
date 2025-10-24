@@ -14,14 +14,9 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     email,
     password,
     phoneNo,
-    yearsAtCurrentAddress, // how many years you spent in your current address (in Yr)
-    residenceType, // Own, Rent
-    landlordName,
-    landlordAddress,
     homeAddress,
-    placeholderForZipCode_1,
-    currentAddress,
-    placeholderForZipCode_2,
+    street,
+    ZipCode,
     isAgreed,
   } = req.body as {
     firstName: string;
@@ -30,24 +25,12 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     email: string;
     password: string;
     phoneNo: string;
-    yearsAtCurrentAddress: string; // how many years you spent in your current address (in Yr)
-    residenceType: ResidenceType; // Own, Rent
-    landlordName: string;
-    landlordAddress: string;
     homeAddress: string;
-    placeholderForZipCode_1: string;
-    currentAddress: string;
-    placeholderForZipCode_2: string;
+    street: string;
+    ZipCode: string;
     isAgreed: boolean;
   };
   // Data validation
-  if (!residenceType || !Object.values(ResidenceType).includes(residenceType)) {
-    return res.status(400).json({
-      msg: `Invalid residenceType. Must be one of: ${Object.values(
-        ResidenceType
-      ).join(", ")}.`,
-    });
-  }
   if (
     !firstName?.trim() ||
     !middleName?.trim() ||
@@ -55,40 +38,31 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     !email?.trim() ||
     !password?.trim() ||
     !phoneNo?.trim() ||
-    !yearsAtCurrentAddress?.trim() ||
-    !landlordName?.trim() ||
-    !landlordAddress?.trim() ||
     !homeAddress?.trim() ||
-    !placeholderForZipCode_1?.trim() ||
-    !currentAddress?.trim() ||
-    !placeholderForZipCode_2?.trim() ||
+    !street?.trim() ||
+    !ZipCode?.trim() ||
     isAgreed === false
   ) {
     return res.status(400).json({ msg: "All credentials are required" });
-  }
-  if (!isValidPassword(password))
-    return res.status(401).json({
-      message:
-        "Password must contain at least 1 uppercase, lowercase, number, and special character, and password should be upto 6 characters long",
-    });
-  if (phoneNo.length !== 10 || !/^\d{10}$/.test(phoneNo)) {
-    return res.status(404).json({ message: "Invalid phone no." });
   }
   if (!isValidEmail(email)) {
     console.log("k", isValidEmail(email));
     return res.status(404).json({ message: "Invalid email" });
   }
-  if (landlordAddress === landlordName)
-    return res
-      .status(400)
-      .json({ message: "Landlord address and name shouldn't be same" });
-  if (yearsAtCurrentAddress.length > 3)
-    return res.status(400).json({ Message: "Put number of years only." });
-  if (
-    placeholderForZipCode_1.length > 11 ||
-    placeholderForZipCode_2.length > 11
-  )
-    return res.status(400).json({ Message: "ZIP code is too long" });
+  if (!isValidPassword(password))
+    return res.status(401).json({
+      message:
+        "Password must contain at least 1 uppercase, lowercase, number, and special character, and password should be upto 8 characters long",
+    });
+  if (phoneNo.length !== 10 || !/^\d{10}$/.test(phoneNo)) {
+    return res.status(404).json({ message: "Invalid phone no." });
+  }
+  if (homeAddress.length < 10 || homeAddress.length > 100)
+    return res.status(400).json({
+      Message: "Home address must be between 10 and 100 characters long.",
+    });
+  if (street.length > 100 || ZipCode.length > 11)
+    return res.status(400).json({ Message: "Street or ZIP code is too long" });
 
   const checkUserExistence = await User.findOne({
     "signUp.email": email,
@@ -106,16 +80,9 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
       email,
       password,
       phoneNo,
-      residenceInfo: {
-        yearsAtCurrentAddress: `${yearsAtCurrentAddress} Yr`,
-        residenceType: residenceType, // Own, Rent
-        landlordName: landlordName,
-        landlordAddress: landlordAddress,
-      },
       homeAddress,
-      placeholderForZipCode_1,
-      currentAddress,
-      placeholderForZipCode_2,
+      street,
+      ZipCode,
       isAgreed,
     },
   });
@@ -123,7 +90,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
   // check user existence
   const isUserRegisteredSuccessFully = await User.findById(
     createdUser?._id
-  ).select("-signUp.password -refreshToken");
+  ).select("-signUp.password -signUp.refreshToken");
   console.log("isUserRegisteredSuccessFully", isUserRegisteredSuccessFully);
 
   if (!isUserRegisteredSuccessFully)
@@ -278,36 +245,19 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     phoneNo,
-    yearsAtCurrentAddress, // how many years you spent in your current address (in Yr)
-    residenceType, // Own, Rent
-    landlordName,
-    landlordAddress,
     homeAddress,
-    placeholderForZipCode_1,
-    currentAddress,
-    placeholderForZipCode_2,
+    street,
+    ZipCode
   } = req.body as {
     firstName: string;
     middleName: string;
     lastName: string;
     email: string;
     phoneNo: string;
-    yearsAtCurrentAddress: string; // how many years you spent in your current address (in Yr)
-    residenceType: ResidenceType; // Own, Rent
-    landlordName: string;
-    landlordAddress: string;
     homeAddress: string;
-    placeholderForZipCode_1: string;
-    currentAddress: string;
-    placeholderForZipCode_2: string;
+    street: string;
+    ZipCode: string;
   };
-  if (!residenceType || !Object.values(ResidenceType).includes(residenceType)) {
-    return res.status(400).json({
-      msg: `Invalid residenceType. Must be one of: ${Object.values(
-        ResidenceType
-      ).join(" or ")}.`,
-    });
-  }
   // Data validation
   if (
     !firstName?.trim() ||
@@ -315,33 +265,26 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     !lastName?.trim() ||
     !email?.trim() ||
     !phoneNo?.trim() ||
-    !yearsAtCurrentAddress?.trim() ||
-    !landlordName?.trim() ||
-    !landlordAddress?.trim() ||
     !homeAddress?.trim() ||
-    !placeholderForZipCode_1?.trim() ||
-    !currentAddress?.trim() ||
-    !placeholderForZipCode_2?.trim()
+    !street?.trim() ||
+    !ZipCode?.trim() 
   ) {
     return res.status(400).json({ msg: "All credentials are required" });
+  }
+  if (!isValidEmail(email)) {
+    console.log("k", isValidEmail(email));
+    return res.status(404).json({ message: "Invalid email" });
   }
   if (phoneNo.length !== 10 || !/^\d{10}$/.test(phoneNo)) {
     return res.status(404).json({ message: "Invalid phone no." });
   }
-  if (!isValidEmail(email)) {
-    return res.status(404).json({ message: "Invalid email" });
-  }
-  if (landlordAddress === landlordName)
-    return res
-      .status(400)
-      .json({ message: "Landlord address and name shouldn't be same" });
-  if (yearsAtCurrentAddress.length > 3)
-    return res.status(400).json({ Message: "Put number of years only." });
-  if (
-    placeholderForZipCode_1.length > 11 ||
-    placeholderForZipCode_2.length > 11
-  )
-    return res.status(400).json({ Message: "ZIP code is too long" });
+  if (homeAddress.length < 10 || homeAddress.length > 100)
+    return res.status(400).json({
+      Message: "Home address must be between 10 and 100 characters long.",
+    });
+  if (street.length > 100 || ZipCode.length > 11)
+    return res.status(400).json({ Message: "Street or ZIP code is too long" });
+
   const user = await User.findById(req.user?._id);
   if (!user)
     return res
@@ -354,14 +297,9 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     phoneNo,
-    yearsAtCurrentAddress, // how many years you spent in your current address (in Yr)
-    residenceType, // Own, Rent
-    landlordName,
-    landlordAddress,
     homeAddress,
-    placeholderForZipCode_1,
-    currentAddress,
-    placeholderForZipCode_2,
+    street,
+    ZipCode,
   };
 
   const updatedUser = await User.findByIdAndUpdate(
@@ -373,14 +311,9 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
         "signUp.lastName": data.lastName,
         "signUp.email": data.email,
         "signUp.phoneNo": data.phoneNo,
-        "signUp.residenceInfo.yearsAtCurrentAddress": `${data.yearsAtCurrentAddress} Yr`,
-        "signUp.residenceInfo.residenceType": data.residenceType, // ["own", "rent"]
-        "signUp.residenceInfo.landlordName": data.landlordName,
-        "signUp.residenceInfo.landlordAddress": data.landlordAddress,
         "signUp.homeAddress": data.homeAddress,
-        "signUp.placeholderForZipCode_1": data.placeholderForZipCode_1,
-        "signUp.currentAddress": data.currentAddress,
-        "signUp.placeholderForZipCode_2": data.placeholderForZipCode_2,
+        "signUp.street": data.street,
+        "signUp.ZipCode": data.ZipCode
       },
     },
     {
@@ -388,7 +321,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     }
   ).select("-signUp.password -signUp.refreshToken -signUp.isAgreed");
 
-  // console.log("updatedUser", updatedUser);
+  console.log("updatedUser", updatedUser);
 
   if (!updatedUser)
     return res.status(401).json({

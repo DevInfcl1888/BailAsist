@@ -147,11 +147,9 @@ interface signUp {
   email: string;
   password: string;
   phoneNo: string;
-  residenceInfo: residenceInfo;
   homeAddress: string;
-  placeholderForZipCode_1: string;
-  currentAddress: string;
-  placeholderForZipCode_2: string;
+  street: string;
+  ZipCode: string;
   refreshToken: string;
   isAgree: boolean;
 }
@@ -166,7 +164,7 @@ interface login {
 //  --------------------- Combine --------------------
 interface IUser extends Document {
   contactInfo: contactInfo;
-  // residenceInfo: residenceInfo;
+  residenceInfo: residenceInfo;
   personalRefrenceInfo: personalRefrenceInfo;
   personalInfo: personalInfo;
   legalInfo: legalInfo;
@@ -218,6 +216,17 @@ const userSchema = new Schema<IUser>({
   //     type: Boolean,
   //     required: true,
   //   },
+  // },
+  // //  --------------------- Residence Information --------------------
+  // residenceInfo: {
+  //   yearsAtCurrentAddress: { type: String, required: true },
+  //   residenceType: {
+  //     type: String,
+  //     enum: Object.values(ResidenceType), // return ["own", "rent"]
+  //     required: true,
+  //   },
+  //   landlordName: { type: String, required: true },
+  //   landlordAddress: { type: String, required: true },
   // },
   // //  --------------------- Personal Refrence Information --------------------
   // personalRefrenceInfo: {
@@ -471,36 +480,23 @@ const userSchema = new Schema<IUser>({
       required: true,
       trim: true,
     },
-    residenceInfo: {
-      yearsAtCurrentAddress: { type: String, required: true },
-      residenceType: {
-        type: String,
-        enum: Object.values(ResidenceType), // return ["own", "rent"]
-        required: true,
-      },
-      landlordName: { type: String, required: true },
-      landlordAddress: { type: String, required: true },
-    },
+
     homeAddress: {
       type: String,
       required: true,
       trim: true,
     },
-    placeholderForZipCode_1: {
+    street: {
       type: String,
       required: true,
       trim: true,
     },
-    currentAddress: {
+    ZipCode: {
       type: String,
       required: true,
       trim: true,
     },
-    placeholderForZipCode_2: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+
     isAgreed: {
       type: Boolean,
       required: true,
