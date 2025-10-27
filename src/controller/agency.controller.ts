@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import HomeScreenModel from "../models/homeScreen.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { isValidPhone } from "../utils/dataValidators.js";
+import { isValidData, isValidPhone } from "../utils/dataValidators.js";
 
-const { Agency, CheckIn, CourtDate } = HomeScreenModel
+const { Agency, CheckIn, Court } = HomeScreenModel;
 
 const createAgency = asyncHandler(async (req: Request, res: Response) => {
   const { agencyName, phoneNo, email, agentName, address } = req.body as {
@@ -25,6 +25,8 @@ const createAgency = asyncHandler(async (req: Request, res: Response) => {
     return res.status(400).json({ message: "Invalid phone number" });
   if (address.length < 10 || address.length > 100)
     return res.status(400).json({ message: "Invalid address" });
+  if (!isValidData(agentName))
+    return res.status(401).json({ Message: "Agent name seems invalid" });
 
   const isAgencyExist = await Agency.findOne({ email });
   if (!isAgencyExist)

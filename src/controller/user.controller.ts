@@ -239,7 +239,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     phoneNo,
-    homeAddress,
+    // homeAddress,
     street,
     ZipCode,
   } = req.body as {
@@ -248,7 +248,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     lastName: string;
     email: string;
     phoneNo: string;
-    homeAddress: string;
+    // homeAddress: string;
     street: string;
     ZipCode: string;
   };
@@ -259,7 +259,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     !lastName?.trim() ||
     !email?.trim() ||
     !phoneNo?.trim() ||
-    !homeAddress?.trim() ||
+    // !homeAddress?.trim() ||
     !street?.trim() ||
     !ZipCode?.trim()
   ) {
@@ -272,10 +272,10 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
   if (phoneNo.length !== 10 || !/^\d{10}$/.test(phoneNo)) {
     return res.status(404).json({ message: "Invalid phone no." });
   }
-  if (homeAddress.length < 10 || homeAddress.length > 100)
-    return res.status(400).json({
-      Message: "Home address must be between 10 and 100 characters long.",
-    });
+  // if (homeAddress.length < 10 || homeAddress.length > 100)
+  //   return res.status(400).json({
+  //     Message: "Home address must be between 10 and 100 characters long.",
+  //   });
   if (street.length > 100 || ZipCode.length > 11)
     return res.status(400).json({ Message: "Street or ZIP code is too long" });
 
@@ -291,7 +291,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     phoneNo,
-    homeAddress,
+    // homeAddress,
     street,
     ZipCode,
   };
@@ -305,7 +305,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
         "signUp.lastName": data.lastName,
         "signUp.email": data.email,
         "signUp.phoneNo": data.phoneNo,
-        "signUp.homeAddress": data.homeAddress,
+        // "signUp.homeAddress": data.homeAddress,
         "signUp.street": data.street,
         "signUp.ZipCode": data.ZipCode,
       },

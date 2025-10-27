@@ -152,6 +152,7 @@ interface signUp {
   street: string;
   ZipCode: string;
   refreshToken: string;
+  image: string;
   isAgree: boolean;
 }
 
@@ -511,6 +512,10 @@ const userSchema = new Schema<IUser>(
         type: String,
       },
       agency: { type: Schema.Types.ObjectId, ref: "Agency" },
+
+      image: {
+        type: String, // cloudinary url
+      },
     },
   },
   {
@@ -519,22 +524,27 @@ const userSchema = new Schema<IUser>(
 );
 userSchema.index({ "signUp.email": 1 }, { unique: true });
 
-const loggedInSchema = new Schema<login>({
-  //  --------------------- LogIn Information --------------------
-  email: {
-    type: String,
-    required: true,
-    trim: true,
+const loggedInSchema = new Schema<login>(
+  {
+    //  --------------------- LogIn Information --------------------
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    isRemember: {
+      type: Boolean,
+      default: false,
+    },
   },
-  password: {
-    type: String,
-    required: true,
-  },
-  isRemember: {
-    type: Boolean,
-    default: false,
-  },
-});
+  {
+    timestamps: true,
+  }
+);
 
 // This is middleware for encrypt password only when password is changed
 userSchema.pre("save", async function (next) {
