@@ -14,8 +14,7 @@ export const isValidPhone = (phone: string): boolean => {
   return phoneRegex.test(phone);
 };
 
-// export const isValidTag = (tags: string[]): boolean => {
-//   const tagsRegex = /^#[A-Za-z0-9_]+$/;
-//   // Check each tag in array
-//   return Array.isArray(tags) && tags.every(tag => tagsRegex.test(tag));
-// };
+export const isDateValid= (date: string): boolean => {
+  const dateRegex = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;  
+  return dateRegex.test(date);
+};

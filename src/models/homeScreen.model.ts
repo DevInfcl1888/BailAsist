@@ -14,10 +14,15 @@ export enum Status {
   Pending = "Pending",
 }
 interface ICheckIn extends Document {
-  userId: Schema.Types.ObjectId;
-  nextCheckInDate: Date;
-  lastCheckedInAt?: Date;
-  status: Status;
+  user: Schema.Types.ObjectId;
+  lastCheckedInAt: {
+    date: Date;
+    status: Status;
+  };
+  nextCheckInDate: {
+    date: Date;
+    status: Status;
+  };
 }
 
 interface ICourtDate extends Document {
@@ -44,29 +49,20 @@ const AgencySchema = new Schema<IAgency>({
 });
 
 const CheckInSchema = new Schema<ICheckIn>({
-  userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-  nextCheckInDate: { type: Date, required: true },
-  lastCheckedInAt: { type: Date },
-  status: {
-    type: String,
-    enum: Object.values(Status),
-    default: Status.Pending,
+  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  lastCheckedInAt: {
+    date: { type: Date, required: true },
+    status: { type: String, enum: Object.values(Status), default: Status.Done },
+  },
+  nextCheckInDate: {
+    date: { type: Date, required: true },
+    status: {
+      type: String,
+      enum: Object.values(Status),
+      default: Status.Pending,
+    },
   },
 });
-
-// CheckIn model method (Mongoose)
-CheckInSchema.methods.checkIn = async function (intervalDays: number = 7) {
-  const now = new Date();
-
-  this.lastCheckedInAt = now;
-  this.nextCheckInDate = new Date(
-    now.getTime() + intervalDays * 24 * 60 * 60 * 1000
-  );
-  this.Status;
-
-  await this.save();
-  return this;
-};
 
 const CourtDateSchema = new Schema<ICourtDate>({
   userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
