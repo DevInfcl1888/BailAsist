@@ -1,5 +1,5 @@
 import express, { Request, Response } from "express";
-import Routes from "./routes/routes.js";
+import router from "./routes/routes.js";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import cors from "cors";
@@ -11,13 +11,17 @@ const app = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: "16kb" }));
+app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
-// Routes
-app.use("/api/user", Routes);
 
+app.get("/", (req: Request, res: Response) => {
+  res.send("Server started and running successfully!");
+});
+
+// Routes
+app.use("/api/v1", router);
 
 // DB Connect
 const startServer = async () => {
