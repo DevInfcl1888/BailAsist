@@ -148,6 +148,7 @@ interface signUp {
   password: string;
   phoneNo: string;
   isActive: boolean;
+  deviceToken:string;
   homeAddress: string;
   street: string;
   ZipCode: string;
@@ -486,6 +487,9 @@ const userSchema = new Schema<IUser>(
       isActive: {
         type: Boolean,
         default: true,
+      },
+      deviceToken:{
+        type:String,
       },
       homeAddress: {
         type: String,

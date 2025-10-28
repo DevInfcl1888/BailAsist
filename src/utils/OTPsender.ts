@@ -2,7 +2,6 @@ import nodemailer from "nodemailer";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 dotenv.config();
-// import { redis } from "../index.js";
 
 export const otpStore = new Map<string, { hash: string; expiresAt: number }>();
 

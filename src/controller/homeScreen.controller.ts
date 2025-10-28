@@ -1,10 +1,3 @@
-// /api/agency/:userId
-// /api/checkin/:userId
-// /api/checkin
-// /api/court/:userId
-// /api/court
-// /api/dashboard/:userId
-
 import { Request, Response } from "express";
 import HomeScreenModel from "../models/homeScreen.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -87,6 +80,7 @@ const creatCheckIn = asyncHandler(async (req: Request, res: Response) => {
     },
   });
 });
+
 const getUserAgencyInfo = asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
   const isUserExist = await User.findById(userId).populate([
@@ -156,6 +150,10 @@ const getCheckInStatus = asyncHandler(async (req: Request, res: Response) => {
 // Check-In Here
 const checkIn = asyncHandler(async (req: Request, res: Response) => {
   const { checkIn_Id } = req.params;
+  const { message, location } = req.body as {
+    message?: string;
+    location: string;
+  };
   if (!checkIn_Id)
     return res.status(404).json({ Message: "Check-in Id not found" });
 
@@ -178,12 +176,20 @@ const checkIn = asyncHandler(async (req: Request, res: Response) => {
       nextCheckInDate,
     });
   }
-
+  if (!location)
+    return res.status(404).json({ Message: "Location is invalid or missing" });
+  const uploads = await uploadToCloudinary(req.file?.buffer!);
+  if (!uploads)
+    return res.status(401).json({ Message: "error during upload img" });
   const checkInRecord = await CheckIn.findByIdAndUpdate(
     checkIn_Id,
     {
       $set: {
         "lastCheckedInAt.status": Status.Done,
+        "checkInProof.photoUrl": uploads.secure_url,
+        "checkInProof.userId": req.user?._id,
+        "checkInProof.message": message || "",
+        "checkInProof.location": location,
       },
     },
     {
@@ -371,6 +377,7 @@ const updateAddressAndSendPictureAsProof = asyncHandler(
       .json({ Message: "Address submitted", isUserAddressUpdated });
   }
 );
+
 export {
   getUserAgencyInfo,
   creatCheckIn,
@@ -380,3 +387,5 @@ export {
   getCourtDetails,
   updateAddressAndSendPictureAsProof,
 };
+
+// country, phone no, Ai no, 

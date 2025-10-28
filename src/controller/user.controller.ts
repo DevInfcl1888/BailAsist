@@ -19,6 +19,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     phoneNo,
     homeAddress,
     street,
+    deviceToken,
     ZipCode,
     isAgreed,
   } = req.body as {
@@ -28,6 +29,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     email: string;
     password: string;
     phoneNo: string;
+    deviceToken?: string;
     homeAddress: string;
     street: string;
     ZipCode: string;
@@ -83,6 +85,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
       email,
       password,
       phoneNo,
+      deviceToken: deviceToken ? deviceToken : "",
       homeAddress,
       street,
       ZipCode,
@@ -108,9 +111,10 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const login = asyncHandler(async (req: Request, res: Response) => {
-  const { email, password, rememberMe } = req.body as {
+  const { email, password, rememberMe, deviceToken } = req.body as {
     email: string;
     password: string;
+    deviceToken?: string;
     rememberMe: boolean;
   };
   // Data validation
@@ -163,6 +167,9 @@ const login = asyncHandler(async (req: Request, res: Response) => {
       user: `${user.signUp?.firstName ?? ""} ${
         user.signUp?.lastName ?? ""
       }`.trim(),
+      accessToken: `${accessToken}`,
+      refreshToken: `${refreshToken}`,
+      deviceToken: deviceToken ? deviceToken : "",
       email: user.signUp?.email,
     });
 });
