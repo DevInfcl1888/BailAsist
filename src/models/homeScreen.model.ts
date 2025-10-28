@@ -23,8 +23,15 @@ interface ICheckIn extends Document {
     date: Date;
     status: Status;
   };
+  checkInProof: ICheckInProof;
 }
 
+interface ICheckInProof extends Document {
+  userId: Schema.Types.ObjectId;
+  photoUrl: string;
+  message: string;
+  location: string;
+}
 export enum courtTypes {
   HIGH_COURT = "High Court",
   DISTRICT_COURT = "District Court",
@@ -90,6 +97,24 @@ const CheckInSchema = new Schema<ICheckIn>(
         default: Status.Pending,
       },
     },
+    checkInProof: {
+      userId: { type: Schema.Types.ObjectId, required: true, ref: "User" },
+      photoUrl: { type: String, required: true }, // cloudinary img url
+      message: { type: String, trim: true },
+      location: { type: String, required: true },
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const CheckInProofSchema = new Schema<ICheckInProof>(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    photoUrl: { type: String, required: true },
+    message: { type: String },
+    location: { type: String, required: true },
   },
   {
     timestamps: true,
@@ -160,6 +185,7 @@ const CourtSchema = new Schema<ICourt>(
 
 const Agency = model("Agency", AgencySchema);
 const CheckIn = model("CheckIn", CheckInSchema);
+const CheckInProof = model("CheckInProof", CheckInProofSchema);
 const Court = model("Court", CourtSchema);
 
-export default { Agency, CheckIn, Court };
+export default { Agency, CheckIn, Court, CheckInProof };
