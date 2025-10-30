@@ -646,25 +646,6 @@ const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
 //   )
 //     return res.status(404).json({ Message: "Required field missing" });
 
-//   if (items) {
-//     // Step 2: Validate it's an array
-//     if (!Array.isArray(items)) {
-//       return res.status(400).json({ message: "Items must be an array" });
-//     }
-
-//     // Step 3: Validate each object
-//     for (const obj of items) {
-//       if (
-//         typeof obj.childName !== "string" ||
-//         typeof obj.childAge !== "string" ||
-//         typeof obj.childSchool !== "string"
-//       ) {
-//         return res.status(400).json({
-//           message: "Each item must have string type",
-//         });
-//       }
-//     }
-//   }
 //   if (!Object.values(RACE).includes(race)) {
 //     return res.status(400).json({
 //       success: false,
@@ -727,15 +708,31 @@ const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
 //     spouseName: spouseName ? spouseName : " ",
 //     spouseOccupation: spouseOccupation ? spouseOccupation : "",
 //     spouseEmployer: spouseEmployer ? spouseEmployer : " ",
-//     child: [],
 //     isResponsible, // Responsible for anyone else support
 //     dependents: content,
 //   });
-//   const isPersonalInfoCreate = await PersonalInfo.findById(
-//     personalInfoCreate?._id
-//   );
+
+//   console.log("personalInfoCreate",personalInfoCreate);
+
+//   const isPersonalInfoCreate = await PersonalInfo.findOne({
+//     _id: personalInfoCreate?._id,
+//   });
+// console.log("personalInfoCreate",isPersonalInfoCreate);
+
+//   if (isPersonalInfoCreate) {
+//     if (items) {
+//       console.log("...items",...items);
+//       console.log("items",items);
+      
+//       isPersonalInfoCreate.child?.push(...items);
+//       await isPersonalInfoCreate.save();
+//     }
+//   }
+
 //   if (!isPersonalInfoCreate)
 //     return res.status(500).json({ Message: "Internal server error" });
+
+
 //   return res.status(200).json({
 //     Message: "Data submitted",
 //     isPersonalInfoCreate,

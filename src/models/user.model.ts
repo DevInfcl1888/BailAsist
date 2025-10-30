@@ -283,7 +283,7 @@ const residenceInfoSchema = new Schema<residenceInfo>({
 //     trim: true,
 //   }, // only filled if isResponsible is true
 // });
-// const personalRefrenceInfoSchema = new Schema<personalRefrenceInfo>({});
+const personalRefrenceInfoSchema = new Schema<personalRefrenceInfo>({});
 
 const legalInfoSchema = new Schema<legalInfo>({
   //  --------------------- Legal Information --------------------
