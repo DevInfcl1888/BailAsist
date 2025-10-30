@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt, { SignOptions } from "jsonwebtoken";
 
 //  --------------------- Contact Information --------------------
-interface contactInfo {
+interface contactInfo extends Document {
   firstName: string;
   middleName: string;
   lastName: string;
@@ -16,7 +16,7 @@ export enum ResidenceType {
   OWN = "own",
   RENT = "rent",
 }
-interface residenceInfo {
+interface residenceInfo extends Document {
   yearsAtCurrentAddress: string;
   residenceType: ResidenceType;
   landlordName: string;
@@ -24,7 +24,7 @@ interface residenceInfo {
 }
 
 //  --------------------- Personal Refrence Information --------------------
-interface personalRefrenceInfo {
+interface personalRefrenceInfo extends Document {
   otherFamilyMemberName_1: string;
   otherFamilyMemberAddress_1: string;
   otherFamilyMemberPhoneNo_1: string;
@@ -40,18 +40,18 @@ interface personalRefrenceInfo {
 }
 
 //  --------------------- Personal Information --------------------
-enum RACE {
-  AMERICAN_INDIAN_OR_ALASKA_NATIVE_ASIAN = "American Indian or Alaska Native  Asian",
-  BLACK_OF_AFRICAN_AMERICAN_HISPANIC = "Black of African American  Hispanic",
-  NATIVE_HAWAIIAN_OR_PACIFIC_ISLANDER_WHITE = "Native Hawaiian or Pacific Islander  White",
+export enum RACE {
+  AMERICAN_INDIAN_OR_ALASKA_NATIVE_ASIAN = "American Indian or Alaska Native Asian",
+  BLACK_OF_AFRICAN_AMERICAN_HISPANIC = "Black of African American Hispanic",
+  NATIVE_HAWAIIAN_OR_PACIFIC_ISLANDER_WHITE = "Native Hawaiian or Pacific Islander White",
   OTHER = "Other",
   PREFER_NOT_TO_SAY = "Prefer not to say",
 }
-enum GENDER {
+export enum GENDER {
   MALE = "Male",
   FEMALE = "Female",
 }
-enum EYE_COLOR {
+export enum EYE_COLOR {
   AMBER = "Amber",
   BROWN = "Brown",
   BLUE = "Blue",
@@ -61,7 +61,7 @@ enum EYE_COLOR {
   BLACK = "Black",
   OTHER = "Other",
 }
-enum HAIR_COLOR {
+export enum HAIR_COLOR {
   AMBER = "Amber",
   BROWN = "Brown",
   BLUE = "Blue",
@@ -71,21 +71,21 @@ enum HAIR_COLOR {
   BLACK = "Black",
   OTHER = "Other",
 }
-enum MARITAL_STATUS {
+export enum MARITAL_STATUS {
   MARRIED = "Married",
   DIVORCED = "Divorced",
   SINGLE = "Single",
   WIDOWED = "Widowed",
   SEPRATED = "Seprated",
 }
-interface personalInfo {
+interface personalInfo extends Document {
   weight: string;
   height: string;
   race: RACE;
   gender: GENDER;
   eyeColor: EYE_COLOR;
   birthPlace: string;
-  birthDate: Date;
+  birthDate: string;
   hairColor: HAIR_COLOR;
   UScitizen: boolean;
   nickname: string;
@@ -93,31 +93,24 @@ interface personalInfo {
   spouseName?: string;
   spouseOccupation?: string;
   spouseEmployer?: string; // The name of the company where your husband or wife works.
-  childName_1?: string;
-  childAge_1?: string;
-  childSchool_1?: string;
-  childName_2?: string;
-  childAge_2?: string;
-  childSchool_2?: string;
-  childName_3?: string;
-  childAge_3?: string;
-  childSchool_3?: string;
-  childName_4?: string;
-  childAge_4?: string;
-  childSchool_4?: string;
+  child?: {
+    childName: string;
+    childAge: string;
+    childSchool: string;
+  }[];
   isResponsible: boolean; // Responsible for anyone else support
   dependents?: string; // only filled if isResponsible is true
 }
 
 //  --------------------- Legal Information --------------------
-interface legalInfo {
+interface legalInfo extends Document {
   attorneyName: string;
   attorneyAddress: string;
   attorneyPhoneNo: string;
 }
 
 //  --------------------- Driver Lic.  Information --------------------
-interface driversLicInfo {
+interface driversLicInfo extends Document {
   socialSecurityNumber: string;
   state: string;
   drivingLicenseNo: string;
@@ -129,7 +122,7 @@ interface driversLicInfo {
 }
 
 //  --------------------- Employement Information --------------------
-interface employementInfo {
+interface employementInfo extends Document {
   employementStatus: boolean; // if yes then fill further info
   employerName: string;
   employerSupervisorName: string;
@@ -140,7 +133,7 @@ interface employementInfo {
 }
 
 //  --------------------- Sign Up Information --------------------
-interface signUp {
+interface signUp extends Document {
   firstName: string;
   middleName: string;
   lastName: string;
@@ -148,385 +141,322 @@ interface signUp {
   password: string;
   phoneNo: string;
   isActive: boolean;
-  deviceToken:string;
+  deviceToken: string;
   homeAddress: string;
   street: string;
   ZipCode: string;
   refreshToken: string;
   image: string;
-  isAgree: boolean;
-}
-
-//  --------------------- Login Information --------------------
-interface login {
-  email: string;
-  password: string;
-  isRemember?: boolean;
-}
-
-//  --------------------- Combine --------------------
-interface IUser extends Document {
-  contactInfo: contactInfo;
-  residenceInfo: residenceInfo;
-  personalRefrenceInfo: personalRefrenceInfo;
-  personalInfo: personalInfo;
-  legalInfo: legalInfo;
-  driversLicInfo: driversLicInfo;
-  employementInfo: employementInfo;
-  signUp: signUp;
-
-  // functions injected in schema
+  isAgreed: boolean;
+  agency: Schema.Types.ObjectId;
   isCorrectPassword(password: string): Promise<boolean>;
   generateAccessToken(): string;
   generateRefreshToken(): string;
 }
 
-const userSchema = new Schema<IUser>(
+//  --------------------- Login Information --------------------
+interface login extends Document {
+  email: string;
+  password: string;
+  isRemember?: boolean;
+}
+
+const contactInfoSchema = new Schema<contactInfo>({
+  //  --------------------- Contact Information --------------------
+  firstName: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  middleName: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  lastName: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  email: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  phoneNo: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+});
+const residenceInfoSchema = new Schema<residenceInfo>({
+  //  --------------------- Residence Information --------------------
+  yearsAtCurrentAddress: { type: String, required: true },
+  residenceType: {
+    type: String,
+    enum: Object.values(ResidenceType), // return ["own", "rent"]
+    required: true,
+  },
+  landlordName: { type: String, required: true },
+  landlordAddress: { type: String, required: true },
+});
+// const personalInfoSchema = new Schema<personalInfo>({
+//   //  --------------------- Personal Refrence Information --------------------
+//   weight: {
+//     type: String,
+//     required: true,
+//     trim: true,
+//   },
+//   height: {
+//     type: String,
+//     required: true,
+//     trim: true,
+//   },
+//   race: {
+//     type: String,
+//     enum: Object.values(RACE),
+//     required: true,
+//   },
+//   gender: {
+//     type: String,
+//     enum: Object.values(GENDER),
+//     required: true,
+//   },
+//   eyeColor: {
+//     type: String,
+//     enum: Object.values(EYE_COLOR),
+//     required: true,
+//   },
+//   hairColor: {
+//     type: String,
+//     enum: Object.values(HAIR_COLOR),
+//     required: true,
+//   },
+//   birthPlace: {
+//     type: String,
+//     required: true,
+//     trim: true,
+//   },
+//   birthDate: {
+//     type: String,
+//     required: true,
+//   },
+//   UScitizen: {
+//     type: Boolean,
+//     default: false,
+//   },
+//   nickname: {
+//     type: String,
+//     required: true,
+//     trim: true,
+//   },
+//   maritalStatus: {
+//     type: String,
+//     enum: Object.values(MARITAL_STATUS),
+//     required: true,
+//   },
+//   spouseName: {
+//     type: String,
+//     trim: true,
+//   },  
+//   spouseOccupation: {
+//     type: String,
+//     trim: true,
+//   },
+//   spouseEmployer: {
+//     type: String,
+//     trim: true,
+//   }, // The name of the company where your husband or wife works.
+//   child: [
+//     {
+//       childName: { type: String },
+//       childAge: { type: String },
+//       childSchool: { type: String },
+//     },
+//   ],
+//   isResponsible: {
+//     type: Boolean,
+//     default: false,
+//   }, // Responsible for anyone else support
+//   dependents: {
+//     type: String,
+//     trim: true,
+//   }, // only filled if isResponsible is true
+// });
+// const personalRefrenceInfoSchema = new Schema<personalRefrenceInfo>({});
+
+const legalInfoSchema = new Schema<legalInfo>({
+  //  --------------------- Legal Information --------------------
+  attorneyName: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  attorneyAddress: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  attorneyPhoneNo: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+});
+const driversLicInfoSchema = new Schema<driversLicInfo>({
+  //  --------------------- Driver Lic. Information --------------------
+  socialSecurityNumber: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  state: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  drivingLicenseNo: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  havingYourOwnAutomobile: {
+    type: Boolean,
+    default: false,
+  }, //  if yes then fill further info
+  automobileColor: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  automobileMake: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  automobileNumberPlate: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  automobileModel: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+});
+const employementInfoSchema = new Schema<employementInfo>({
+  //  --------------------- Employement Information --------------------
+
+  employementStatus: {
+    type: Boolean,
+    default: false,
+  }, // if yes then fill further info
+  employerName: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  employerSupervisorName: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  employerAddress: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  employerWorkingPeriod: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  automobileColor: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  previousEmployer: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+});
+const userSchema = new Schema<signUp>(
   {
-    //  --------------------- Contact Information --------------------
-    // contactInfo: {
-    //   firstName: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   middleName: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   lastName: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   email: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //     unique: true,
-    //   },
-    //   phoneNo: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   currentAddress: {
-    //     type: String,
-    //     trim: true,
-    //     required: true,
-    //   },
-    //   isAgree: {
-    //     type: Boolean,
-    //     required: true,
-    //   },
-    // },
-    // //  --------------------- Residence Information --------------------
-    // residenceInfo: {
-    //   yearsAtCurrentAddress: { type: String, required: true },
-    //   residenceType: {
-    //     type: String,
-    //     enum: Object.values(ResidenceType), // return ["own", "rent"]
-    //     required: true,
-    //   },
-    //   landlordName: { type: String, required: true },
-    //   landlordAddress: { type: String, required: true },
-    // },
-    // //  --------------------- Personal Refrence Information --------------------
-    // personalRefrenceInfo: {
-    //   weight: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   height: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   race: {
-    //     type: String,
-    //     enum: Object.values(RACE),
-    //     required: true,
-    //   },
-    //   gender: {
-    //     type: String,
-    //     enum: Object.values(GENDER),
-    //     required: true,
-    //   },
-    //   eyeColor: {
-    //     type: String,
-    //     enum: Object.values(EYE_COLOR),
-    //     required: true,
-    //   },
-    //   hairColor: {
-    //     type: String,
-    //     enum: Object.values(HAIR_COLOR),
-    //     required: true,
-    //   },
-    //   birthPlace: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   birthDate: {
-    //     type: Date,
-    //     required: true,
-    //   },
-    //   UScitizen: {
-    //     type: Boolean,
-    //     default: false,
-    //   },
-    //   nickname: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   maritalStatus: {
-    //     type: String,
-    //     enum: Object.values(MARITAL_STATUS),
-    //     required: true,
-    //   },
-    //   spouseName: {
-    //     type: String,
-    //     trim: true,
-    //   },
-    //   spouseOccupation: {
-    //     type: String,
-    //     trim: true,
-    //   },
-    //   spouseEmployer: {
-    //     type: String,
-    //     trim: true,
-    //   }, // The name of the company where your husband or wife works.
-    //   childName_1: {
-    //     type: String,
-    //     trim: true,
-    //   },
-    //   childAge_1: {
-    //     type: String,
-    //     trim: true,
-    //   },
-    //   childSchool_1: {
-    //     type: String,
-    //     trim: true,
-    //   },
-    //   childName_2: {
-    //     type: String,
-    //     trim: true,
-    //   },
-    //   childAge_2: {
-    //     type: String,
-    //     trim: true,
-    //   },
-    //   childSchool_2: {
-    //     type: String,
-    //     trim: true,
-    //   },
-    //   childName_3: {
-    //     type: String,
-    //     trim: true,
-    //   },
-    //   childAge_3: {
-    //     type: String,
-    //     trim: true,
-    //   },
-    //   childSchool_3: {
-    //     type: String,
-    //     trim: true,
-    //   },
-    //   childName_4: {
-    //     type: String,
-    //     trim: true,
-    //   },
-    //   childAge_4: {
-    //     type: String,
-    //     trim: true,
-    //   },
-    //   childSchool_4: {
-    //     type: String,
-    //     trim: true,
-    //   },
-    //   isResponsible: {
-    //     type: Boolean,
-    //     default: false,
-    //   }, // Responsible for anyone else support
-    //   dependents: {
-    //     type: String,
-    //     trim: true,
-    //   }, // only filled if isResponsible is true
-    // },
-    // //  --------------------- Legal Information --------------------
-    // legalInfo: {
-    //   attorneyName: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   attorneyAddress: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   attorneyPhoneNo: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    // },
-    // //  --------------------- Driver Lic. Information --------------------
-    // driversLicInfo: {
-    //   socialSecurityNumber: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   state: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   drivingLicenseNo: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   havingYourOwnAutomobile: {
-    //     type: Boolean,
-    //     default: false,
-    //   }, //  if yes then fill further info
-    //   automobileColor: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   automobileMake: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   automobileNumberPlate: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   automobileModel: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    // },
-    // //  --------------------- Employement Information --------------------
-    // employementInfo: {
-    //   employementStatus: {
-    //     type: Boolean,
-    //     default: false,
-    //   }, // if yes then fill further info
-    //   employerName: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   employerSupervisorName: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   employerAddress: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   employerWorkingPeriod: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   automobileColor: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    //   previousEmployer: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-    // },
     //  --------------------- Sign Up Information --------------------
-    signUp: {
-      firstName: {
-        type: String,
-        required: true,
-        trim: true,
-      },
-      middleName: {
-        type: String,
-        required: true,
-        trim: true,
-      },
-      lastName: {
-        type: String,
-        required: true,
-        trim: true,
-      },
-      email: {
-        type: String,
-        required: true,
-        trim: true,
-      },
-      password: {
-        type: String,
-        required: true,
-      },
-      phoneNo: {
-        type: String,
-        required: true,
-        trim: true,
-      },
-      isActive: {
-        type: Boolean,
-        default: true,
-      },
-      deviceToken:{
-        type:String,
-      },
-      homeAddress: {
-        type: String,
-        required: true,
-        trim: true,
-      },
-      street: {
-        type: String,
-        required: true,
-        trim: true,
-      },
-      ZipCode: {
-        type: String,
-        required: true,
-        trim: true,
-      },
 
-      isAgreed: {
-        type: Boolean,
-        required: true,
-        immutable: true,
-      },
-      refreshToken: {
-        type: String,
-      },
-      agency: { type: Schema.Types.ObjectId, ref: "Agency" },
+    firstName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    middleName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    lastName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    phoneNo: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    deviceToken: {
+      type: String,
+    },
+    homeAddress: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    street: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    ZipCode: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    isAgreed: {
+      type: Boolean,
+      required: true,
+      immutable: true,
+    },
+    refreshToken: {
+      type: String,
+    },
+    agency: { type: Schema.Types.ObjectId, ref: "Agency" },
 
-      image: {
-        type: String, // cloudinary url
-      },
+    image: {
+      type: String, // cloudinary url
     },
   },
   {
     timestamps: true,
   }
 );
-userSchema.index({ "signUp.email": 1 }, { unique: true });
+userSchema.index({ email: 1 }, { unique: true });
 
 const loggedInSchema = new Schema<login>(
   {
@@ -552,15 +482,15 @@ const loggedInSchema = new Schema<login>(
 
 // This is middleware for encrypt password only when password is changed
 userSchema.pre("save", async function (next) {
-  if (this.isModified("signUp.password")) {
-    this.signUp.password = await bcrypt.hash(this.signUp.password, 10);
+  if (this.isModified("password")) {
+    this.password = await bcrypt.hash(this.password, 10);
     next();
   }
 });
 
 // This function use for check password is correct or not
 userSchema.methods.isCorrectPassword = async function (password: string) {
-  return await bcrypt.compare(password, this.signUp.password);
+  return await bcrypt.compare(password, this.password);
 };
 
 // This function use for generate access token
@@ -600,3 +530,13 @@ userSchema.methods.generateRefreshToken = function (): string {
 
 export const User = model("User", userSchema);
 export const LoggedIn = model("Login", loggedInSchema);
+export const ContactInfo = model("ContactInfo", contactInfoSchema);
+export const ResidenceInfo = model("ResidenceInfo", residenceInfoSchema);
+// export const PersonalInfo = model("PersonalInfo", personalInfoSchema);
+// export const personalRefrenceInfo = model(
+//   "PersonalRefrenceInfo",
+//   personalRefrenceInfoSchema
+// );
+export const LegalInfo = model("LegalInfo", legalInfoSchema);
+export const DriversLicInfo = model("DriversLicInfo", driversLicInfoSchema);
+export const EmployementInfo = model("EmployementInfo", employementInfoSchema);

@@ -356,8 +356,8 @@ const updateAddressAndSendPictureAsProof = asyncHandler(
       req.user?._id,
       {
         $set: {
-          "signUp.homeAddress": homeAddress,
-          "signUp.image": uploads.secure_url,
+          homeAddress: homeAddress,
+          image: uploads.secure_url,
         },
       },
       {
@@ -366,7 +366,7 @@ const updateAddressAndSendPictureAsProof = asyncHandler(
     );
     const isUserAddressUpdated = await User.findById(
       updateUserAddress?._id
-    ).select("-signUp.refreshToken -signUp.password");
+    ).select("-refreshToken -password");
     if (!isUserAddressUpdated)
       return res
         .status(400)

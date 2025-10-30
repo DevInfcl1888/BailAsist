@@ -15,6 +15,10 @@ import {
   verifyOTP,
   getdata,
   resetPassword,
+  addResidenceInfo,
+  addContactInfo,
+  addLegalInfo,
+  // addPersonalInfo
 } from "../controller/user.controller.js";
 
 // Home Screen Import
@@ -44,6 +48,10 @@ router.route("/sendOTP").post(otpLimiter, sendOTP);
 router.route("/verifyOTP").post(verifyOTP);
 router.route("/deleteUserProfile").delete(authMiddleware, deleteUserProfile);
 router.route("/getdata").get(authMiddleware, getdata);
+router.route("/addResidenceInfo").post(authMiddleware, addResidenceInfo);
+router.route("/addContactInfo").post(authMiddleware, addContactInfo);
+router.route("/addLegalInfo").post(authMiddleware, addLegalInfo);
+// router.route("/addPersonalInfo").post(authMiddleware, addPersonalInfo);
 
 // Home Screen Routes
 router.route("/agency/:userId").get(authMiddleware, getUserAgencyInfo); // Get Agency Info

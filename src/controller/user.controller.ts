@@ -1,11 +1,24 @@
 import express, { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {
+  isValidData,
   isValidEmail,
   isValidPassword,
   isValidPhone,
 } from "../utils/dataValidators.js";
-import { User } from "../models/user.model.js";
+import {
+  ResidenceType,
+  ResidenceInfo,
+  LegalInfo,
+  User,
+  ContactInfo,
+  // RACE,
+  // GENDER,
+  // EYE_COLOR,
+  // HAIR_COLOR,
+  // MARITAL_STATUS,
+  // PersonalInfo,
+} from "../models/user.model.js";
 import { generateOTP, sendOTPfun, otpStore } from "../utils/OTPsender.js";
 import bcrypt from "bcryptjs";
 
@@ -70,7 +83,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     return res.status(400).json({ Message: "Street or ZIP code is too long" });
 
   const checkUserExistence = await User.findOne({
-    "signUp.email": email,
+    email,
   });
 
   if (checkUserExistence)
@@ -78,25 +91,23 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
 
   // User created
   const createdUser = await User.create({
-    signUp: {
-      firstName,
-      middleName,
-      lastName,
-      email,
-      password,
-      phoneNo,
-      deviceToken: deviceToken ? deviceToken : "",
-      homeAddress,
-      street,
-      ZipCode,
-      isAgreed,
-    },
+    firstName,
+    middleName,
+    lastName,
+    email,
+    password,
+    phoneNo,
+    deviceToken: deviceToken ? deviceToken : "",
+    homeAddress,
+    street,
+    ZipCode,
+    isAgreed,
   });
 
   // check user existence
   const isUserRegisteredSuccessFully = await User.findById(
     createdUser?._id
-  ).select("-signUp.password -signUp.refreshToken");
+  ).select("-password -refreshToken");
   console.log("isUserRegisteredSuccessFully", isUserRegisteredSuccessFully);
 
   if (!isUserRegisteredSuccessFully)
@@ -128,7 +139,7 @@ const login = asyncHandler(async (req: Request, res: Response) => {
     return res.status(401).json({ message: "Invalid password" });
 
   // check user existence
-  const user = await User.findOne({ "signUp.email": email });
+  const user = await User.findOne({ email: email });
   console.log(user);
 
   if (!user)
@@ -145,7 +156,7 @@ const login = asyncHandler(async (req: Request, res: Response) => {
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
 
-  user.signUp.refreshToken = refreshToken;
+  user.refreshToken = refreshToken;
   await user.save({ validateBeforeSave: false });
 
   const expiresIn = rememberMe ? 10 * 24 * 60 * 60 * 1000 : 15 * 60 * 1000; // 10 Days or 15 mins
@@ -164,13 +175,11 @@ const login = asyncHandler(async (req: Request, res: Response) => {
     .status(200)
     .json({
       message: "User login successfully",
-      user: `${user.signUp?.firstName ?? ""} ${
-        user.signUp?.lastName ?? ""
-      }`.trim(),
+      user: `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim(),
       accessToken: `${accessToken}`,
       refreshToken: `${refreshToken}`,
       deviceToken: deviceToken ? deviceToken : "",
-      email: user.signUp?.email,
+      email: user?.email,
     });
 });
 
@@ -182,11 +191,11 @@ const logout = asyncHandler(async (req: Request, res: Response) => {
     return res.status(404).json({ message: "No refresh token found" });
 
   // Step 1: Remove refresh token from DB (by matching token)
-  const user = await User.findOne({ "signUp.refreshToken": refreshToken });
+  const user = await User.findOne({ refreshToken: refreshToken });
 
   if (user) {
     // Step 2: Clear refreshToken in DB
-    user.signUp.refreshToken = "";
+    user.refreshToken = "";
     await user.save({ validateBeforeSave: false });
   }
 
@@ -224,7 +233,7 @@ const changePassword = asyncHandler(async (req: Request, res: Response) => {
     return res.status(401).json({ message: "Password has no change" });
 
   // update password in DB
-  user.signUp.password = newPassword;
+  user.password = newPassword;
   const updatedUserPassword = await user.save({ validateBeforeSave: false });
 
   if (!updatedUserPassword)
@@ -307,20 +316,20 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     req.user?._id,
     {
       $set: {
-        "signUp.firstName": data.firstName,
-        "signUp.middleName": data.middleName,
-        "signUp.lastName": data.lastName,
-        "signUp.email": data.email,
-        "signUp.phoneNo": data.phoneNo,
+        firstName: data.firstName,
+        middleName: data.middleName,
+        lastName: data.lastName,
+        email: data.email,
+        phoneNo: data.phoneNo,
         // "signUp.homeAddress": data.homeAddress,
-        "signUp.street": data.street,
-        "signUp.ZipCode": data.ZipCode,
+        street: data.street,
+        ZipCode: data.ZipCode,
       },
     },
     {
       new: true,
     }
-  ).select("-signUp.password -signUp.refreshToken -signUp.isAgreed");
+  ).select("-password -refreshToken -isAgreed");
 
   console.log("updatedUser", updatedUser);
 
@@ -337,7 +346,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
 
 const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user?._id).select(
-    "-signUp.password -signUp.refreshToken -signUp.isAgreed"
+    "-password -refreshToken -isAgreed"
   );
   if (!user)
     return res
@@ -402,7 +411,7 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
     newPassword: string;
     confirmPassword: string;
   };
-  const user = await User.findOne({ "signUp.email": email });
+  const user = await User.findOne({ email: email });
 
   if (!user)
     return res.status(404).json({ message: "User not found or maybe logout" });
@@ -414,8 +423,8 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
       .json({ message: "New and old password must be same" });
 
   // update password in DB
-  user.signUp.password = newPassword;
-  user.signUp.refreshToken = "";
+  user.password = newPassword;
+  user.refreshToken = "";
   // user.password = newPassword;
   const updatedUserPassword = await user.save({ validateBeforeSave: false });
 
@@ -445,6 +454,296 @@ const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
     .json({ message: "User profile deleted", deletedUserInfo });
 });
 
+const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
+  const {
+    yearsAtCurrentAddress,
+    residenceType,
+    landlordName,
+    landlordAddress,
+  } = req.body as {
+    yearsAtCurrentAddress: string;
+    residenceType: ResidenceType;
+    landlordName: string;
+    landlordAddress: string;
+  };
+  if (
+    !yearsAtCurrentAddress.trim() ||
+    !landlordName.trim() ||
+    !landlordAddress.trim()
+  ) {
+    return res.status(404).json({ Message: "Fields can't be empty" });
+  }
+  if (!Object.values(ResidenceType).includes(residenceType)) {
+    return res.status(400).json({
+      success: false,
+      message: `Invalid residence type. Must be one of: ${Object.values(
+        ResidenceType
+      ).join(", ")}`,
+    });
+  }
+  if (!isValidData(landlordName))
+    return res
+      .status(400)
+      .json({ Message: "Invalid landlord name. please use only alphabets" });
+  const residenceInfoCreate = await ResidenceInfo.create({
+    yearsAtCurrentAddress: `${yearsAtCurrentAddress} Yr`,
+    residenceType,
+    landlordName,
+    landlordAddress,
+  });
+  const { accessToken, refreshToken } = req.cookies;
+
+  const isResidenceInfoExist = await ResidenceInfo.findById(
+    residenceInfoCreate?._id
+  );
+  if (!isResidenceInfoExist)
+    return res.status(500).json({ Message: "Error occur during submit data." });
+
+  return res.status(200).json({
+    Message: "Data save successfully",
+    isResidenceInfoExist,
+    accessToken: accessToken,
+    refreshToken: refreshToken,
+  });
+});
+
+const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
+  const { firstName, middleName, lastName, email, phoneNo } = req.body as {
+    firstName: string;
+    middleName: string;
+    lastName: string;
+    email: string;
+    phoneNo: string;
+  };
+  if (
+    !firstName.trim() ||
+    !middleName.trim() ||
+    !lastName.trim() ||
+    !email.trim() ||
+    !phoneNo.trim()
+  )
+    return res.status(404).json({ Message: "All fields are required" });
+
+  if (
+    !isValidData(firstName) ||
+    !isValidData(middleName) ||
+    !isValidData(lastName)
+  )
+    return res.status(400).json({
+      Message:
+        "firstName, middleName or lastName has invalid type. please include only alphabets and length should be more then 3 char ",
+    });
+  if (!isValidEmail(email))
+    return res.status(400).json({ Message: "Invalid email" });
+  if (!isValidPhone(phoneNo))
+    return res.status(400).json({ Message: "Invalid phone" });
+
+  const { accessToken, refreshToken } = req.cookies;
+
+  const contactInfoCreate = await ContactInfo.create({
+    firstName,
+    middleName,
+    lastName,
+    email,
+    phoneNo,
+  });
+
+  const isContactInfoCreate = await ContactInfo.findById(
+    contactInfoCreate?._id
+  );
+  if (!isContactInfoCreate)
+    return res.status(500).json({ Message: "Error occur during submit data." });
+
+  return res.status(200).json({
+    Message: "Contact info saved",
+    isContactInfoCreate,
+    accessToken: accessToken,
+    refreshToken: refreshToken,
+  });
+  // ContactInfo
+});
+
+const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
+  const { attorneyName, attorneyAddress, attorneyPhoneNo } = req.body as {
+    attorneyName: string;
+    attorneyAddress: string;
+    attorneyPhoneNo: string;
+  };
+  if (
+    !attorneyName.trim() ||
+    !attorneyAddress.trim() ||
+    !attorneyPhoneNo.trim()
+  )
+    return res.status(404).json({ Message: "Fields can't be empty" });
+  if (!isValidData(attorneyName))
+    return res.status(400).json({
+      Message:
+        "Invalid attorney name. please use only alphabets and it should be more then 3 charater",
+    });
+  if (!isValidPhone(attorneyPhoneNo))
+    return res.status(400).json({ Message: "Phone no is Invalid" });
+  const { accessToken, refreshToken } = req.cookies;
+  const legalInfoCreate = await LegalInfo.create({
+    attorneyName,
+    attorneyAddress,
+    attorneyPhoneNo,
+  });
+  const isLegalInfoCreate = await LegalInfo.findById(legalInfoCreate?._id);
+  if (!isLegalInfoCreate)
+    return res.status(500).json({ Message: "Internal server error." });
+  return res.status(200).json({
+    Message: "Data submitted",
+    isLegalInfoCreate,
+    accessToken,
+    refreshToken,
+  });
+});
+
+// const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
+//   const {
+//     weight,
+//     height,
+//     race,
+//     gender,
+//     eyeColor,
+//     hairColor,
+//     birthPlace,
+//     birthDate,
+//     UScitizen,
+//     nickname,
+//     maritalStatus,
+//     spouseName,
+//     spouseOccupation,
+//     spouseEmployer, // The name of the company where your husband or wife works.
+//     items,
+//     isResponsible, // Responsible for anyone else support
+//     dependents,
+//   } = req.body as {
+//     weight: string;
+//     height: string;
+//     race: RACE;
+//     gender: GENDER;
+//     eyeColor: EYE_COLOR;
+//     hairColor: HAIR_COLOR;
+//     birthPlace: string;
+//     birthDate: string;
+//     UScitizen: boolean;
+//     nickname: string;
+//     maritalStatus: MARITAL_STATUS;
+//     spouseName: string;
+//     spouseOccupation: string;
+//     spouseEmployer: string; // The name of the company
+//     items?: { childName: string; childAge: string; childSchool: string }[];
+//     isResponsible: boolean; // Responsible for anyone else support
+//     dependents: string;
+//   };
+//   if (
+//     !weight.trim() ||
+//     !height.trim() ||
+//     !birthPlace.trim() ||
+//     !birthDate.trim() ||
+//     !nickname.trim()
+//   )
+//     return res.status(404).json({ Message: "Required field missing" });
+
+//   if (items) {
+//     // Step 2: Validate it's an array
+//     if (!Array.isArray(items)) {
+//       return res.status(400).json({ message: "Items must be an array" });
+//     }
+
+//     // Step 3: Validate each object
+//     for (const obj of items) {
+//       if (
+//         typeof obj.childName !== "string" ||
+//         typeof obj.childAge !== "string" ||
+//         typeof obj.childSchool !== "string"
+//       ) {
+//         return res.status(400).json({
+//           message: "Each item must have string type",
+//         });
+//       }
+//     }
+//   }
+//   if (!Object.values(RACE).includes(race)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: `Invalid race type. Must be one of: ${Object.values(RACE).join(
+//         ", "
+//       )}`,
+//     });
+//   }
+//   if (!Object.values(GENDER).includes(gender)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: `Invalid gender type. Must be one of: ${Object.values(
+//         GENDER
+//       ).join(", ")}`,
+//     });
+//   }
+//   if (!Object.values(EYE_COLOR).includes(eyeColor)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: `Invalid eye color type. Must be one of: ${Object.values(
+//         EYE_COLOR
+//       ).join(", ")}`,
+//     });
+//   }
+//   if (!Object.values(HAIR_COLOR).includes(hairColor)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: `Invalid hair color type. Must be one of: ${Object.values(
+//         HAIR_COLOR
+//       ).join(", ")}`,
+//     });
+//   }
+//   if (!Object.values(MARITAL_STATUS).includes(maritalStatus)) {
+//     return res.status(400).json({
+//       success: false,
+//       message: `Invalid marital status type. Must be one of: ${Object.values(
+//         MARITAL_STATUS
+//       ).join(", ")}`,
+//     });
+//   }
+
+//   let content: string = " ";
+//   if (isResponsible) {
+//     content = dependents;
+//   }
+//   const { accessToken, refreshToken } = req.cookies;
+
+//   const personalInfoCreate = await PersonalInfo.create({
+//     weight,
+//     height,
+//     race,
+//     gender,
+//     eyeColor,
+//     hairColor,
+//     birthPlace,
+//     birthDate,
+//     UScitizen,
+//     nickname,
+//     maritalStatus,
+//     spouseName: spouseName ? spouseName : " ",
+//     spouseOccupation: spouseOccupation ? spouseOccupation : "",
+//     spouseEmployer: spouseEmployer ? spouseEmployer : " ",
+//     child: [],
+//     isResponsible, // Responsible for anyone else support
+//     dependents: content,
+//   });
+//   const isPersonalInfoCreate = await PersonalInfo.findById(
+//     personalInfoCreate?._id
+//   );
+//   if (!isPersonalInfoCreate)
+//     return res.status(500).json({ Message: "Internal server error" });
+//   return res.status(200).json({
+//     Message: "Data submitted",
+//     isPersonalInfoCreate,
+//     accessToken: accessToken,
+//     refreshToken: refreshToken,
+//   });
+// });
+
 export {
   registration,
   login,
@@ -457,4 +756,8 @@ export {
   sendOTP,
   resetPassword,
   verifyOTP,
+  addResidenceInfo,
+  addContactInfo,
+  addLegalInfo,
+  // addPersonalInfo,
 };
