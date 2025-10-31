@@ -12,12 +12,12 @@ import {
   LegalInfo,
   User,
   ContactInfo,
-  // RACE,
-  // GENDER,
-  // EYE_COLOR,
-  // HAIR_COLOR,
-  // MARITAL_STATUS,
-  // PersonalInfo,
+  RACE,
+  GENDER,
+  EYE_COLOR,
+  HAIR_COLOR,
+  MARITAL_STATUS,
+  PersonalInfo,
 } from "../models/user.model.js";
 import { generateOTP, sendOTPfun, otpStore } from "../utils/OTPsender.js";
 import bcrypt from "bcryptjs";
@@ -599,147 +599,150 @@ const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
-// const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
-//   const {
-//     weight,
-//     height,
-//     race,
-//     gender,
-//     eyeColor,
-//     hairColor,
-//     birthPlace,
-//     birthDate,
-//     UScitizen,
-//     nickname,
-//     maritalStatus,
-//     spouseName,
-//     spouseOccupation,
-//     spouseEmployer, // The name of the company where your husband or wife works.
-//     items,
-//     isResponsible, // Responsible for anyone else support
-//     dependents,
-//   } = req.body as {
-//     weight: string;
-//     height: string;
-//     race: RACE;
-//     gender: GENDER;
-//     eyeColor: EYE_COLOR;
-//     hairColor: HAIR_COLOR;
-//     birthPlace: string;
-//     birthDate: string;
-//     UScitizen: boolean;
-//     nickname: string;
-//     maritalStatus: MARITAL_STATUS;
-//     spouseName: string;
-//     spouseOccupation: string;
-//     spouseEmployer: string; // The name of the company
-//     items?: { childName: string; childAge: string; childSchool: string }[];
-//     isResponsible: boolean; // Responsible for anyone else support
-//     dependents: string;
-//   };
-//   if (
-//     !weight.trim() ||
-//     !height.trim() ||
-//     !birthPlace.trim() ||
-//     !birthDate.trim() ||
-//     !nickname.trim()
-//   )
-//     return res.status(404).json({ Message: "Required field missing" });
+const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
+  const {
+    weight,
+    height,
+    race,
+    gender,
+    eyeColor,
+    hairColor,
+    birthPlace,
+    birthDate,
+    UScitizen,
+    nickname,
+    maritalStatus,
+    spouseName,
+    spouseOccupation,
+    spouseEmployer, // The name of the company where your husband or wife works.
+    items,
+    isResponsible, // Responsible for anyone else support
+    dependents,
+  } = req.body as {
+    weight: string;
+    height: string;
+    race: RACE;
+    gender: GENDER;
+    eyeColor: EYE_COLOR;
+    hairColor: HAIR_COLOR;
+    birthPlace: string;
+    birthDate: string;
+    UScitizen: boolean;
+    nickname: string;
+    maritalStatus: MARITAL_STATUS;
+    spouseName: string;
+    spouseOccupation: string;
+    spouseEmployer: string; // The name of the company
+    items?: { childName: string; childAge: string; childSchool: string }[];
+    isResponsible: boolean; // Responsible for anyone else support
+    dependents: string;
+  };
+  if (
+    !weight.trim() ||
+    !height.trim() ||
+    !birthPlace.trim() ||
+    !birthDate.trim() ||
+    !nickname.trim()
+  )
+    return res.status(404).json({ Message: "Required field missing" });
 
-//   if (!Object.values(RACE).includes(race)) {
-//     return res.status(400).json({
-//       success: false,
-//       message: `Invalid race type. Must be one of: ${Object.values(RACE).join(
-//         ", "
-//       )}`,
-//     });
-//   }
-//   if (!Object.values(GENDER).includes(gender)) {
-//     return res.status(400).json({
-//       success: false,
-//       message: `Invalid gender type. Must be one of: ${Object.values(
-//         GENDER
-//       ).join(", ")}`,
-//     });
-//   }
-//   if (!Object.values(EYE_COLOR).includes(eyeColor)) {
-//     return res.status(400).json({
-//       success: false,
-//       message: `Invalid eye color type. Must be one of: ${Object.values(
-//         EYE_COLOR
-//       ).join(", ")}`,
-//     });
-//   }
-//   if (!Object.values(HAIR_COLOR).includes(hairColor)) {
-//     return res.status(400).json({
-//       success: false,
-//       message: `Invalid hair color type. Must be one of: ${Object.values(
-//         HAIR_COLOR
-//       ).join(", ")}`,
-//     });
-//   }
-//   if (!Object.values(MARITAL_STATUS).includes(maritalStatus)) {
-//     return res.status(400).json({
-//       success: false,
-//       message: `Invalid marital status type. Must be one of: ${Object.values(
-//         MARITAL_STATUS
-//       ).join(", ")}`,
-//     });
-//   }
+  if (!Object.values(RACE).includes(race)) {
+    return res.status(400).json({
+      success: false,
+      message: `Invalid race type. Must be one of: ${Object.values(RACE).join(
+        ", "
+      )}`,
+    });
+  }
+  if (!Object.values(GENDER).includes(gender)) {
+    return res.status(400).json({
+      success: false,
+      message: `Invalid gender type. Must be one of: ${Object.values(
+        GENDER
+      ).join(", ")}`,
+    });
+  }
+  if (!Object.values(EYE_COLOR).includes(eyeColor)) {
+    return res.status(400).json({
+      success: false,
+      message: `Invalid eye color type. Must be one of: ${Object.values(
+        EYE_COLOR
+      ).join(", ")}`,
+    });
+  }
+  if (!Object.values(HAIR_COLOR).includes(hairColor)) {
+    return res.status(400).json({
+      success: false,
+      message: `Invalid hair color type. Must be one of: ${Object.values(
+        HAIR_COLOR
+      ).join(", ")}`,
+    });
+  }
+  if (!Object.values(MARITAL_STATUS).includes(maritalStatus)) {
+    return res.status(400).json({
+      success: false,
+      message: `Invalid marital status type. Must be one of: ${Object.values(
+        MARITAL_STATUS
+      ).join(", ")}`,
+    });
+  }
 
-//   let content: string = " ";
-//   if (isResponsible) {
-//     content = dependents;
-//   }
-//   const { accessToken, refreshToken } = req.cookies;
+  let content: string = " ";
+  if (isResponsible) {
+    if (!dependents)
+      return res
+        .status(400)
+        .json({ Message: "Please provide details of dependents" });
+    content = dependents;
+  }
+  const { accessToken, refreshToken } = req.cookies;
 
-//   const personalInfoCreate = await PersonalInfo.create({
-//     weight,
-//     height,
-//     race,
-//     gender,
-//     eyeColor,
-//     hairColor,
-//     birthPlace,
-//     birthDate,
-//     UScitizen,
-//     nickname,
-//     maritalStatus,
-//     spouseName: spouseName ? spouseName : " ",
-//     spouseOccupation: spouseOccupation ? spouseOccupation : "",
-//     spouseEmployer: spouseEmployer ? spouseEmployer : " ",
-//     isResponsible, // Responsible for anyone else support
-//     dependents: content,
-//   });
+  const personalInfoCreate = await PersonalInfo.create({
+    weight,
+    height,
+    race,
+    gender,
+    eyeColor,
+    hairColor,
+    birthPlace,
+    birthDate,
+    UScitizen,
+    nickname,
+    maritalStatus,
+    spouseName: spouseName ? spouseName : " ",
+    spouseOccupation: spouseOccupation ? spouseOccupation : "",
+    spouseEmployer: spouseEmployer ? spouseEmployer : " ",
+    isResponsible, // Responsible for anyone else support
+    dependents: content,
+  });
 
-//   console.log("personalInfoCreate",personalInfoCreate);
+  console.log("personalInfoCreate", personalInfoCreate);
 
-//   const isPersonalInfoCreate = await PersonalInfo.findOne({
-//     _id: personalInfoCreate?._id,
-//   });
-// console.log("personalInfoCreate",isPersonalInfoCreate);
+  const isPersonalInfoCreate = await PersonalInfo.findOne({
+    _id: personalInfoCreate?._id,
+  });
+  console.log("personalInfoCreate", isPersonalInfoCreate);
 
-//   if (isPersonalInfoCreate) {
-//     if (items) {
-//       console.log("...items",...items);
-//       console.log("items",items);
-      
-//       isPersonalInfoCreate.child?.push(...items);
-//       await isPersonalInfoCreate.save();
-//     }
-//   }
+  if (isPersonalInfoCreate) {
+    if (items) {
+      // console.log("...items", ...items);
+      // console.log("items", items);
 
-//   if (!isPersonalInfoCreate)
-//     return res.status(500).json({ Message: "Internal server error" });
+      isPersonalInfoCreate.child?.push(...items);
+      await isPersonalInfoCreate.save();
+    }
+  }
 
+  if (!isPersonalInfoCreate)
+    return res.status(500).json({ Message: "Internal server error" });
 
-//   return res.status(200).json({
-//     Message: "Data submitted",
-//     isPersonalInfoCreate,
-//     accessToken: accessToken,
-//     refreshToken: refreshToken,
-//   });
-// });
+  return res.status(200).json({
+    Message: "Data submitted",
+    isPersonalInfoCreate,
+    accessToken: accessToken,
+    refreshToken: refreshToken,
+  });
+});
 
 export {
   registration,
@@ -756,5 +759,5 @@ export {
   addResidenceInfo,
   addContactInfo,
   addLegalInfo,
-  // addPersonalInfo,
+  addPersonalInfo,
 };

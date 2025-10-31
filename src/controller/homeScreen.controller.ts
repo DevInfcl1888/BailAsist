@@ -1,16 +1,15 @@
 import { Request, Response } from "express";
-import HomeScreenModel from "../models/homeScreen.model.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
-import { User } from "../models/user.model.js";
-import { Status } from "../models/homeScreen.model.js";
-import { isDateValid } from "../utils/dataValidators.js";
-import { courtTypes, courtLevel } from "../models/homeScreen.model.js";
+import HomeScreenModel from "../models/homeScreen.model.js"; // Models
+import { asyncHandler } from "../utils/asyncHandler.js"; // to handle async errors
+import { User } from "../models/user.model.js"; // User Model
+import { courtTypes, courtLevel, Status } from "../models/homeScreen.model.js"; // enums
 import {
   isValidEmail,
   isValidPhone,
   isValidData,
-} from "../utils/dataValidators.js";
-import { uploadToCloudinary } from "../utils/cloudinary.js";
+  isDateValid,
+} from "../utils/dataValidators.js"; // data validators
+import { uploadToCloudinary } from "../utils/cloudinary.js"; // cloudinary upload
 
 const { Agency, CheckIn, Court } = HomeScreenModel; // Models
 
@@ -378,6 +377,35 @@ const updateAddressAndSendPictureAsProof = asyncHandler(
   }
 );
 
+const updateLatAndLong = asyncHandler(async (req: Request, res: Response) => {
+  const { latitude, longitude } = req.body as {
+    latitude: number;
+    longitude: number;
+  };
+  if (!latitude || !longitude) {
+    return res
+      .status(400)
+      .json({ Message: "Please provide latitude and longitude" });
+  }
+
+  // Update user's location in the database
+  const updatedLocation = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: { latitude, longitude },
+    },
+    {
+      new: true,
+    }
+  ).select("-refreshToken -password");
+
+  if (!updatedLocation)
+    return res.status(400).json({ Message: "Location couldn't be updated" });
+
+  return res
+    .status(200)
+    .json({ Message: "Location updated successfully", updatedLocation });
+});
 export {
   getUserAgencyInfo,
   creatCheckIn,
@@ -386,6 +414,7 @@ export {
   createCourt,
   getCourtDetails,
   updateAddressAndSendPictureAsProof,
+  updateLatAndLong,
 };
 
-// country, phone no, Ai no, 
+// country, phone no, Ai no,

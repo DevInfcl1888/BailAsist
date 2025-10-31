@@ -149,6 +149,8 @@ interface signUp extends Document {
   image: string;
   isAgreed: boolean;
   agency: Schema.Types.ObjectId;
+  latitude: number;
+  longitude: number;
   isCorrectPassword(password: string): Promise<boolean>;
   generateAccessToken(): string;
   generateRefreshToken(): string;
@@ -200,89 +202,89 @@ const residenceInfoSchema = new Schema<residenceInfo>({
   landlordName: { type: String, required: true },
   landlordAddress: { type: String, required: true },
 });
-// const personalInfoSchema = new Schema<personalInfo>({
-//   //  --------------------- Personal Refrence Information --------------------
-//   weight: {
-//     type: String,
-//     required: true,
-//     trim: true,
-//   },
-//   height: {
-//     type: String,
-//     required: true,
-//     trim: true,
-//   },
-//   race: {
-//     type: String,
-//     enum: Object.values(RACE),
-//     required: true,
-//   },
-//   gender: {
-//     type: String,
-//     enum: Object.values(GENDER),
-//     required: true,
-//   },
-//   eyeColor: {
-//     type: String,
-//     enum: Object.values(EYE_COLOR),
-//     required: true,
-//   },
-//   hairColor: {
-//     type: String,
-//     enum: Object.values(HAIR_COLOR),
-//     required: true,
-//   },
-//   birthPlace: {
-//     type: String,
-//     required: true,
-//     trim: true,
-//   },
-//   birthDate: {
-//     type: String,
-//     required: true,
-//   },
-//   UScitizen: {
-//     type: Boolean,
-//     default: false,
-//   },
-//   nickname: {
-//     type: String,
-//     required: true,
-//     trim: true,
-//   },
-//   maritalStatus: {
-//     type: String,
-//     enum: Object.values(MARITAL_STATUS),
-//     required: true,
-//   },
-//   spouseName: {
-//     type: String,
-//     trim: true,
-//   },  
-//   spouseOccupation: {
-//     type: String,
-//     trim: true,
-//   },
-//   spouseEmployer: {
-//     type: String,
-//     trim: true,
-//   }, // The name of the company where your husband or wife works.
-//   child: [
-//     {
-//       childName: { type: String },
-//       childAge: { type: String },
-//       childSchool: { type: String },
-//     },
-//   ],
-//   isResponsible: {
-//     type: Boolean,
-//     default: false,
-//   }, // Responsible for anyone else support
-//   dependents: {
-//     type: String,
-//     trim: true,
-//   }, // only filled if isResponsible is true
-// });
+const personalInfoSchema = new Schema<personalInfo>({
+  //  --------------------- Personal Refrence Information --------------------
+  weight: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  height: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  race: {
+    type: String,
+    enum: Object.values(RACE),
+    required: true,
+  },
+  gender: {
+    type: String,
+    enum: Object.values(GENDER),
+    required: true,
+  },
+  eyeColor: {
+    type: String,
+    enum: Object.values(EYE_COLOR),
+    required: true,
+  },
+  hairColor: {
+    type: String,
+    enum: Object.values(HAIR_COLOR),
+    required: true,
+  },
+  birthPlace: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  birthDate: {
+    type: String,
+    required: true,
+  },
+  UScitizen: {
+    type: Boolean,
+    default: false,
+  },
+  nickname: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  maritalStatus: {
+    type: String,
+    enum: Object.values(MARITAL_STATUS),
+    required: true,
+  },
+  spouseName: {
+    type: String,
+    trim: true,
+  },
+  spouseOccupation: {
+    type: String,
+    trim: true,
+  },
+  spouseEmployer: {
+    type: String,
+    trim: true,
+  }, // The name of the company where your husband or wife works.
+  child: [
+    {
+      childName: { type: String },
+      childAge: { type: String },
+      childSchool: { type: String },
+    },
+  ],
+  isResponsible: {
+    type: Boolean,
+    default: false,
+  }, // Responsible for anyone else support
+  dependents: {
+    type: String,
+    trim: true,
+  }, // only filled if isResponsible is true
+});
 const personalRefrenceInfoSchema = new Schema<personalRefrenceInfo>({});
 
 const legalInfoSchema = new Schema<legalInfo>({
@@ -451,6 +453,8 @@ const userSchema = new Schema<signUp>(
     image: {
       type: String, // cloudinary url
     },
+    latitude: { type: Number },
+    longitude: { type: Number },
   },
   {
     timestamps: true,
@@ -532,11 +536,11 @@ export const User = model("User", userSchema);
 export const LoggedIn = model("Login", loggedInSchema);
 export const ContactInfo = model("ContactInfo", contactInfoSchema);
 export const ResidenceInfo = model("ResidenceInfo", residenceInfoSchema);
-// export const PersonalInfo = model("PersonalInfo", personalInfoSchema);
-// export const personalRefrenceInfo = model(
-//   "PersonalRefrenceInfo",
-//   personalRefrenceInfoSchema
-// );
+export const PersonalInfo = model("PersonalInfo", personalInfoSchema);
+export const personalRefrenceInfo = model(
+  "PersonalRefrenceInfo",
+  personalRefrenceInfoSchema
+);
 export const LegalInfo = model("LegalInfo", legalInfoSchema);
 export const DriversLicInfo = model("DriversLicInfo", driversLicInfoSchema);
 export const EmployementInfo = model("EmployementInfo", employementInfoSchema);
