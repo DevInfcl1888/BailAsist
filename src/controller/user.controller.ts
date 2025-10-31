@@ -107,17 +107,18 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
   // check user existence
   const isUserRegisteredSuccessFully = await User.findById(
     createdUser?._id
-  ).select("-password -refreshToken");
+  ).select("-password");
   console.log("isUserRegisteredSuccessFully", isUserRegisteredSuccessFully);
 
   if (!isUserRegisteredSuccessFully)
     return res
       .status(400)
       .json({ message: "Internal server error during registration" });
+  const accessToken = isUserRegisteredSuccessFully.generateAccessToken();
 
   return res.status(200).json({
     message: "User registred successfully",
-    isUserRegisteredSuccessFully,
+    accessToken: accessToken,
   });
 });
 
@@ -140,7 +141,6 @@ const login = asyncHandler(async (req: Request, res: Response) => {
 
   // check user existence
   const user = await User.findOne({ email: email });
-  console.log(user);
 
   if (!user)
     return res
@@ -175,11 +175,7 @@ const login = asyncHandler(async (req: Request, res: Response) => {
     .status(200)
     .json({
       message: "User login successfully",
-      user: `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim(),
       accessToken: `${accessToken}`,
-      refreshToken: `${refreshToken}`,
-      deviceToken: deviceToken ? deviceToken : "",
-      email: user?.email,
     });
 });
 
