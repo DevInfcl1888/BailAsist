@@ -15,6 +15,10 @@ import {
   verifyOTP,
   getdata,
   resetPassword,
+  addResidenceInfo,
+  addContactInfo,
+  addLegalInfo,
+  addPersonalInfo,
 } from "../controller/user.controller.js";
 
 // Home Screen Import
@@ -26,8 +30,8 @@ import {
   createCourt,
   getCourtDetails,
   updateAddressAndSendPictureAsProof,
+  updateLatAndLong,
 } from "../controller/homeScreen.controller.js";
-
 import { createAgency } from "../controller/agency.controller.js";
 import { upload } from "../middlewares/multer.middlewares.js";
 const router = Router();
@@ -44,6 +48,10 @@ router.route("/sendOTP").post(otpLimiter, sendOTP);
 router.route("/verifyOTP").post(verifyOTP);
 router.route("/deleteUserProfile").delete(authMiddleware, deleteUserProfile);
 router.route("/getdata").get(authMiddleware, getdata);
+router.route("/addResidenceInfo").post(authMiddleware, addResidenceInfo);
+router.route("/addContactInfo").post(authMiddleware, addContactInfo);
+router.route("/addLegalInfo").post(authMiddleware, addLegalInfo);
+router.route("/addPersonalInfo").post(authMiddleware, addPersonalInfo);
 
 // Home Screen Routes
 router.route("/agency/:userId").get(authMiddleware, getUserAgencyInfo); // Get Agency Info
@@ -59,6 +67,9 @@ router
     authMiddleware,
     upload.single("image"),
     updateAddressAndSendPictureAsProof
-  );
+  ); // update address and send picture as proof
+
+// New Route for updating latitude and longitude
+router.route("/updateLatAndLong").post(authMiddleware, updateLatAndLong); // update latitude and longitude
 
 export default router;
