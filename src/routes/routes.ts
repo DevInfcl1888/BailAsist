@@ -37,7 +37,7 @@ import { upload } from "../middlewares/multer.middlewares.js";
 const router = Router();
 
 // User Routes
-router.route("/regitration").post(registration);
+router.route("/registration").post(registration);
 router.route("/login").post(login);
 router.route("/logout").post(logout);
 router.route("/changePassword").patch(authMiddleware, changePassword);
