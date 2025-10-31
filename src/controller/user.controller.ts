@@ -107,18 +107,17 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
   // check user existence
   const isUserRegisteredSuccessFully = await User.findById(
     createdUser?._id
-  ).select("-password");
+  ).select("-password -refreshToken");
   console.log("isUserRegisteredSuccessFully", isUserRegisteredSuccessFully);
 
   if (!isUserRegisteredSuccessFully)
     return res
       .status(400)
       .json({ message: "Internal server error during registration" });
-  const accessToken = isUserRegisteredSuccessFully.generateAccessToken();
 
   return res.status(200).json({
     message: "User registred successfully",
-    accessToken: accessToken,
+    isUserRegisteredSuccessFully,
   });
 });
 
@@ -141,6 +140,7 @@ const login = asyncHandler(async (req: Request, res: Response) => {
 
   // check user existence
   const user = await User.findOne({ email: email });
+  console.log(user);
 
   if (!user)
     return res
@@ -156,38 +156,50 @@ const login = asyncHandler(async (req: Request, res: Response) => {
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
 
-  user.refreshToken = refreshToken;
-  await user.save({ validateBeforeSave: false });
+  // Prepare update object - always update deviceToken
+  const updateData: any = {
+    refreshToken: refreshToken,
+    deviceToken: deviceToken || "",
+  };
 
-  const expiresIn = rememberMe ? 10 * 24 * 60 * 60 * 1000 : 15 * 60 * 1000; // 10 Days or 15 mins
+  // Update user document
+  await User.findByIdAndUpdate(
+    user._id,
+    { $set: updateData },
+    { new: true, validateBeforeSave: false }
+  );
+
   // sending response
-  return res
-    .cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: true,
-      maxAge: expiresIn, // 10 Days or 15 min
-    })
-    .cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    })
-    .status(200)
-    .json({
-      message: "User login successfully",
-      accessToken: `${accessToken}`,
-    });
+  return res.status(200).json({
+    message: "User login successfully",
+    user: `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim(),
+    accessToken: `${accessToken}`,
+    refreshToken: `${refreshToken}`,
+    deviceToken: deviceToken ? deviceToken : "",
+    email: user?.email,
+  });
 });
 
 const logout = asyncHandler(async (req: Request, res: Response) => {
-  // Extract refresh token from cookies
-  const { refreshToken } = req.cookies;
+  // Extract refresh token from request body or authorization header
+  const { refreshToken } = req.body as { refreshToken?: string };
 
-  if (!refreshToken)
+  // If not in body, try to get from current user's token
+  let tokenToInvalidate = refreshToken;
+
+  if (!tokenToInvalidate && req.user?._id) {
+    // Get refreshToken from user document
+    const user = await User.findById(req.user._id);
+    if (user && user.refreshToken) {
+      tokenToInvalidate = user.refreshToken;
+    }
+  }
+
+  if (!tokenToInvalidate)
     return res.status(404).json({ message: "No refresh token found" });
 
   // Step 1: Remove refresh token from DB (by matching token)
-  const user = await User.findOne({ refreshToken: refreshToken });
+  const user = await User.findOne({ refreshToken: tokenToInvalidate });
 
   if (user) {
     // Step 2: Clear refreshToken in DB
@@ -195,11 +207,7 @@ const logout = asyncHandler(async (req: Request, res: Response) => {
     await user.save({ validateBeforeSave: false });
   }
 
-  // Step 3: Clear cookies from browser
-  res.clearCookie("accessToken", { httpOnly: true, secure: true });
-  res.clearCookie("refreshToken", { httpOnly: true, secure: true });
-
-  // Step 4: Return response
+  // Step 3: Return response
   return res.status(200).json({
     message: "User logged out successfully",
   });
@@ -237,11 +245,9 @@ const changePassword = asyncHandler(async (req: Request, res: Response) => {
       message:
         "Internal Server error so password is not changed. try again !..",
     });
-  return res
-    .status(200)
-    .clearCookie("accessToken", { httpOnly: true, secure: true })
-    .clearCookie("refreshToken", { httpOnly: true, secure: true })
-    .json({ message: "Password changed successfully, please login again" });
+  return res.status(200).json({
+    message: "Password changed successfully, please login again"
+  });
 });
 
 const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
@@ -429,13 +435,9 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
       message:
         "Internal Server error so password is not changed. try again !..",
     });
-  return res
-    .status(200)
-    .clearCookie("accessToken", { httpOnly: true, secure: true })
-    .clearCookie("refreshToken", { httpOnly: true, secure: true })
-    .json({
-      message: "Password changed successfully, please try to login again",
-    });
+  return res.status(200).json({
+    message: "Password changed successfully, please try to login again",
+  });
 });
 
 const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
@@ -487,7 +489,6 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
     landlordName,
     landlordAddress,
   });
-  const { accessToken, refreshToken } = req.cookies;
 
   const isResidenceInfoExist = await ResidenceInfo.findById(
     residenceInfoCreate?._id
@@ -498,8 +499,6 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).json({
     Message: "Data save successfully",
     isResidenceInfoExist,
-    accessToken: accessToken,
-    refreshToken: refreshToken,
   });
 });
 
@@ -534,8 +533,6 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
   if (!isValidPhone(phoneNo))
     return res.status(400).json({ Message: "Invalid phone" });
 
-  const { accessToken, refreshToken } = req.cookies;
-
   const contactInfoCreate = await ContactInfo.create({
     firstName,
     middleName,
@@ -553,8 +550,6 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).json({
     Message: "Contact info saved",
     isContactInfoCreate,
-    accessToken: accessToken,
-    refreshToken: refreshToken,
   });
   // ContactInfo
 });
@@ -578,7 +573,7 @@ const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
     });
   if (!isValidPhone(attorneyPhoneNo))
     return res.status(400).json({ Message: "Phone no is Invalid" });
-  const { accessToken, refreshToken } = req.cookies;
+
   const legalInfoCreate = await LegalInfo.create({
     attorneyName,
     attorneyAddress,
@@ -590,8 +585,6 @@ const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).json({
     Message: "Data submitted",
     isLegalInfoCreate,
-    accessToken,
-    refreshToken,
   });
 });
 
@@ -610,45 +603,89 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
     maritalStatus,
     spouseName,
     spouseOccupation,
-    spouseEmployer,
-    child,
-    isResponsible,
+    spouseEmployer, // The name of the company where your husband or wife works.
+    items,
+    isResponsible, // Responsible for anyone else support
     dependents,
-  } = req.body;
-
-  const { personalInfoId } = req.body;
-  console.log("this is personalInfoId", personalInfoId);
-
+  } = req.body as {
+    weight: string;
+    height: string;
+    race: RACE;
+    gender: GENDER;
+    eyeColor: EYE_COLOR;
+    hairColor: HAIR_COLOR;
+    birthPlace: string;
+    birthDate: string;
+    UScitizen: boolean;
+    nickname: string;
+    maritalStatus: MARITAL_STATUS;
+    spouseName: string;
+    spouseOccupation: string;
+    spouseEmployer: string; // The name of the company
+    items?: { childName: string; childAge: string; childSchool: string }[];
+    isResponsible: boolean; // Responsible for anyone else support
+    dependents: string;
+  };
   if (
-    !weight?.trim() ||
-    !height?.trim() ||
-    !birthPlace?.trim() ||
-    !birthDate?.trim() ||
-    !nickname?.trim()
-  ) {
-    return res.status(400).json({ Message: "Required field missing" });
+    !weight.trim() ||
+    !height.trim() ||
+    !birthPlace.trim() ||
+    !birthDate.trim() ||
+    !nickname.trim()
+  )
+    return res.status(404).json({ Message: "Required field missing" });
+
+  if (!Object.values(RACE).includes(race)) {
+    return res.status(400).json({
+      success: false,
+      message: `Invalid race type. Must be one of: ${Object.values(RACE).join(
+        ", "
+      )}`,
+    });
+  }
+  if (!Object.values(GENDER).includes(gender)) {
+    return res.status(400).json({
+      success: false,
+      message: `Invalid gender type. Must be one of: ${Object.values(
+        GENDER
+      ).join(", ")}`,
+    });
+  }
+  if (!Object.values(EYE_COLOR).includes(eyeColor)) {
+    return res.status(400).json({
+      success: false,
+      message: `Invalid eye color type. Must be one of: ${Object.values(
+        EYE_COLOR
+      ).join(", ")}`,
+    });
+  }
+  if (!Object.values(HAIR_COLOR).includes(hairColor)) {
+    return res.status(400).json({
+      success: false,
+      message: `Invalid hair color type. Must be one of: ${Object.values(
+        HAIR_COLOR
+      ).join(", ")}`,
+    });
+  }
+  if (!Object.values(MARITAL_STATUS).includes(maritalStatus)) {
+    return res.status(400).json({
+      success: false,
+      message: `Invalid marital status type. Must be one of: ${Object.values(
+        MARITAL_STATUS
+      ).join(", ")}`,
+    });
   }
 
-  if (!Object.values(RACE).includes(race))
-    return res.status(400).json({ message: `Invalid race` });
-  if (!Object.values(GENDER).includes(gender))
-    return res.status(400).json({ message: `Invalid gender` });
-  if (!Object.values(EYE_COLOR).includes(eyeColor))
-    return res.status(400).json({ message: `Invalid eye color` });
-  if (!Object.values(HAIR_COLOR).includes(hairColor))
-    return res.status(400).json({ message: `Invalid hair color` });
-  if (!Object.values(MARITAL_STATUS).includes(maritalStatus))
-    return res.status(400).json({ message: `Invalid marital status` });
-
-  let dependentContent = "";
-  if (isResponsible && !dependents) {
-    return res
-      .status(400)
-      .json({ Message: "Please provide details of dependents" });
+  let content: string = " ";
+  if (isResponsible) {
+    if (!dependents)
+      return res
+        .status(400)
+        .json({ Message: "Please provide details of dependents" });
+    content = dependents;
   }
-  if (isResponsible) dependentContent = dependents;
 
-  const data = {
+  const personalInfoCreate = await PersonalInfo.create({
     weight,
     height,
     race,
@@ -660,38 +697,36 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
     UScitizen,
     nickname,
     maritalStatus,
-    spouseName,
-    spouseOccupation,
-    spouseEmployer,
-    child,
-    isResponsible,
-    dependents: dependentContent,
-  };
+    spouseName: spouseName ? spouseName : " ",
+    spouseOccupation: spouseOccupation ? spouseOccupation : "",
+    spouseEmployer: spouseEmployer ? spouseEmployer : " ",
+    isResponsible, // Responsible for anyone else support
+    dependents: content,
+  });
 
-  let personalInfoDoc;
+  console.log("personalInfoCreate", personalInfoCreate);
 
-  // ✅ If personalInfoId exists, update
-  if (personalInfoId && personalInfoId !== "null") {
-    personalInfoDoc = await PersonalInfo.findByIdAndUpdate(
-      personalInfoId,
-      { $set: data },
-      { new: true }
-    );
+  const isPersonalInfoCreate = await PersonalInfo.findOne({
+    _id: personalInfoCreate?._id,
+  });
+  console.log("personalInfoCreate", isPersonalInfoCreate);
 
-    if (!personalInfoDoc) {
-      return res.status(404).json({ Message: "Personal info not found" });
+  if (isPersonalInfoCreate) {
+    if (items) {
+      // console.log("...items", ...items);
+      // console.log("items", items);
+
+      isPersonalInfoCreate.child?.push(...items);
+      await isPersonalInfoCreate.save();
     }
   }
 
-  // ✅ If no ID passed, create new document
-  else {
-    personalInfoDoc = await PersonalInfo.create(data);
-  }
+  if (!isPersonalInfoCreate)
+    return res.status(500).json({ Message: "Internal server error" });
 
   return res.status(200).json({
-    Message: personalInfoId ? "Updated successfully" : "Created successfully",
-    personalInfoId: personalInfoDoc._id,
-    personalInfo: personalInfoDoc,
+    Message: "Data submitted",
+    isPersonalInfoCreate,
   });
 });
 
