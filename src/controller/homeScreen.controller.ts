@@ -416,5 +416,3 @@ export {
   updateAddressAndSendPictureAsProof,
   updateLatAndLong,
 };
-
-// country, phone no, Ai no,
