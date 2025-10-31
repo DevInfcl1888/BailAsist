@@ -460,7 +460,7 @@ const userSchema = new Schema<signUp>(
     timestamps: true,
   }
 );
-userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ email: 1 }, { unique: true, sparse: true });
 
 const loggedInSchema = new Schema<login>(
   {
