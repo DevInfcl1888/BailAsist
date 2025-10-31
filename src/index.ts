@@ -1,7 +1,6 @@
 import express, { Request, Response } from "express";
 import router from "./routes/routes.js";
 import dotenv from "dotenv";
-import cookieParser from "cookie-parser";
 import cors from "cors";
 import connectDB from "./db/db.js";
 dotenv.config();
@@ -12,7 +11,6 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
 
@@ -40,4 +38,4 @@ const startServer = async () => {
 // sever start
 startServer();
 
-export {};
+export { };

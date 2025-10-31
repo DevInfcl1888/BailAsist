@@ -9,18 +9,11 @@ interface DecodeToken extends JwtPayload {
   email: string;
 }
 
-// cookies interface
-interface AuthCookies {
-  accessToken?: string;
-  refreshToken?: string;
-}
-
 // overwrite the request interface from express
 declare global {
   namespace Express {
     interface Request {
       user?: DecodeToken;
-      cookies?: AuthCookies;
     }
   }
 }
@@ -28,24 +21,33 @@ declare global {
 // auth middleware
 export const authMiddleware = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const isExistAuthToken = req.headers.authorization;
-    let token;
+    const authHeader = req.headers.authorization;
 
-    if (isExistAuthToken && isExistAuthToken.startsWith("Bearer "))
-      token = isExistAuthToken.split(" ")[1];
-    else if (req.cookies?.accessToken) token = req.cookies.accessToken;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Authorization token is missing or invalid format" });
+    }
 
-    if (!token) return res.status(401).json({ message: "Token is missing" });
+    const token = authHeader.split(" ")[1];
 
-    // verify token
-    const decode = jwt.verify(
-      token,
-      process.env.ACCESS_TOKEN_KEY!
-    ) as DecodeToken;
+    if (!token) {
+      return res.status(401).json({ message: "Token is missing" });
+    }
 
-    if (!decode._id)
-      return res.status(403).json({ message: "Invalid token type" });
-    req.user = decode;
-    next();
+    try {
+      // verify token
+      const decode = jwt.verify(
+        token,
+        process.env.ACCESS_TOKEN_KEY!
+      ) as DecodeToken;
+
+      if (!decode._id) {
+        return res.status(403).json({ message: "Invalid token type" });
+      }
+
+      req.user = decode;
+      next();
+    } catch (error) {
+      return res.status(401).json({ message: "Invalid or expired token" });
+    }
   }
 );
