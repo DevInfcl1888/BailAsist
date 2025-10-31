@@ -107,17 +107,18 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
   // check user existence
   const isUserRegisteredSuccessFully = await User.findById(
     createdUser?._id
-  ).select("-password -refreshToken");
+  ).select("-password");
   console.log("isUserRegisteredSuccessFully", isUserRegisteredSuccessFully);
 
   if (!isUserRegisteredSuccessFully)
     return res
       .status(400)
       .json({ message: "Internal server error during registration" });
+  const accessToken = isUserRegisteredSuccessFully.generateAccessToken();
 
   return res.status(200).json({
     message: "User registred successfully",
-    isUserRegisteredSuccessFully,
+    accessToken: accessToken,
   });
 });
 
@@ -140,7 +141,6 @@ const login = asyncHandler(async (req: Request, res: Response) => {
 
   // check user existence
   const user = await User.findOne({ email: email });
-  console.log(user);
 
   if (!user)
     return res
@@ -175,11 +175,7 @@ const login = asyncHandler(async (req: Request, res: Response) => {
     .status(200)
     .json({
       message: "User login successfully",
-      user: `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim(),
       accessToken: `${accessToken}`,
-      refreshToken: `${refreshToken}`,
-      deviceToken: deviceToken ? deviceToken : "",
-      email: user?.email,
     });
 });
 
@@ -614,90 +610,45 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
     maritalStatus,
     spouseName,
     spouseOccupation,
-    spouseEmployer, // The name of the company where your husband or wife works.
-    items,
-    isResponsible, // Responsible for anyone else support
+    spouseEmployer,
+    child,
+    isResponsible,
     dependents,
-  } = req.body as {
-    weight: string;
-    height: string;
-    race: RACE;
-    gender: GENDER;
-    eyeColor: EYE_COLOR;
-    hairColor: HAIR_COLOR;
-    birthPlace: string;
-    birthDate: string;
-    UScitizen: boolean;
-    nickname: string;
-    maritalStatus: MARITAL_STATUS;
-    spouseName: string;
-    spouseOccupation: string;
-    spouseEmployer: string; // The name of the company
-    items?: { childName: string; childAge: string; childSchool: string }[];
-    isResponsible: boolean; // Responsible for anyone else support
-    dependents: string;
-  };
+  } = req.body;
+
+  const { personalInfoId } = req.body;
+  console.log("this is personalInfoId", personalInfoId);
+
   if (
-    !weight.trim() ||
-    !height.trim() ||
-    !birthPlace.trim() ||
-    !birthDate.trim() ||
-    !nickname.trim()
-  )
-    return res.status(404).json({ Message: "Required field missing" });
-
-  if (!Object.values(RACE).includes(race)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid race type. Must be one of: ${Object.values(RACE).join(
-        ", "
-      )}`,
-    });
-  }
-  if (!Object.values(GENDER).includes(gender)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid gender type. Must be one of: ${Object.values(
-        GENDER
-      ).join(", ")}`,
-    });
-  }
-  if (!Object.values(EYE_COLOR).includes(eyeColor)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid eye color type. Must be one of: ${Object.values(
-        EYE_COLOR
-      ).join(", ")}`,
-    });
-  }
-  if (!Object.values(HAIR_COLOR).includes(hairColor)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid hair color type. Must be one of: ${Object.values(
-        HAIR_COLOR
-      ).join(", ")}`,
-    });
-  }
-  if (!Object.values(MARITAL_STATUS).includes(maritalStatus)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid marital status type. Must be one of: ${Object.values(
-        MARITAL_STATUS
-      ).join(", ")}`,
-    });
+    !weight?.trim() ||
+    !height?.trim() ||
+    !birthPlace?.trim() ||
+    !birthDate?.trim() ||
+    !nickname?.trim()
+  ) {
+    return res.status(400).json({ Message: "Required field missing" });
   }
 
-  let content: string = " ";
-  if (isResponsible) {
-    if (!dependents)
-      return res
-        .status(400)
-        .json({ Message: "Please provide details of dependents" });
-    content = dependents;
-  }
-  const { accessToken, refreshToken } = req.cookies;
+  if (!Object.values(RACE).includes(race))
+    return res.status(400).json({ message: `Invalid race` });
+  if (!Object.values(GENDER).includes(gender))
+    return res.status(400).json({ message: `Invalid gender` });
+  if (!Object.values(EYE_COLOR).includes(eyeColor))
+    return res.status(400).json({ message: `Invalid eye color` });
+  if (!Object.values(HAIR_COLOR).includes(hairColor))
+    return res.status(400).json({ message: `Invalid hair color` });
+  if (!Object.values(MARITAL_STATUS).includes(maritalStatus))
+    return res.status(400).json({ message: `Invalid marital status` });
 
-  const personalInfoCreate = await PersonalInfo.create({
+  let dependentContent = "";
+  if (isResponsible && !dependents) {
+    return res
+      .status(400)
+      .json({ Message: "Please provide details of dependents" });
+  }
+  if (isResponsible) dependentContent = dependents;
+
+  const data = {
     weight,
     height,
     race,
@@ -709,38 +660,38 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
     UScitizen,
     nickname,
     maritalStatus,
-    spouseName: spouseName ? spouseName : " ",
-    spouseOccupation: spouseOccupation ? spouseOccupation : "",
-    spouseEmployer: spouseEmployer ? spouseEmployer : " ",
-    isResponsible, // Responsible for anyone else support
-    dependents: content,
-  });
+    spouseName,
+    spouseOccupation,
+    spouseEmployer,
+    child,
+    isResponsible,
+    dependents: dependentContent,
+  };
 
-  console.log("personalInfoCreate", personalInfoCreate);
+  let personalInfoDoc;
 
-  const isPersonalInfoCreate = await PersonalInfo.findOne({
-    _id: personalInfoCreate?._id,
-  });
-  console.log("personalInfoCreate", isPersonalInfoCreate);
+  // ✅ If personalInfoId exists, update
+  if (personalInfoId && personalInfoId !== "null") {
+    personalInfoDoc = await PersonalInfo.findByIdAndUpdate(
+      personalInfoId,
+      { $set: data },
+      { new: true }
+    );
 
-  if (isPersonalInfoCreate) {
-    if (items) {
-      // console.log("...items", ...items);
-      // console.log("items", items);
-
-      isPersonalInfoCreate.child?.push(...items);
-      await isPersonalInfoCreate.save();
+    if (!personalInfoDoc) {
+      return res.status(404).json({ Message: "Personal info not found" });
     }
   }
 
-  if (!isPersonalInfoCreate)
-    return res.status(500).json({ Message: "Internal server error" });
+  // ✅ If no ID passed, create new document
+  else {
+    personalInfoDoc = await PersonalInfo.create(data);
+  }
 
   return res.status(200).json({
-    Message: "Data submitted",
-    isPersonalInfoCreate,
-    accessToken: accessToken,
-    refreshToken: refreshToken,
+    Message: personalInfoId ? "Updated successfully" : "Created successfully",
+    personalInfoId: personalInfoDoc._id,
+    personalInfo: personalInfoDoc,
   });
 });
 
