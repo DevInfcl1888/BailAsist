@@ -156,42 +156,50 @@ const login = asyncHandler(async (req: Request, res: Response) => {
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
 
-  user.refreshToken = refreshToken;
-  await user.save({ validateBeforeSave: false });
+  // Prepare update object - always update deviceToken
+  const updateData: any = {
+    refreshToken: refreshToken,
+    deviceToken: deviceToken || "",
+  };
 
-  const expiresIn = rememberMe ? 10 * 24 * 60 * 60 * 1000 : 15 * 60 * 1000; // 10 Days or 15 mins
+  // Update user document
+  await User.findByIdAndUpdate(
+    user._id,
+    { $set: updateData },
+    { new: true, validateBeforeSave: false }
+  );
+
   // sending response
-  return res
-    .cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: true,
-      maxAge: expiresIn, // 10 Days or 15 min
-    })
-    .cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    })
-    .status(200)
-    .json({
-      message: "User login successfully",
-      user: `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim(),
-      accessToken: `${accessToken}`,
-      refreshToken: `${refreshToken}`,
-      deviceToken: deviceToken ? deviceToken : "",
-      email: user?.email,
-    });
+  return res.status(200).json({
+    message: "User login successfully",
+    user: `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim(),
+    accessToken: `${accessToken}`,
+    refreshToken: `${refreshToken}`,
+    deviceToken: deviceToken ? deviceToken : "",
+    email: user?.email,
+  });
 });
 
 const logout = asyncHandler(async (req: Request, res: Response) => {
-  // Extract refresh token from cookies
-  const { refreshToken } = req.cookies;
+  // Extract refresh token from request body or authorization header
+  const { refreshToken } = req.body as { refreshToken?: string };
 
-  if (!refreshToken)
+  // If not in body, try to get from current user's token
+  let tokenToInvalidate = refreshToken;
+
+  if (!tokenToInvalidate && req.user?._id) {
+    // Get refreshToken from user document
+    const user = await User.findById(req.user._id);
+    if (user && user.refreshToken) {
+      tokenToInvalidate = user.refreshToken;
+    }
+  }
+
+  if (!tokenToInvalidate)
     return res.status(404).json({ message: "No refresh token found" });
 
   // Step 1: Remove refresh token from DB (by matching token)
-  const user = await User.findOne({ refreshToken: refreshToken });
+  const user = await User.findOne({ refreshToken: tokenToInvalidate });
 
   if (user) {
     // Step 2: Clear refreshToken in DB
@@ -199,11 +207,7 @@ const logout = asyncHandler(async (req: Request, res: Response) => {
     await user.save({ validateBeforeSave: false });
   }
 
-  // Step 3: Clear cookies from browser
-  res.clearCookie("accessToken", { httpOnly: true, secure: true });
-  res.clearCookie("refreshToken", { httpOnly: true, secure: true });
-
-  // Step 4: Return response
+  // Step 3: Return response
   return res.status(200).json({
     message: "User logged out successfully",
   });
@@ -241,11 +245,9 @@ const changePassword = asyncHandler(async (req: Request, res: Response) => {
       message:
         "Internal Server error so password is not changed. try again !..",
     });
-  return res
-    .status(200)
-    .clearCookie("accessToken", { httpOnly: true, secure: true })
-    .clearCookie("refreshToken", { httpOnly: true, secure: true })
-    .json({ message: "Password changed successfully, please login again" });
+  return res.status(200).json({
+    message: "Password changed successfully, please login again"
+  });
 });
 
 const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
@@ -433,13 +435,9 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
       message:
         "Internal Server error so password is not changed. try again !..",
     });
-  return res
-    .status(200)
-    .clearCookie("accessToken", { httpOnly: true, secure: true })
-    .clearCookie("refreshToken", { httpOnly: true, secure: true })
-    .json({
-      message: "Password changed successfully, please try to login again",
-    });
+  return res.status(200).json({
+    message: "Password changed successfully, please try to login again",
+  });
 });
 
 const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
@@ -491,7 +489,6 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
     landlordName,
     landlordAddress,
   });
-  const { accessToken, refreshToken } = req.cookies;
 
   const isResidenceInfoExist = await ResidenceInfo.findById(
     residenceInfoCreate?._id
@@ -502,8 +499,6 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).json({
     Message: "Data save successfully",
     isResidenceInfoExist,
-    accessToken: accessToken,
-    refreshToken: refreshToken,
   });
 });
 
@@ -538,8 +533,6 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
   if (!isValidPhone(phoneNo))
     return res.status(400).json({ Message: "Invalid phone" });
 
-  const { accessToken, refreshToken } = req.cookies;
-
   const contactInfoCreate = await ContactInfo.create({
     firstName,
     middleName,
@@ -557,8 +550,6 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).json({
     Message: "Contact info saved",
     isContactInfoCreate,
-    accessToken: accessToken,
-    refreshToken: refreshToken,
   });
   // ContactInfo
 });
@@ -582,7 +573,7 @@ const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
     });
   if (!isValidPhone(attorneyPhoneNo))
     return res.status(400).json({ Message: "Phone no is Invalid" });
-  const { accessToken, refreshToken } = req.cookies;
+
   const legalInfoCreate = await LegalInfo.create({
     attorneyName,
     attorneyAddress,
@@ -594,8 +585,6 @@ const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).json({
     Message: "Data submitted",
     isLegalInfoCreate,
-    accessToken,
-    refreshToken,
   });
 });
 
@@ -695,7 +684,6 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
         .json({ Message: "Please provide details of dependents" });
     content = dependents;
   }
-  const { accessToken, refreshToken } = req.cookies;
 
   const personalInfoCreate = await PersonalInfo.create({
     weight,
@@ -739,8 +727,6 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).json({
     Message: "Data submitted",
     isPersonalInfoCreate,
-    accessToken: accessToken,
-    refreshToken: refreshToken,
   });
 });
 
