@@ -465,6 +465,7 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
     landlordName: string;
     landlordAddress: string;
   };
+  const { residenceId } = req.body;
   if (
     !yearsAtCurrentAddress.trim() ||
     !landlordName.trim() ||
@@ -484,22 +485,37 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
     return res
       .status(400)
       .json({ Message: "Invalid landlord name. please use only alphabets" });
-  const residenceInfoCreate = await ResidenceInfo.create({
+
+  const data = {
     yearsAtCurrentAddress: `${yearsAtCurrentAddress} Yr`,
     residenceType,
     landlordName,
     landlordAddress,
-  });
+  };
+  let residenceDoc;
+  if (residenceId && residenceId !== null) {
+    residenceDoc = await ResidenceInfo.findByIdAndUpdate(
+      residenceId,
+      {
+        $set: data,
+      },
+      {
+        new: true,
+      }
+    );
 
-  const isResidenceInfoExist = await ResidenceInfo.findById(
-    residenceInfoCreate?._id
-  );
-  if (!isResidenceInfoExist)
+    if (!residenceDoc)
+      return res.status(404).json({ Message: "Data not found or created" });
+  } else {
+    residenceDoc = await ResidenceInfo.create(data);
+  }
+
+  if (!residenceDoc)
     return res.status(500).json({ Message: "Error occur during submit data." });
 
   return res.status(200).json({
-    Message: "Data save successfully",
-    isResidenceInfoExist,
+    Message: residenceId ? "Updated succesfully" : "Data save successfully",
+    residenceDoc,
   });
 });
 
@@ -511,6 +527,7 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
     email: string;
     phoneNo: string;
   };
+  const { contactInfoId } = req.body;
   if (
     !firstName.trim() ||
     !middleName.trim() ||
@@ -534,25 +551,32 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
   if (!isValidPhone(phoneNo))
     return res.status(400).json({ Message: "Invalid phone" });
 
-  const contactInfoCreate = await ContactInfo.create({
-    firstName,
-    middleName,
-    lastName,
-    email,
-    phoneNo,
-  });
+  const data = { firstName, middleName, lastName, email, phoneNo };
+  let contactInfoDoc;
+  if (contactInfoId && contactInfoId !== null) {
+    contactInfoDoc = await ContactInfo.findByIdAndUpdate(
+      contactInfoId,
+      {
+        $set: data,
+      },
+      {
+        new: true,
+      }
+    );
 
-  const isContactInfoCreate = await ContactInfo.findById(
-    contactInfoCreate?._id
-  );
-  if (!isContactInfoCreate)
+    if (!contactInfoId)
+      return res.status(404).json({ Message: "Data not found or created" });
+  } else {
+    contactInfoDoc = await ContactInfo.create(data);
+  }
+
+  if (!contactInfoDoc)
     return res.status(500).json({ Message: "Error occur during submit data." });
 
   return res.status(200).json({
-    Message: "Contact info saved",
-    isContactInfoCreate,
+    Message: contactInfoId ? "Updated successfully" : "Data save successfully",
+    contactInfoDoc,
   });
-  // ContactInfo
 });
 
 const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
@@ -561,6 +585,7 @@ const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
     attorneyAddress: string;
     attorneyPhoneNo: string;
   };
+  const { legalInfoId } = req.body;
   if (
     !attorneyName.trim() ||
     !attorneyAddress.trim() ||
@@ -575,17 +600,33 @@ const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
   if (!isValidPhone(attorneyPhoneNo))
     return res.status(400).json({ Message: "Phone no is Invalid" });
 
-  const legalInfoCreate = await LegalInfo.create({
+  let legalInfoDoc;
+  const data = {
     attorneyName,
     attorneyAddress,
     attorneyPhoneNo,
-  });
-  const isLegalInfoCreate = await LegalInfo.findById(legalInfoCreate?._id);
-  if (!isLegalInfoCreate)
+  };
+  if (legalInfoId && legalInfoId !== null) {
+    legalInfoDoc = await LegalInfo.findByIdAndUpdate(
+      legalInfoId,
+      {
+        $set: data,
+      },
+      {
+        new: true,
+      }
+    );
+    if (!legalInfoDoc)
+      return res.status(404).json({ Message: "Data not found or created" });
+  } else {
+    legalInfoDoc = await LegalInfo.create(data);
+  }
+
+  if (!legalInfoDoc)
     return res.status(500).json({ Message: "Internal server error." });
   return res.status(200).json({
-    Message: "Data submitted",
-    isLegalInfoCreate,
+    Message: legalInfoId ? "Updated successfully" : "Data save successfully",
+    legalInfoDoc,
   });
 });
 
@@ -681,7 +722,7 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
   }
 
   return res.status(200).json({
-    Message: personalInfoId ? "Updated successfully" : "Created successfully",
+    Message: personalInfoId ? "Updated successfully" : "Data save successfully",
     personalInfoId: personalInfoDoc._id,
     personalInfo: personalInfoDoc,
   });
@@ -741,7 +782,7 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
   }
 
   return res.status(200).json({
-    Message: driverLicId ? "Updated successfully" : "Created successfully",
+    Message: driverLicId ? "Updated successfully" : "Data save successfully",
     driverLicId: driverLicDoc._id,
     driverLicInfo: driverLicDoc,
   });
@@ -838,7 +879,9 @@ const addPersonalRefrenceInfo = asyncHandler(
     if (!personalRefDoc)
       return res.status(500).json({ Message: "Internal Server error" });
     return res.status(200).json({
-      Message: personalRefId ? "Updated successfully" : "Data submitted",
+      Message: personalRefId
+        ? "Updated successfully"
+        : "Data save successfully",
       personalRefDoc,
     });
   }
@@ -900,7 +943,7 @@ const addEmployementStatus = asyncHandler(
         Message: "Internal server error occur during submitting data",
       });
     return res.status(200).json({
-      Message: employeeId ? "Updated successfully" : "Data submitted",
+      Message: employeeId ? "Updated successfully" : "Data save successfully",
       EmployeData: employeeDoc,
     });
   }
