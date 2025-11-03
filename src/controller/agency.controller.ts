@@ -20,17 +20,17 @@ const createAgency = asyncHandler(async (req: Request, res: Response) => {
     !agentName.trim() ||
     !address.trim()
   )
-    return res.status(400).json({ message: "All fields are required" });
+    return res.status(400).json({ Message: "All fields are required" });
   if (isValidPhone(phoneNo))
-    return res.status(400).json({ message: "Invalid phone number" });
+    return res.status(400).json({ Message: "Invalid phone number" });
   if (address.length < 10 || address.length > 100)
-    return res.status(400).json({ message: "Invalid address" });
+    return res.status(400).json({ Message: "Invalid address" });
   if (!isValidData(agentName))
     return res.status(401).json({ Message: "Agent name seems invalid" });
 
   const isAgencyExist = await Agency.findOne({ email });
   if (!isAgencyExist)
-    return res.status(409).json({ message: "Agency already exists" });
+    return res.status(409).json({ Message: "Agency already exists" });
   const createAgency = await Agency.create({
     name: agencyName,
     phoneNo,
@@ -39,10 +39,10 @@ const createAgency = asyncHandler(async (req: Request, res: Response) => {
     address,
   });
   if (!createAgency)
-    return res.status(500).json({ message: "Failed to create agency" });
+    return res.status(500).json({ Message: "Failed to create agency" });
   return res
     .status(201)
-    .json({ message: "Agency created successfully", agency: createAgency });
+    .json({ Message: "Agency created successfully", agency: createAgency });
 });
 
 export { createAgency };

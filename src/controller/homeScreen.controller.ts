@@ -25,7 +25,7 @@ const creatCheckIn = asyncHandler(async (req: Request, res: Response) => {
   let user = await User.findOne({ _id: req.user?._id });
   console.log("user", user);
 
-  if (!user) return res.status(404).json({ msg: "User not found" });
+  if (!user) return res.status(404).json({ Message: "User not found" });
 
   const checkInRecord = await CheckIn.create({
     user: user?._id,
@@ -68,7 +68,7 @@ const creatCheckIn = asyncHandler(async (req: Request, res: Response) => {
   console.log("cheackIn", checkInRecord);
 
   return res.status(200).json({
-    msg: "Check-in successful",
+    Message: "Check-in successful",
     lastCheckIn: {
       date: formattedLastCheckIn,
       status: checkInRecord.lastCheckedInAt.status,
@@ -88,7 +88,7 @@ const getUserAgencyInfo = asyncHandler(async (req: Request, res: Response) => {
       select: "name phoneNo email agentName address",
     },
   ]);
-  if (!isUserExist) return res.status(404).json({ message: "User not found" });
+  if (!isUserExist) return res.status(404).json({ Message: "User not found" });
   return res.status(200).json({ Message: "Agency Information", isUserExist });
 });
 
@@ -138,7 +138,7 @@ const getCheckInStatus = asyncHandler(async (req: Request, res: Response) => {
     hour12: false,
   });
   return res.status(200).json({
-    message: "Check-in found",
+    Message: "Check-in found",
     nextCheckInDate: formattedNextCheckIn,
     nextCheckInstatus: isCheckInRecordExist.nextCheckInDate.status,
     lastCheckInDate: formattedLastCheckIn,
@@ -159,7 +159,7 @@ const checkIn = asyncHandler(async (req: Request, res: Response) => {
   let isCheckInExist = await CheckIn.findOne({ _id: checkIn_Id });
 
   if (!isCheckInExist)
-    return res.status(404).json({ msg: "No check-In found" });
+    return res.status(404).json({ Message: "No check-In found" });
 
   const date = new Date();
   const nextCheckInDate = new Date(isCheckInExist.lastCheckedInAt.date);
@@ -227,7 +227,7 @@ const checkIn = asyncHandler(async (req: Request, res: Response) => {
   });
 
   return res.status(200).json({
-    msg: "Check-in successful",
+    Message: "Check-in successful",
     lastCheckIn: {
       lastCheckIn: formattedLastCheckIn,
       lastCheckInStatus: checkInRecord.lastCheckedInAt.status,

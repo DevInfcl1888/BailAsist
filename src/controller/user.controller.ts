@@ -63,19 +63,19 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     !ZipCode?.trim() ||
     isAgreed === false
   ) {
-    return res.status(400).json({ msg: "All credentials are required" });
+    return res.status(400).json({ Message: "All credentials are required" });
   }
   if (!isValidEmail(email)) {
     console.log("k", isValidEmail(email));
-    return res.status(404).json({ message: "Invalid email" });
+    return res.status(404).json({ Message: "Invalid email" });
   }
   if (!isValidPassword(password))
     return res.status(401).json({
-      message:
+      Message:
         "Password must contain at least 1 uppercase, lowercase, number, and special character, and password should be upto 8 characters long",
     });
   if (phoneNo.length !== 10 || !isValidPhone(phoneNo)) {
-    return res.status(404).json({ message: "Invalid phone no." });
+    return res.status(404).json({ Message: "Invalid phone no." });
   }
   if (homeAddress.length < 10 || homeAddress.length > 100)
     return res.status(400).json({
@@ -91,7 +91,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
   });
 
   if (checkUserExistence)
-    return res.status(403).json({ message: "User already exist" });
+    return res.status(403).json({ Message: "User already exist" });
 
   // User created
   const createdUser = await User.create({
@@ -112,15 +112,15 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
   const isUserRegisteredSuccessFully = await User.findById(
     createdUser?._id
   ).select("-password -refreshToken");
-  console.log("isUserRegisteredSuccessFully", isUserRegisteredSuccessFully);
+  // console.log("isUserRegisteredSuccessFully", isUserRegisteredSuccessFully);
 
   if (!isUserRegisteredSuccessFully)
     return res
       .status(400)
-      .json({ message: "Internal server error during registration" });
+      .json({ Message: "Internal server error during registration" });
   const accessToken = createdUser.generateAccessToken();
   return res.status(200).json({
-    message: "User registred successfully",
+    Message: "User registred successfully",
     data: { accessToken: accessToken, deviceToken: deviceToken },
   });
 });
@@ -134,13 +134,13 @@ const login = asyncHandler(async (req: Request, res: Response) => {
   };
   // Data validation
   if (!email || !password)
-    return res.status(401).json({ message: "Credentials are missing" });
+    return res.status(401).json({ Message: "Credentials are missing" });
 
   if (!isValidEmail(email))
-    return res.status(404).json({ message: "Invalid email" });
+    return res.status(404).json({ Message: "Invalid email" });
 
   if (!isValidPassword(password))
-    return res.status(401).json({ message: "Invalid password" });
+    return res.status(401).json({ Message: "Invalid password" });
 
   // check user existence
   const user = await User.findOne({ email: email });
@@ -149,12 +149,12 @@ const login = asyncHandler(async (req: Request, res: Response) => {
   if (!user)
     return res
       .status(404)
-      .json({ message: "User not found with these credentials" });
+      .json({ Message: "User not found with these credentials" });
 
   // check password
   const isMatchPassword = await user.isCorrectPassword(password);
   if (!isMatchPassword)
-    return res.status(401).json({ message: "Invalid password" });
+    return res.status(401).json({ Message: "Invalid password" });
 
   // generate accessToken and refreshToken
   const accessToken = user.generateAccessToken();
@@ -177,7 +177,7 @@ const login = asyncHandler(async (req: Request, res: Response) => {
 
   // sending response
   return res.status(200).json({
-    message: "User login successfully",
+    Message: "User login successfully",
     data: {
       accessToken: `${accessToken}`,
       deviceToken: deviceToken ? deviceToken : "",
@@ -201,7 +201,7 @@ const logout = asyncHandler(async (req: Request, res: Response) => {
   }
 
   if (!tokenToInvalidate)
-    return res.status(404).json({ message: "No refresh token found" });
+    return res.status(404).json({ Message: "No refresh token found" });
 
   // Step 1: Remove refresh token from DB (by matching token)
   const user = await User.findOne({ refreshToken: tokenToInvalidate });
@@ -214,7 +214,7 @@ const logout = asyncHandler(async (req: Request, res: Response) => {
 
   // Step 3: Return response
   return res.status(200).json({
-    message: "User logged out successfully",
+    Message: "User logged out successfully",
   });
 });
 
@@ -227,19 +227,19 @@ const changePassword = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user?._id);
 
   if (!user)
-    return res.status(404).json({ message: "User not found or maybe logout" });
+    return res.status(404).json({ Message: "User not found or maybe logout" });
 
   const isMatchPassword = await user.isCorrectPassword(oldPassword);
   if (!isMatchPassword)
-    return res.status(401).json({ message: "Old password mismatch" });
+    return res.status(401).json({ Message: "Old password mismatch" });
   if (!isValidPassword(newPassword))
-    return res.status(401).json({ message: "Invalid password" });
+    return res.status(401).json({ Message: "Invalid password" });
   if (newPassword !== confirmPassword)
     return res
       .status(401)
-      .json({ message: "New and old password must be same" });
+      .json({ Message: "New and old password must be same" });
   if (newPassword === oldPassword)
-    return res.status(401).json({ message: "Password has no change" });
+    return res.status(401).json({ Message: "Password has no change" });
 
   // update password in DB
   user.password = newPassword;
@@ -247,12 +247,12 @@ const changePassword = asyncHandler(async (req: Request, res: Response) => {
 
   if (!updatedUserPassword)
     return res.status(401).json({
-      message:
+      Message:
         "Internal Server error so password is not changed. try again !..",
     });
-    
+
   return res.status(200).json({
-    message: "Password changed successfully, please login again",
+    Message: "Password changed successfully, please login again",
   });
 });
 
@@ -272,7 +272,6 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     lastName: string;
     email: string;
     phoneNo: string;
-    // homeAddress: string;
     street: string;
     ZipCode: string;
   };
@@ -283,18 +282,16 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     !lastName?.trim() ||
     !email?.trim() ||
     !phoneNo?.trim() ||
-    // !homeAddress?.trim() ||
     !street?.trim() ||
     !ZipCode?.trim()
   ) {
-    return res.status(400).json({ msg: "All credentials are required" });
+    return res.status(400).json({ Message: "All credentials are required" });
   }
   if (!isValidEmail(email)) {
-    console.log("k", isValidEmail(email));
-    return res.status(404).json({ message: "Invalid email" });
+    return res.status(404).json({ Message: "Invalid email" });
   }
   if (phoneNo.length !== 10 || !/^\d{10}$/.test(phoneNo)) {
-    return res.status(404).json({ message: "Invalid phone no." });
+    return res.status(404).json({ Message: "Invalid phone no." });
   }
   // if (homeAddress.length < 10 || homeAddress.length > 100)
   //   return res.status(400).json({
@@ -359,9 +356,9 @@ const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
   if (!user)
     return res
       .status(404)
-      .json({ message: "User not foundor maybe you logout" });
+      .json({ Message: "User not found or maybe you logout" });
   return res.status(200).json({
-    message: "User Profile",
+    Message: "User Profile",
     user,
   });
 });
@@ -370,16 +367,14 @@ const sendOTP = asyncHandler(async (req: Request, res: Response) => {
   const { email } = req.body as { email: string };
   // email existence check
   if (!email || !isValidEmail(email))
-    return res.status(401).json({ message: "Inavlid email" });
+    return res.status(401).json({ Message: "Inavlid email" });
   // generate OTP
   const generate_OTP: string = await generateOTP(email);
-  // console.log("generate_OTP", generate_OTP);
 
   const send_OTP: string = await sendOTPfun(email, generate_OTP);
-  // console.log("send_OTP", send_OTP);
 
   return res.status(200).json({
-    message: `OTP send successfully to your registered email : ${email}`,
+    Message: `OTP send successfully to your registered email : ${email}`,
   });
 });
 
@@ -387,29 +382,29 @@ const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
   const { email, otp } = req.body;
 
   if (!email || !otp)
-    return res.status(400).json({ message: "Missing fields" });
+    return res.status(400).json({ Message: "Missing fields" });
 
   const stored = otpStore.get(email);
   if (!stored)
-    return res.status(400).json({ message: "OTP not found or expired" });
+    return res.status(400).json({ Message: "OTP not found or expired" });
   // console.log("stored", stored);
 
   if (Date.now() > stored.expiresAt) {
     otpStore.delete(email);
-    return res.status(400).json({ message: "OTP expired" });
+    return res.status(400).json({ Message: "OTP expired" });
   }
 
   const isMatch = await bcrypt.compare(otp, stored.hash);
-  if (!isMatch) return res.status(400).json({ message: "Invalid OTP" });
+  if (!isMatch) return res.status(400).json({ Message: "Invalid OTP" });
 
   // success
   otpStore.delete(email);
-  return res.status(200).json({ message: "OTP verified successfully ✅" });
+  return res.status(200).json({ Message: "OTP verified successfully ✅" });
 });
 
 const getdata = async (req: Request, res: Response) => {
   if (req.user?._id) {
-    return res.status(200).json({ msg: "user still login" });
+    return res.status(200).json({ Message: "user still login" });
   }
 }; // This is only for checking that user still logged in or not
 
@@ -422,13 +417,13 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findOne({ email: email });
 
   if (!user)
-    return res.status(404).json({ message: "User not found or maybe logout" });
+    return res.status(404).json({ Message: "User not found or maybe logout" });
   if (!isValidPassword(newPassword))
-    return res.status(401).json({ message: "Invalid password" });
+    return res.status(401).json({ Message: "Invalid password" });
   if (newPassword !== confirmPassword)
     return res
       .status(401)
-      .json({ message: "New and old password must be same" });
+      .json({ Message: "New and old password must be same" });
 
   // update password in DB
   user.password = newPassword;
@@ -438,11 +433,11 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
 
   if (!updatedUserPassword)
     return res.status(401).json({
-      message:
+      Message:
         "Internal Server error so password is not changed. try again !..",
     });
   return res.status(200).json({
-    message: "Password changed successfully, please try to login again",
+    Message: "Password changed successfully, please try to login again",
   });
 });
 
@@ -452,10 +447,10 @@ const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
   if (deletedUserInfo.deletedCount !== 1)
     return res
       .status(401)
-      .json({ message: "User profile can't be deleted", deletedUserInfo });
+      .json({ Message: "User profile can't be deleted", deletedUserInfo });
   return res
     .status(200)
-    .json({ message: "User profile deleted", deletedUserInfo });
+    .json({ Message: "User profile deleted", deletedUserInfo });
 });
 
 const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
@@ -480,7 +475,7 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
   if (!Object.values(ResidenceType).includes(residenceType)) {
     return res.status(400).json({
       success: false,
-      message: `Invalid residence type. Must be one of: ${Object.values(
+      Message: `Invalid residence type. Must be one of: ${Object.values(
         ResidenceType
       ).join(", ")}`,
     });
@@ -629,13 +624,13 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
   }
 
   if (!Object.values(RACE).includes(race))
-    return res.status(400).json({ message: `Invalid race` });
+    return res.status(400).json({ Message: `Invalid race` });
   if (!Object.values(GENDER).includes(gender))
-    return res.status(400).json({ message: `Invalid gender` });
+    return res.status(400).json({ Message: `Invalid gender` });
   if (!Object.values(EYE_COLOR).includes(eyeColor))
-    return res.status(400).json({ message: `Invalid eye color` });
+    return res.status(400).json({ Message: `Invalid eye color` });
   if (!Object.values(HAIR_COLOR).includes(hairColor))
-    return res.status(400).json({ message: `Invalid hair color` });
+    return res.status(400).json({ Message: `Invalid hair color` });
 
   let dependentContent = "";
   if (isResponsible && !dependents) {
