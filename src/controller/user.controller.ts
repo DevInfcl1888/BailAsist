@@ -89,7 +89,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
 
   const checkUserExistence = await User.findOne({
     email: {
-      $regex: new RegExp(`^${email}$`, ""),
+      $regex: new RegExp(`^${email}$`, "i"),
     },
   });
 
