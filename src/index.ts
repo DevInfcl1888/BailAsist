@@ -3,6 +3,9 @@ import router from "./routes/routes.js";
 import dotenv from "dotenv";
 import cors from "cors";
 import connectDB from "./db/db.js";
+import "./config/firebase.js";
+import "./jobs/tokenCheckJob.js";
+
 dotenv.config();
 
 const PORT = process.env.PORT || 8000;
