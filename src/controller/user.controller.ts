@@ -37,6 +37,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     deviceToken,
     ZipCode,
     isAgreed,
+    countryCode,
   } = req.body as {
     firstName: string;
     middleName: string;
@@ -49,6 +50,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     street: string;
     ZipCode: string;
     isAgreed: boolean;
+    countryCode: string;
   };
   // Data validation
   if (
@@ -61,6 +63,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     !homeAddress?.trim() ||
     !street?.trim() ||
     !ZipCode?.trim() ||
+    !countryCode?.trim() ||
     isAgreed === false
   ) {
     return res.status(400).json({ Message: "All credentials are required" });
@@ -101,6 +104,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     email,
     password,
     phoneNo,
+    countryCode,
     deviceToken: deviceToken ? deviceToken : "",
     homeAddress,
     street,
