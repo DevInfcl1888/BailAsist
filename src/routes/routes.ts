@@ -19,6 +19,9 @@ import {
   addContactInfo,
   addLegalInfo,
   addPersonalInfo,
+  addDriverLicInfo,
+  addPersonalRefrenceInfo,
+  addEmployementStatus
 } from "../controller/user.controller.js";
 
 // Home Screen Import
@@ -52,6 +55,9 @@ router.route("/addResidenceInfo").post(authMiddleware, addResidenceInfo);
 router.route("/addContactInfo").post(authMiddleware, addContactInfo);
 router.route("/addLegalInfo").post(authMiddleware, addLegalInfo);
 router.route("/addPersonalInfo").post(authMiddleware, addPersonalInfo);
+router.route("/addDriverLicInfo").post(authMiddleware, addDriverLicInfo);
+router.route("/addPersonalRefrenceInfo").post(authMiddleware, addPersonalRefrenceInfo);
+router.route("/addEmployementStatus").post(authMiddleware, addEmployementStatus);
 
 // Home Screen Routes
 router.route("/agency/:userId").get(authMiddleware, getUserAgencyInfo); // Get Agency Info
