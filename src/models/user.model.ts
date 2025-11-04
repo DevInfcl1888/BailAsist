@@ -133,6 +133,7 @@ interface signUp extends Document {
   lastName: string;
   email: string;
   password: string;
+  confirmPassword: string;
   phoneNo: string;
   isActive: boolean;
   deviceToken: string;
@@ -142,10 +143,10 @@ interface signUp extends Document {
   refreshToken: string;
   image: string;
   isAgreed: boolean;
-  agency: Schema.Types.ObjectId;
+  bondsman: Schema.Types.ObjectId;
   latitude: number;
   longitude: number;
-  countryCode:String,
+  countryCode: String;
   isCorrectPassword(password: string): Promise<boolean>;
   generateAccessToken(): string;
   generateRefreshToken(): string;
@@ -457,6 +458,10 @@ const userSchema = new Schema<signUp>(
       type: String,
       required: true,
     },
+    confirmPassword: {
+      type: String,
+      required: true,
+    },
     phoneNo: {
       type: String,
       required: true,
@@ -489,15 +494,14 @@ const userSchema = new Schema<signUp>(
       required: true,
       immutable: true,
     },
-    countryCode:{
-      type:String,
-      required:true
+    countryCode: {
+      type: String,
+      required: true,
     },
     refreshToken: {
       type: String,
     },
-    agency: { type: Schema.Types.ObjectId, ref: "Agency" },
-
+    bondsman: { type: Schema.Types.ObjectId, ref: "Bondsman" },
     image: {
       type: String, // cloudinary url
     },

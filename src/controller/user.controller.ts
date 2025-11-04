@@ -31,6 +31,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     password,
+    confirmPassword,
     phoneNo,
     homeAddress,
     street,
@@ -44,6 +45,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     lastName: string;
     email: string;
     password: string;
+    confirmPassword: string;
     phoneNo: string;
     deviceToken?: string;
     homeAddress: string;
@@ -59,6 +61,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     !lastName?.trim() ||
     !email?.trim() ||
     !password?.trim() ||
+    !confirmPassword?.trim() ||
     !phoneNo?.trim() ||
     !homeAddress?.trim() ||
     !street?.trim() ||
@@ -72,12 +75,12 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     console.log("k", isValidEmail(email));
     return res.status(404).json({ Message: "Invalid email" });
   }
-  if (!isValidPassword(password))
+  if (!isValidPassword(password) || !isValidPassword(confirmPassword))
     return res.status(401).json({
       Message:
         "Password must contain at least 1 uppercase, lowercase, number, and special character, and password should be upto 8 characters long",
     });
-  if (phoneNo.length !== 10 || !isValidPhone(phoneNo)) {
+  if (!isValidPhone(phoneNo)) {
     return res.status(404).json({ Message: "Invalid phone no." });
   }
   if (homeAddress.length < 10 || homeAddress.length > 100)
@@ -86,7 +89,10 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     });
   if (street.length > 100 || ZipCode.length > 11)
     return res.status(400).json({ Message: "Street or ZIP code is too long" });
-
+  if (password !== confirmPassword)
+    return res
+      .status(400)
+      .json({ Message: "Confirm password should be same as password" });
   const checkUserExistence = await User.findOne({
     email: {
       $regex: new RegExp(`^${email}$`, "i"),
@@ -103,6 +109,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     password,
+    confirmPassword,
     phoneNo,
     countryCode,
     deviceToken: deviceToken ? deviceToken : "",
@@ -116,7 +123,6 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
   const isUserRegisteredSuccessFully = await User.findById(
     createdUser?._id
   ).select("-password -refreshToken");
-  // console.log("isUserRegisteredSuccessFully", isUserRegisteredSuccessFully);
 
   if (!isUserRegisteredSuccessFully)
     return res
@@ -125,7 +131,11 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
   const accessToken = createdUser.generateAccessToken();
   return res.status(200).json({
     Message: "User registred successfully",
-    data: { accessToken: accessToken, deviceToken: deviceToken },
+    data: {
+      isUserRegisteredSuccessFully,
+      accessToken: accessToken,
+      deviceToken: deviceToken,
+    },
   });
 });
 
@@ -169,8 +179,6 @@ const login = asyncHandler(async (req: Request, res: Response) => {
     refreshToken: refreshToken,
     deviceToken: deviceToken || "",
   };
-
-  // res.setHeader();
 
   // Update user document
   await User.findByIdAndUpdate(

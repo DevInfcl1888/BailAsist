@@ -1,12 +1,24 @@
-import { Schema, model, Document } from "mongoose";
+import { Schema, model, Document, Types } from "mongoose";
+import bcrypt from "bcryptjs";
+import jwt, { SignOptions } from "jsonwebtoken";
 
 // ------- Interfaces and enums -------
-interface IAgency extends Document {
+interface IBondsman extends Document {
   name: string;
   phoneNo: string;
   email: string;
-  agentName: string;
-  address: string;
+  password: string;
+  countryCode: string;
+  deviceToken?: string;
+  user: Array<{
+    name: Types.ObjectId;
+    phone: string;
+  }>;
+  isCorrectPassword(password: string): Promise<Boolean>;
+  generateAccessToken(): string;
+  generateRefreshToken(): string;
+  // email: string;
+  // address: string;
 }
 
 export enum Status {
@@ -59,19 +71,29 @@ interface ICourt extends Document {
 }
 
 // ------- Schemas -------
-const AgencySchema = new Schema<IAgency>(
+const BondsmanSchema = new Schema<IBondsman>(
   {
     name: { type: String, required: true, trim: true },
     phoneNo: { type: String, required: true, trim: true },
-    email: {
-      type: String,
-      required: true,
-      trim: true,
-      unique: true,
-      index: true,
-    },
-    agentName: { type: String, required: true, trim: true },
-    address: { type: String, required: true, trim: true },
+    password: { type: String, required: true, trim: true },
+    email: { type: String, required: true, trim: true },
+    deviceToken: { type: String, trim: true },
+    countryCode: { type: String, trim: true },
+    user: [
+      {
+        name: {
+          type: Schema.Types.ObjectId,
+          ref: "User",
+          trim: true,
+          required: true,
+        },
+        phone: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
@@ -97,12 +119,6 @@ const CheckInSchema = new Schema<ICheckIn>(
         default: Status.Pending,
       },
     },
-    checkInProof: {
-      userId: { type: Schema.Types.ObjectId, required: true, ref: "User" },
-      photoUrl: { type: String, required: true }, // cloudinary img url
-      message: { type: String, trim: true },
-      location: { type: String, required: true },
-    },
   },
   {
     timestamps: true,
@@ -112,16 +128,15 @@ const CheckInSchema = new Schema<ICheckIn>(
 const CheckInProofSchema = new Schema<ICheckInProof>(
   {
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    photoUrl: { type: String, required: true },
-    message: { type: String },
+    photoUrl: { type: String, required: true }, // cloudinary url
+    message: { type: String, trim: true },
     location: { type: String, required: true },
   },
-  {
+  { 
     timestamps: true,
   }
 );
 
-// const CourtDateSchema = new Schema() < ICourtDate > {};
 const CourtSchema = new Schema<ICourt>(
   {
     courtName: {
@@ -183,9 +198,56 @@ const CourtSchema = new Schema<ICourt>(
   }
 );
 
-const Agency = model("Agency", AgencySchema);
+// This is middleware for encrypt password only when password is changed
+BondsmanSchema.pre("save", async function (next) {
+  if (this.isModified("password")) {
+    this.password = await bcrypt.hash(this.password, 10);
+    next();
+  }
+});
+
+// This function use for check password is correct or not
+BondsmanSchema.methods.isCorrectPassword = async function (password: string) {
+  return await bcrypt.compare(password, this.password);
+};
+
+// This function use for generate access token
+BondsmanSchema.methods.generateAccessToken = function (): string {
+  const secret = process.env.ACCESS_TOKEN_KEY!;
+  const expiresIn = process.env.ACCESS_TOKEN_EXPIRE!;
+  if (!secret || !expiresIn) throw Error("JWT Error...!");
+
+  const payload = {
+    _id: this._id,
+    name: this.name,
+    phone: this.phoneNo,
+  };
+  const options: SignOptions = {
+    algorithm: "HS256",
+  };
+
+  return jwt.sign(payload, secret, options);
+};
+
+// This function use for generate access token
+BondsmanSchema.methods.generateRefreshToken = function (): string {
+  const secret = process.env.REFRESH_TOKEN_KEY!;
+  const expiresIn = process.env.REFRESH_TOKEN_EXPIRE!;
+  if (!secret || !expiresIn) throw Error("JWT Error...!");
+
+  const payload = {
+    _id: this._id,
+  };
+  const options: SignOptions = {
+    algorithm: "HS256",
+  };
+
+  return jwt.sign(payload, secret, options);
+};
+
+const Bondsman = model("Bondsman", BondsmanSchema);
 const CheckIn = model("CheckIn", CheckInSchema);
 const CheckInProof = model("CheckInProof", CheckInProofSchema);
 const Court = model("Court", CourtSchema);
 
-export default { Agency, CheckIn, Court, CheckInProof };
+export default { Bondsman, CheckIn, Court, CheckInProof };

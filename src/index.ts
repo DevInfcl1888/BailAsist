@@ -1,6 +1,7 @@
 import express, { Request, Response } from "express";
 import router from "./routes/routes.js";
 import dotenv from "dotenv";
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import connectDB from "./db/db.js";
 import "./config/firebase.js";
@@ -14,6 +15,7 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
 

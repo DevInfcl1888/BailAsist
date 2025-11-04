@@ -1,5 +1,9 @@
 import { Router } from "express";
-import { authMiddleware } from "../middlewares/auth.middlewares.js";
+import {
+  authMiddleware,
+  authMiddlewareForWeb,
+} from "../middlewares/auth.middlewares.js";
+import { upload } from "../middlewares/multer.middlewares.js";
 import { otpLimiter } from "../utils/rateLimiter.js";
 
 // User Import
@@ -21,13 +25,12 @@ import {
   addPersonalInfo,
   addDriverLicInfo,
   addPersonalRefrenceInfo,
-  addEmployementStatus
+  addEmployementStatus,
 } from "../controller/user.controller.js";
 
 // Home Screen Import
 import {
-  getUserAgencyInfo,
-  creatCheckIn,
+  getUserBondsmanInfo,
   checkIn,
   getCheckInStatus,
   createCourt,
@@ -35,8 +38,15 @@ import {
   updateAddressAndSendPictureAsProof,
   updateLatAndLong,
 } from "../controller/homeScreen.controller.js";
-import { createAgency } from "../controller/agency.controller.js";
-import { upload } from "../middlewares/multer.middlewares.js";
+import {
+  signUpAsBondsman,
+  loginAsBondsman,
+  creatCheckIn,
+  searchByPhoneNumber,
+  deleteCheckIn,
+  // getRecentCheckedInByUser,
+} from "../controller/bondsman.controller.js";
+
 const router = Router();
 
 // User Routes
@@ -56,17 +66,19 @@ router.route("/addContactInfo").post(authMiddleware, addContactInfo);
 router.route("/addLegalInfo").post(authMiddleware, addLegalInfo);
 router.route("/addPersonalInfo").post(authMiddleware, addPersonalInfo);
 router.route("/addDriverLicInfo").post(authMiddleware, addDriverLicInfo);
-router.route("/addPersonalRefrenceInfo").post(authMiddleware, addPersonalRefrenceInfo);
-router.route("/addEmployementStatus").post(authMiddleware, addEmployementStatus);
+router
+  .route("/addPersonalRefrenceInfo")
+  .post(authMiddleware, addPersonalRefrenceInfo);
+router
+  .route("/addEmployementStatus")
+  .post(authMiddleware, addEmployementStatus);
 
 // Home Screen Routes
-router.route("/agency/:userId").get(authMiddleware, getUserAgencyInfo); // Get Agency Info
-router.route("/creatCheckIn").post(authMiddleware, creatCheckIn); // Create Check In
+router.route("/bondsman/:userId").get(authMiddleware, getUserBondsmanInfo); // Get Agency Info
 router.route("/checkIn/:checkIn_Id").post(authMiddleware, checkIn); // Check In
 router.route("/getCheckInStatus").get(authMiddleware, getCheckInStatus); // get all status of your upcoming check-in
 router.route("/createCourt").post(authMiddleware, createCourt);
 router.route("/getCourtDetails/:courtId").get(authMiddleware, getCourtDetails); // get court details
-router.route("/createAgency").post(authMiddleware, createAgency); // get court details
 router
   .route("/updateAddressAndSendPictureAsProof")
   .post(
@@ -74,8 +86,20 @@ router
     upload.single("image"),
     updateAddressAndSendPictureAsProof
   ); // update address and send picture as proof
-
-// New Route for updating latitude and longitude
 router.route("/updateLatAndLong").post(authMiddleware, updateLatAndLong); // update latitude and longitude
+
+// Bondsman screen
+router.route("/signUpAsBondsman").post(signUpAsBondsman); // sign Up
+router.route("/loginAsBondsman").post(loginAsBondsman); // login
+router.route("/creatCheckIn/:userId").post(authMiddlewareForWeb, creatCheckIn); // Create Check In
+router
+  .route("/searchByPhoneNumber")
+  .get(authMiddlewareForWeb, searchByPhoneNumber); // search by phone no
+router
+  .route("/deleteCheckIn/:checkIn_Id")
+  .delete(authMiddlewareForWeb, deleteCheckIn); // search by phone no
+// router
+//   .route("/getRecentCheckedInByUser/:userId")
+//   .get(authMiddlewareForWeb, getRecentCheckedInByUser);
 
 export default router;
