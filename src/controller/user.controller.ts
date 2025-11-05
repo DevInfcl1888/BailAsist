@@ -93,10 +93,9 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     return res
       .status(400)
       .json({ message: "Confirm password should be same as password" });
+  const normalizedEmail = email.toLowerCase();
   const checkUserExistence = await User.findOne({
-    email: {
-      $regex: new RegExp(`^${email}$`, "i"),
-    },
+    email: normalizedEmail
   });
 
   if (checkUserExistence)
@@ -107,7 +106,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     firstName,
     middleName,
     lastName,
-    email,
+    email:normalizedEmail,
     password,
     confirmPassword,
     phoneNo,
@@ -156,9 +155,9 @@ const login = asyncHandler(async (req: Request, res: Response) => {
   if (!isValidPassword(password))
     return res.status(401).json({ message: "Invalid password" });
 
+  const normalizedEmail = email.toLowerCase();
   // check user existence
-  const user = await User.findOne({ email: email });
-  console.log(user);
+  const user = await User.findOne({ email: normalizedEmail });
 
   if (!user)
     return res
