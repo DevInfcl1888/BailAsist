@@ -24,10 +24,10 @@ const getUserBondsmanInfo = asyncHandler(
       },
     ]).select("-password -refreshToken")
     if (!isBondsmanExist)
-      return res.status(404).json({ Message: "User not found" });
+      return res.status(404).json({ message: "User not found" });
     return res
       .status(200)
-      .json({ Message: "Bondsman Information", isBondsmanExist });
+      .json({ message: "Bondsman Information", isBondsmanExist });
   }
 );
 
@@ -37,7 +37,7 @@ const getCheckInStatus = asyncHandler(async (req: Request, res: Response) => {
   if (!date || !isDateValid(date))
     return res
       .status(400)
-      .json({ Message: "Date should be in YYYY-MM-DD formate" });
+      .json({ message: "Date should be in YYYY-MM-DD formate" });
   const checkInDate = new Date(date);
   const startOfDay = new Date(checkInDate.setHours(0, 0, 0, 0));
   const endOfDay = new Date(checkInDate.setHours(23, 59, 59, 999));
@@ -51,7 +51,7 @@ const getCheckInStatus = asyncHandler(async (req: Request, res: Response) => {
   });
   if (!isCheckInRecordExist)
     return res.status(404).json({
-      Message: "No Record found on this date.",
+      message: "No Record found on this date.",
     });
   const formattedNextCheckIn = new Date(
     isCheckInRecordExist.nextCheckInDate.date!
@@ -76,7 +76,7 @@ const getCheckInStatus = asyncHandler(async (req: Request, res: Response) => {
     hour12: false,
   });
   return res.status(200).json({
-    Message: "Check-in found",
+    message: "Check-in found",
     nextCheckInDate: formattedNextCheckIn,
     nextCheckInstatus: isCheckInRecordExist.nextCheckInDate.status,
     lastCheckInDate: formattedLastCheckIn,
@@ -92,32 +92,32 @@ const checkIn = asyncHandler(async (req: Request, res: Response) => {
     location: string;
   };
   if (!checkIn_Id)
-    return res.status(404).json({ Message: "Check-in Id not found" });
+    return res.status(404).json({ message: "Check-in Id not found" });
 
   let isCheckInExist = await CheckIn.findOne({ _id: checkIn_Id });
 
   if (!isCheckInExist)
-    return res.status(404).json({ Message: "No check-In found" });
+    return res.status(404).json({ message: "No check-In found" });
 
   const date = new Date();
   const nextCheckInDate = new Date(isCheckInExist.lastCheckedInAt.date);
   if (nextCheckInDate > date)
-    return res.status(401).json({ Message: "Today is not your check-in date" });
+    return res.status(401).json({ message: "Today is not your check-in date" });
 
   if (
     nextCheckInDate.toDateString() !== date.toDateString() &&
     nextCheckInDate < date
   ) {
     return res.status(401).json({
-      Message: "You missed your check-in date.",
+      message: "You missed your check-in date.",
       nextCheckInDate,
     });
   }
   if (!location)
-    return res.status(404).json({ Message: "Location is invalid or missing" });
+    return res.status(404).json({ message: "Location is invalid or missing" });
   const uploads = await uploadToCloudinary(req.file?.buffer!);
   if (!uploads)
-    return res.status(401).json({ Message: "error during upload img" });
+    return res.status(401).json({ message: "error during upload img" });
   const checkInRecord = await CheckIn.findByIdAndUpdate(
     checkIn_Id,
     {
@@ -138,7 +138,7 @@ const checkIn = asyncHandler(async (req: Request, res: Response) => {
   if (!checkInRecord)
     return res
       .status(403)
-      .json({ Message: "Check-in couldn't complete! try again..." });
+      .json({ message: "Check-in couldn't complete! try again..." });
 
   const formattedNextCheckIn = new Date(
     checkInRecord.nextCheckInDate.date!
@@ -165,7 +165,7 @@ const checkIn = asyncHandler(async (req: Request, res: Response) => {
   });
 
   return res.status(200).json({
-    Message: "Check-in successful",
+    message: "Check-in successful",
     lastCheckIn: {
       lastCheckIn: formattedLastCheckIn,
       lastCheckInStatus: checkInRecord.lastCheckedInAt.status,
@@ -212,35 +212,35 @@ const createCourt = asyncHandler(async (req: Request, res: Response) => {
     !courtContactNo.trim() ||
     !courtEmail.trim()
   )
-    return res.status(404).json({ Message: "All details are required" });
+    return res.status(404).json({ message: "All details are required" });
   if (!isValidData(city))
     return res
       .status(401)
-      .json({ Message: "City name only contain characters" });
+      .json({ message: "City name only contain characters" });
   if (!isValidData(state))
     return res
       .status(401)
-      .json({ Message: "state name only contain characters" });
+      .json({ message: "state name only contain characters" });
   if (!isValidData(country))
     return res
       .status(401)
-      .json({ Message: "country name only contain characters" });
+      .json({ message: "country name only contain characters" });
   if (!Object.values(courtTypes).includes(courtType))
     return res.status(404).json({
-      Message: `Invalid court type. Allowed types are: ${Object.values(
+      message: `Invalid court type. Allowed types are: ${Object.values(
         courtTypes
       ).join(", ")}`,
     });
   if (!Object.values(courtLevel).includes(level))
     return res.status(404).json({
-      Message: `Invalid court level. Allowed types are: ${Object.values(
+      message: `Invalid court level. Allowed types are: ${Object.values(
         courtLevel
       ).join(", ")}`,
     });
   if (!isValidEmail(courtEmail))
-    return res.status(400).json({ Message: "Invalid email" });
+    return res.status(400).json({ message: "Invalid email" });
   if (!isValidPhone(courtContactNo))
-    return res.status(400).json({ Message: "Invalid Phone no" });
+    return res.status(400).json({ message: "Invalid Phone no" });
 
   const court = await Court.create({
     courtName,
@@ -258,22 +258,22 @@ const createCourt = asyncHandler(async (req: Request, res: Response) => {
   if (!isCourtExist)
     return res
       .status(500)
-      .json({ Message: "Internal server error. try again" });
+      .json({ message: "Internal server error. try again" });
   console.log("court", court);
 
   return res
     .status(200)
-    .json({ Message: "Court details submitted", isCourtExist });
+    .json({ message: "Court details submitted", isCourtExist });
 });
 
 // get court details
 const getCourtDetails = asyncHandler(async (req: Request, res: Response) => {
   const { courtId } = req.params;
-  if (!courtId) return res.status(404).json({ Message: "Court id is missing" });
+  if (!courtId) return res.status(404).json({ message: "Court id is missing" });
   const isCourtExist = await Court.findById(courtId);
   if (!isCourtExist)
-    return res.status(404).json({ Message: "Court data not found." });
-  return res.status(200).json({ Message: "Court data fetched", isCourtExist });
+    return res.status(404).json({ message: "Court data not found." });
+  return res.status(200).json({ message: "Court data fetched", isCourtExist });
 });
 
 const updateAddressAndSendPictureAsProof = asyncHandler(
@@ -281,12 +281,12 @@ const updateAddressAndSendPictureAsProof = asyncHandler(
     const { homeAddress } = req.body as { homeAddress: String };
     if (!homeAddress)
       return res.status(401).json({
-        Message: "Home address can't be empty",
+        message: "Home address can't be empty",
       });
 
     const uploads = await uploadToCloudinary(req.file?.buffer!);
     if (!uploads)
-      return res.status(401).json({ Message: "eror during upload img" });
+      return res.status(401).json({ message: "eror during upload img" });
     console.log("uploads", uploads);
 
     const updateUserAddress = await User.findByIdAndUpdate(
@@ -307,11 +307,11 @@ const updateAddressAndSendPictureAsProof = asyncHandler(
     if (!isUserAddressUpdated)
       return res
         .status(400)
-        .json({ Message: "Address or image can't be update" });
+        .json({ message: "Address or image can't be update" });
 
     return res
       .status(200)
-      .json({ Message: "Address submitted", isUserAddressUpdated });
+      .json({ message: "Address submitted", isUserAddressUpdated });
   }
 );
 
@@ -323,7 +323,7 @@ const updateLatAndLong = asyncHandler(async (req: Request, res: Response) => {
   if (!latitude || !longitude) {
     return res
       .status(400)
-      .json({ Message: "Please provide latitude and longitude" });
+      .json({ message: "Please provide latitude and longitude" });
   }
 
   // Update user's location in the database
@@ -338,11 +338,11 @@ const updateLatAndLong = asyncHandler(async (req: Request, res: Response) => {
   ).select("-refreshToken -password");
 
   if (!updatedLocation)
-    return res.status(400).json({ Message: "Location couldn't be updated" });
+    return res.status(400).json({ message: "Location couldn't be updated" });
 
   return res
     .status(200)
-    .json({ Message: "Location updated successfully", updatedLocation });
+    .json({ message: "Location updated successfully", updatedLocation });
 });
 
 export {
