@@ -26,13 +26,13 @@ export const authMiddleware = asyncHandler(
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res
         .status(401)
-        .json({ Message: "Authorization token is missing or invalid format" });
+        .json({ message: "Authorization token is missing or invalid format" });
     }
 
     const token = authHeader.split(" ")[1];
 
     if (!token) {
-      return res.status(401).json({ Message: "Token is missing" });
+      return res.status(401).json({ message: "Token is missing" });
     }
 
     try {
@@ -43,13 +43,13 @@ export const authMiddleware = asyncHandler(
       ) as DecodeToken;
 
       if (!decode._id) {
-        return res.status(403).json({ Message: "Invalid token type" });
+        return res.status(403).json({ message: "Invalid token type" });
       }
 
       req.user = decode;
       next();
     } catch (error) {
-      return res.status(401).json({ Message: "Invalid or expired token" });
+      return res.status(401).json({ message: "Invalid or expired token" });
     }
   }
 );
@@ -59,7 +59,7 @@ export const authMiddlewareForWeb = asyncHandler(
     // console.log(res.cookies);
     
     if (!req.cookies?.accessToken)
-      return res.status(401).json({ Message: "Token is missing" });
+      return res.status(401).json({ message: "Token is missing" });
     let token = req.cookies?.accessToken;
     try {
       // verify token
@@ -69,13 +69,13 @@ export const authMiddlewareForWeb = asyncHandler(
       ) as DecodeToken;
 
       if (!decode._id) {
-        return res.status(403).json({ Message: "Invalid token type" });
+        return res.status(403).json({ message: "Invalid token type" });
       }
 
       req.user = decode;
       next();
     } catch (error) {
-      return res.status(401).json({ Message: "Invalid or expired token" });
+      return res.status(401).json({ message: "Invalid or expired token" });
     }
   }
 );
