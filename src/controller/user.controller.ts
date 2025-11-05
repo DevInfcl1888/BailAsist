@@ -16,8 +16,10 @@ import {
   GENDER,
   EYE_COLOR,
   HAIR_COLOR,
-  MARITAL_STATUS,
   PersonalInfo,
+  DriversLicInfo,
+  personalRefrenceInfo,
+  EmployementInfo,
 } from "../models/user.model.js";
 import { generateOTP, sendOTPfun, otpStore } from "../utils/OTPsender.js";
 import bcrypt from "bcryptjs";
@@ -29,24 +31,28 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     password,
+    confirmPassword,
     phoneNo,
     homeAddress,
     street,
     deviceToken,
     ZipCode,
     isAgreed,
+    countryCode,
   } = req.body as {
     firstName: string;
     middleName: string;
     lastName: string;
     email: string;
     password: string;
+    confirmPassword: string;
     phoneNo: string;
     deviceToken?: string;
     homeAddress: string;
     street: string;
     ZipCode: string;
     isAgreed: boolean;
+    countryCode: string;
   };
   // Data validation
   if (
@@ -55,25 +61,27 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     !lastName?.trim() ||
     !email?.trim() ||
     !password?.trim() ||
+    !confirmPassword?.trim() ||
     !phoneNo?.trim() ||
     !homeAddress?.trim() ||
     !street?.trim() ||
     !ZipCode?.trim() ||
+    !countryCode?.trim() ||
     isAgreed === false
   ) {
-    return res.status(400).json({ msg: "All credentials are required" });
+    return res.status(400).json({ Message: "All credentials are required" });
   }
   if (!isValidEmail(email)) {
     console.log("k", isValidEmail(email));
-    return res.status(404).json({ message: "Invalid email" });
+    return res.status(404).json({ Message: "Invalid email" });
   }
-  if (!isValidPassword(password))
+  if (!isValidPassword(password) || !isValidPassword(confirmPassword))
     return res.status(401).json({
-      message:
+      Message:
         "Password must contain at least 1 uppercase, lowercase, number, and special character, and password should be upto 8 characters long",
     });
-  if (phoneNo.length !== 10 || !isValidPhone(phoneNo)) {
-    return res.status(404).json({ message: "Invalid phone no." });
+  if (!isValidPhone(phoneNo)) {
+    return res.status(404).json({ Message: "Invalid phone no." });
   }
   if (homeAddress.length < 10 || homeAddress.length > 100)
     return res.status(400).json({
@@ -81,13 +89,18 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     });
   if (street.length > 100 || ZipCode.length > 11)
     return res.status(400).json({ Message: "Street or ZIP code is too long" });
-
+  if (password !== confirmPassword)
+    return res
+      .status(400)
+      .json({ Message: "Confirm password should be same as password" });
   const checkUserExistence = await User.findOne({
-    email,
+    email: {
+      $regex: new RegExp(`^${email}$`, "i"),
+    },
   });
 
   if (checkUserExistence)
-    return res.status(403).json({ message: "User already exist" });
+    return res.status(403).json({ Message: "User already exist" });
 
   // User created
   const createdUser = await User.create({
@@ -96,7 +109,9 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     password,
+    confirmPassword,
     phoneNo,
+    countryCode,
     deviceToken: deviceToken ? deviceToken : "",
     homeAddress,
     street,
@@ -108,16 +123,19 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
   const isUserRegisteredSuccessFully = await User.findById(
     createdUser?._id
   ).select("-password -refreshToken");
-  console.log("isUserRegisteredSuccessFully", isUserRegisteredSuccessFully);
 
   if (!isUserRegisteredSuccessFully)
     return res
       .status(400)
-      .json({ message: "Internal server error during registration" });
-
+      .json({ Message: "Internal server error during registration" });
+  const accessToken = createdUser.generateAccessToken();
   return res.status(200).json({
-    message: "User registred successfully",
-    isUserRegisteredSuccessFully,
+    Message: "User registred successfully",
+    data: {
+      isUserRegisteredSuccessFully,
+      accessToken: accessToken,
+      deviceToken: deviceToken,
+    },
   });
 });
 
@@ -130,13 +148,13 @@ const login = asyncHandler(async (req: Request, res: Response) => {
   };
   // Data validation
   if (!email || !password)
-    return res.status(401).json({ message: "Credentials are missing" });
+    return res.status(401).json({ Message: "Credentials are missing" });
 
   if (!isValidEmail(email))
-    return res.status(404).json({ message: "Invalid email" });
+    return res.status(404).json({ Message: "Invalid email" });
 
   if (!isValidPassword(password))
-    return res.status(401).json({ message: "Invalid password" });
+    return res.status(401).json({ Message: "Invalid password" });
 
   // check user existence
   const user = await User.findOne({ email: email });
@@ -145,12 +163,12 @@ const login = asyncHandler(async (req: Request, res: Response) => {
   if (!user)
     return res
       .status(404)
-      .json({ message: "User not found with these credentials" });
+      .json({ Message: "User not found with these credentials" });
 
   // check password
   const isMatchPassword = await user.isCorrectPassword(password);
   if (!isMatchPassword)
-    return res.status(401).json({ message: "Invalid password" });
+    return res.status(401).json({ Message: "Invalid password" });
 
   // generate accessToken and refreshToken
   const accessToken = user.generateAccessToken();
@@ -171,12 +189,11 @@ const login = asyncHandler(async (req: Request, res: Response) => {
 
   // sending response
   return res.status(200).json({
-    message: "User login successfully",
-    user: `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim(),
-    accessToken: `${accessToken}`,
-    refreshToken: `${refreshToken}`,
-    deviceToken: deviceToken ? deviceToken : "",
-    email: user?.email,
+    Message: "User login successfully",
+    data: {
+      accessToken: `${accessToken}`,
+      deviceToken: deviceToken ? deviceToken : "",
+    },
   });
 });
 
@@ -196,7 +213,7 @@ const logout = asyncHandler(async (req: Request, res: Response) => {
   }
 
   if (!tokenToInvalidate)
-    return res.status(404).json({ message: "No refresh token found" });
+    return res.status(404).json({ Message: "No refresh token found" });
 
   // Step 1: Remove refresh token from DB (by matching token)
   const user = await User.findOne({ refreshToken: tokenToInvalidate });
@@ -209,7 +226,7 @@ const logout = asyncHandler(async (req: Request, res: Response) => {
 
   // Step 3: Return response
   return res.status(200).json({
-    message: "User logged out successfully",
+    Message: "User logged out successfully",
   });
 });
 
@@ -222,19 +239,19 @@ const changePassword = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user?._id);
 
   if (!user)
-    return res.status(404).json({ message: "User not found or maybe logout" });
+    return res.status(404).json({ Message: "User not found or maybe logout" });
 
   const isMatchPassword = await user.isCorrectPassword(oldPassword);
   if (!isMatchPassword)
-    return res.status(401).json({ message: "Old password mismatch" });
+    return res.status(401).json({ Message: "Old password mismatch" });
   if (!isValidPassword(newPassword))
-    return res.status(401).json({ message: "Invalid password" });
+    return res.status(401).json({ Message: "Invalid password" });
   if (newPassword !== confirmPassword)
     return res
       .status(401)
-      .json({ message: "New and old password must be same" });
+      .json({ Message: "New and old password must be same" });
   if (newPassword === oldPassword)
-    return res.status(401).json({ message: "Password has no change" });
+    return res.status(401).json({ Message: "Password has no change" });
 
   // update password in DB
   user.password = newPassword;
@@ -242,11 +259,12 @@ const changePassword = asyncHandler(async (req: Request, res: Response) => {
 
   if (!updatedUserPassword)
     return res.status(401).json({
-      message:
+      Message:
         "Internal Server error so password is not changed. try again !..",
     });
+
   return res.status(200).json({
-    message: "Password changed successfully, please login again"
+    Message: "Password changed successfully, please login again",
   });
 });
 
@@ -266,7 +284,6 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     lastName: string;
     email: string;
     phoneNo: string;
-    // homeAddress: string;
     street: string;
     ZipCode: string;
   };
@@ -277,18 +294,16 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     !lastName?.trim() ||
     !email?.trim() ||
     !phoneNo?.trim() ||
-    // !homeAddress?.trim() ||
     !street?.trim() ||
     !ZipCode?.trim()
   ) {
-    return res.status(400).json({ msg: "All credentials are required" });
+    return res.status(400).json({ Message: "All credentials are required" });
   }
   if (!isValidEmail(email)) {
-    console.log("k", isValidEmail(email));
-    return res.status(404).json({ message: "Invalid email" });
+    return res.status(404).json({ Message: "Invalid email" });
   }
   if (phoneNo.length !== 10 || !/^\d{10}$/.test(phoneNo)) {
-    return res.status(404).json({ message: "Invalid phone no." });
+    return res.status(404).json({ Message: "Invalid phone no." });
   }
   // if (homeAddress.length < 10 || homeAddress.length > 100)
   //   return res.status(400).json({
@@ -353,9 +368,9 @@ const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
   if (!user)
     return res
       .status(404)
-      .json({ message: "User not foundor maybe you logout" });
+      .json({ Message: "User not found or maybe you logout" });
   return res.status(200).json({
-    message: "User Profile",
+    Message: "User Profile",
     user,
   });
 });
@@ -364,16 +379,14 @@ const sendOTP = asyncHandler(async (req: Request, res: Response) => {
   const { email } = req.body as { email: string };
   // email existence check
   if (!email || !isValidEmail(email))
-    return res.status(401).json({ message: "Inavlid email" });
+    return res.status(401).json({ Message: "Inavlid email" });
   // generate OTP
   const generate_OTP: string = await generateOTP(email);
-  // console.log("generate_OTP", generate_OTP);
 
   const send_OTP: string = await sendOTPfun(email, generate_OTP);
-  // console.log("send_OTP", send_OTP);
 
   return res.status(200).json({
-    message: `OTP send successfully to your registered email : ${email}`,
+    Message: `OTP send successfully to your registered email : ${email}`,
   });
 });
 
@@ -381,29 +394,29 @@ const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
   const { email, otp } = req.body;
 
   if (!email || !otp)
-    return res.status(400).json({ message: "Missing fields" });
+    return res.status(400).json({ Message: "Missing fields" });
 
   const stored = otpStore.get(email);
   if (!stored)
-    return res.status(400).json({ message: "OTP not found or expired" });
+    return res.status(400).json({ Message: "OTP not found or expired" });
   // console.log("stored", stored);
 
   if (Date.now() > stored.expiresAt) {
     otpStore.delete(email);
-    return res.status(400).json({ message: "OTP expired" });
+    return res.status(400).json({ Message: "OTP expired" });
   }
 
   const isMatch = await bcrypt.compare(otp, stored.hash);
-  if (!isMatch) return res.status(400).json({ message: "Invalid OTP" });
+  if (!isMatch) return res.status(400).json({ Message: "Invalid OTP" });
 
   // success
   otpStore.delete(email);
-  return res.status(200).json({ message: "OTP verified successfully ✅" });
+  return res.status(200).json({ Message: "OTP verified successfully ✅" });
 });
 
 const getdata = async (req: Request, res: Response) => {
   if (req.user?._id) {
-    return res.status(200).json({ msg: "user still login" });
+    return res.status(200).json({ Message: "user still login" });
   }
 }; // This is only for checking that user still logged in or not
 
@@ -416,13 +429,13 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findOne({ email: email });
 
   if (!user)
-    return res.status(404).json({ message: "User not found or maybe logout" });
+    return res.status(404).json({ Message: "User not found or maybe logout" });
   if (!isValidPassword(newPassword))
-    return res.status(401).json({ message: "Invalid password" });
+    return res.status(401).json({ Message: "Invalid password" });
   if (newPassword !== confirmPassword)
     return res
       .status(401)
-      .json({ message: "New and old password must be same" });
+      .json({ Message: "New and old password must be same" });
 
   // update password in DB
   user.password = newPassword;
@@ -432,11 +445,11 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
 
   if (!updatedUserPassword)
     return res.status(401).json({
-      message:
+      Message:
         "Internal Server error so password is not changed. try again !..",
     });
   return res.status(200).json({
-    message: "Password changed successfully, please try to login again",
+    Message: "Password changed successfully, please try to login again",
   });
 });
 
@@ -446,10 +459,10 @@ const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
   if (deletedUserInfo.deletedCount !== 1)
     return res
       .status(401)
-      .json({ message: "User profile can't be deleted", deletedUserInfo });
+      .json({ Message: "User profile can't be deleted", deletedUserInfo });
   return res
     .status(200)
-    .json({ message: "User profile deleted", deletedUserInfo });
+    .json({ Message: "User profile deleted", deletedUserInfo });
 });
 
 const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
@@ -464,6 +477,7 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
     landlordName: string;
     landlordAddress: string;
   };
+  const { residenceId } = req.body;
   if (
     !yearsAtCurrentAddress.trim() ||
     !landlordName.trim() ||
@@ -474,7 +488,7 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
   if (!Object.values(ResidenceType).includes(residenceType)) {
     return res.status(400).json({
       success: false,
-      message: `Invalid residence type. Must be one of: ${Object.values(
+      Message: `Invalid residence type. Must be one of: ${Object.values(
         ResidenceType
       ).join(", ")}`,
     });
@@ -483,22 +497,37 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
     return res
       .status(400)
       .json({ Message: "Invalid landlord name. please use only alphabets" });
-  const residenceInfoCreate = await ResidenceInfo.create({
+
+  const data = {
     yearsAtCurrentAddress: `${yearsAtCurrentAddress} Yr`,
     residenceType,
     landlordName,
     landlordAddress,
-  });
+  };
+  let residenceDoc;
+  if (residenceId && residenceId !== null) {
+    residenceDoc = await ResidenceInfo.findByIdAndUpdate(
+      residenceId,
+      {
+        $set: data,
+      },
+      {
+        new: true,
+      }
+    );
 
-  const isResidenceInfoExist = await ResidenceInfo.findById(
-    residenceInfoCreate?._id
-  );
-  if (!isResidenceInfoExist)
+    if (!residenceDoc)
+      return res.status(404).json({ Message: "Data not found or created" });
+  } else {
+    residenceDoc = await ResidenceInfo.create(data);
+  }
+
+  if (!residenceDoc)
     return res.status(500).json({ Message: "Error occur during submit data." });
 
   return res.status(200).json({
-    Message: "Data save successfully",
-    isResidenceInfoExist,
+    Message: residenceId ? "Updated succesfully" : "Data save successfully",
+    residenceDoc,
   });
 });
 
@@ -510,6 +539,7 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
     email: string;
     phoneNo: string;
   };
+  const { contactInfoId } = req.body;
   if (
     !firstName.trim() ||
     !middleName.trim() ||
@@ -533,25 +563,32 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
   if (!isValidPhone(phoneNo))
     return res.status(400).json({ Message: "Invalid phone" });
 
-  const contactInfoCreate = await ContactInfo.create({
-    firstName,
-    middleName,
-    lastName,
-    email,
-    phoneNo,
-  });
+  const data = { firstName, middleName, lastName, email, phoneNo };
+  let contactInfoDoc;
+  if (contactInfoId && contactInfoId !== null) {
+    contactInfoDoc = await ContactInfo.findByIdAndUpdate(
+      contactInfoId,
+      {
+        $set: data,
+      },
+      {
+        new: true,
+      }
+    );
 
-  const isContactInfoCreate = await ContactInfo.findById(
-    contactInfoCreate?._id
-  );
-  if (!isContactInfoCreate)
+    if (!contactInfoId)
+      return res.status(404).json({ Message: "Data not found or created" });
+  } else {
+    contactInfoDoc = await ContactInfo.create(data);
+  }
+
+  if (!contactInfoDoc)
     return res.status(500).json({ Message: "Error occur during submit data." });
 
   return res.status(200).json({
-    Message: "Contact info saved",
-    isContactInfoCreate,
+    Message: contactInfoId ? "Updated successfully" : "Data save successfully",
+    contactInfoDoc,
   });
-  // ContactInfo
 });
 
 const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
@@ -560,6 +597,7 @@ const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
     attorneyAddress: string;
     attorneyPhoneNo: string;
   };
+  const { legalInfoId } = req.body;
   if (
     !attorneyName.trim() ||
     !attorneyAddress.trim() ||
@@ -574,17 +612,33 @@ const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
   if (!isValidPhone(attorneyPhoneNo))
     return res.status(400).json({ Message: "Phone no is Invalid" });
 
-  const legalInfoCreate = await LegalInfo.create({
+  let legalInfoDoc;
+  const data = {
     attorneyName,
     attorneyAddress,
     attorneyPhoneNo,
-  });
-  const isLegalInfoCreate = await LegalInfo.findById(legalInfoCreate?._id);
-  if (!isLegalInfoCreate)
+  };
+  if (legalInfoId && legalInfoId !== null) {
+    legalInfoDoc = await LegalInfo.findByIdAndUpdate(
+      legalInfoId,
+      {
+        $set: data,
+      },
+      {
+        new: true,
+      }
+    );
+    if (!legalInfoDoc)
+      return res.status(404).json({ Message: "Data not found or created" });
+  } else {
+    legalInfoDoc = await LegalInfo.create(data);
+  }
+
+  if (!legalInfoDoc)
     return res.status(500).json({ Message: "Internal server error." });
   return res.status(200).json({
-    Message: "Data submitted",
-    isLegalInfoCreate,
+    Message: legalInfoId ? "Updated successfully" : "Data save successfully",
+    legalInfoDoc,
   });
 });
 
@@ -603,89 +657,43 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
     maritalStatus,
     spouseName,
     spouseOccupation,
-    spouseEmployer, // The name of the company where your husband or wife works.
-    items,
-    isResponsible, // Responsible for anyone else support
+    spouseEmployer,
+    child,
+    isResponsible,
     dependents,
-  } = req.body as {
-    weight: string;
-    height: string;
-    race: RACE;
-    gender: GENDER;
-    eyeColor: EYE_COLOR;
-    hairColor: HAIR_COLOR;
-    birthPlace: string;
-    birthDate: string;
-    UScitizen: boolean;
-    nickname: string;
-    maritalStatus: MARITAL_STATUS;
-    spouseName: string;
-    spouseOccupation: string;
-    spouseEmployer: string; // The name of the company
-    items?: { childName: string; childAge: string; childSchool: string }[];
-    isResponsible: boolean; // Responsible for anyone else support
-    dependents: string;
-  };
+  } = req.body;
+
+  const { personalInfoId } = req.body;
+  console.log("this is personalInfoId", personalInfoId);
+
   if (
-    !weight.trim() ||
-    !height.trim() ||
-    !birthPlace.trim() ||
-    !birthDate.trim() ||
-    !nickname.trim()
-  )
-    return res.status(404).json({ Message: "Required field missing" });
-
-  if (!Object.values(RACE).includes(race)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid race type. Must be one of: ${Object.values(RACE).join(
-        ", "
-      )}`,
-    });
-  }
-  if (!Object.values(GENDER).includes(gender)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid gender type. Must be one of: ${Object.values(
-        GENDER
-      ).join(", ")}`,
-    });
-  }
-  if (!Object.values(EYE_COLOR).includes(eyeColor)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid eye color type. Must be one of: ${Object.values(
-        EYE_COLOR
-      ).join(", ")}`,
-    });
-  }
-  if (!Object.values(HAIR_COLOR).includes(hairColor)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid hair color type. Must be one of: ${Object.values(
-        HAIR_COLOR
-      ).join(", ")}`,
-    });
-  }
-  if (!Object.values(MARITAL_STATUS).includes(maritalStatus)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid marital status type. Must be one of: ${Object.values(
-        MARITAL_STATUS
-      ).join(", ")}`,
-    });
+    !weight?.trim() ||
+    !height?.trim() ||
+    !birthPlace?.trim() ||
+    !birthDate?.trim() ||
+    !nickname?.trim()
+  ) {
+    return res.status(400).json({ Message: "Required field missing" });
   }
 
-  let content: string = " ";
-  if (isResponsible) {
-    if (!dependents)
-      return res
-        .status(400)
-        .json({ Message: "Please provide details of dependents" });
-    content = dependents;
-  }
+  if (!Object.values(RACE).includes(race))
+    return res.status(400).json({ Message: `Invalid race` });
+  if (!Object.values(GENDER).includes(gender))
+    return res.status(400).json({ Message: `Invalid gender` });
+  if (!Object.values(EYE_COLOR).includes(eyeColor))
+    return res.status(400).json({ Message: `Invalid eye color` });
+  if (!Object.values(HAIR_COLOR).includes(hairColor))
+    return res.status(400).json({ Message: `Invalid hair color` });
 
-  const personalInfoCreate = await PersonalInfo.create({
+  let dependentContent = "";
+  if (isResponsible && !dependents) {
+    return res
+      .status(400)
+      .json({ Message: "Please provide details of dependents" });
+  }
+  if (isResponsible) dependentContent = dependents;
+
+  const data = {
     weight,
     height,
     race,
@@ -697,38 +705,261 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
     UScitizen,
     nickname,
     maritalStatus,
-    spouseName: spouseName ? spouseName : " ",
-    spouseOccupation: spouseOccupation ? spouseOccupation : "",
-    spouseEmployer: spouseEmployer ? spouseEmployer : " ",
-    isResponsible, // Responsible for anyone else support
-    dependents: content,
-  });
+    spouseName: maritalStatus ? spouseName : "",
+    spouseOccupation: maritalStatus ? spouseOccupation : "",
+    spouseEmployer: maritalStatus ? spouseEmployer : "",
+    child,
+    isResponsible,
+    dependents: dependentContent,
+  };
 
-  console.log("personalInfoCreate", personalInfoCreate);
+  let personalInfoDoc;
 
-  const isPersonalInfoCreate = await PersonalInfo.findOne({
-    _id: personalInfoCreate?._id,
-  });
-  console.log("personalInfoCreate", isPersonalInfoCreate);
+  // ✅ If personalInfoId exists, update
+  if (personalInfoId && personalInfoId !== "null") {
+    personalInfoDoc = await PersonalInfo.findByIdAndUpdate(
+      personalInfoId,
+      { $set: data },
+      { new: true }
+    );
 
-  if (isPersonalInfoCreate) {
-    if (items) {
-      // console.log("...items", ...items);
-      // console.log("items", items);
-
-      isPersonalInfoCreate.child?.push(...items);
-      await isPersonalInfoCreate.save();
+    if (!personalInfoDoc) {
+      return res.status(404).json({ Message: "Personal info not found" });
     }
   }
 
-  if (!isPersonalInfoCreate)
-    return res.status(500).json({ Message: "Internal server error" });
+  // ✅ If no ID passed, create new document
+  else {
+    personalInfoDoc = await PersonalInfo.create(data);
+  }
 
   return res.status(200).json({
-    Message: "Data submitted",
-    isPersonalInfoCreate,
+    Message: personalInfoId ? "Updated successfully" : "Data save successfully",
+    personalInfoId: personalInfoDoc._id,
+    personalInfo: personalInfoDoc,
   });
 });
+
+const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
+  const {
+    socialSecurityNumber,
+    state,
+    drivingLicenseNo,
+    havingYourOwnAutomobile, //  if yes then fill further info
+    automobileColor,
+    automobileMake,
+    bileNumberPlate,
+    automobileModel,
+  } = req.body as {
+    socialSecurityNumber: String;
+    state: String;
+    drivingLicenseNo: String;
+    havingYourOwnAutomobile: boolean; //  if yes then fill further info
+    automobileColor: String;
+    automobileMake: String;
+    bileNumberPlate: String;
+    automobileModel: String;
+  };
+  const { driverLicId } = req.body;
+  if (!socialSecurityNumber.trim() || !state.trim() || !drivingLicenseNo.trim())
+    return res.status(404).json({ Message: "Required fields can't be empty" });
+  const data = {
+    socialSecurityNumber,
+    state,
+    drivingLicenseNo,
+    havingYourOwnAutomobile, //  if yes then fill further info
+    automobileColor: havingYourOwnAutomobile ? automobileColor : " ",
+    automobileMake: havingYourOwnAutomobile ? automobileMake : " ",
+    bileNumberPlate: havingYourOwnAutomobile ? bileNumberPlate : " ",
+    automobileModel: havingYourOwnAutomobile ? automobileModel : " ",
+  };
+
+  let driverLicDoc;
+  // ✅ If driverLicId exists, update
+  if (driverLicId && driverLicId !== "null") {
+    driverLicDoc = await DriversLicInfo.findByIdAndUpdate(
+      driverLicId,
+      { $set: data },
+      { new: true }
+    );
+
+    if (!driverLicDoc) {
+      return res.status(404).json({ Message: "Driver Lic. info not found" });
+    }
+  }
+
+  // ✅ If no ID passed, create new document
+  else {
+    driverLicDoc = await DriversLicInfo.create(data);
+  }
+
+  return res.status(200).json({
+    Message: driverLicId ? "Updated successfully" : "Data save successfully",
+    driverLicId: driverLicDoc._id,
+    driverLicInfo: driverLicDoc,
+  });
+});
+
+const addPersonalRefrenceInfo = asyncHandler(
+  async (req: Request, res: Response) => {
+    const {
+      otherFamilyMemberName_1,
+      otherFamilyMemberAddress_1,
+      otherFamilyMemberPhoneNo_1,
+      knownDuration_1,
+      otherFamilyMemberName_2,
+      otherFamilyMemberAddress_2,
+      otherFamilyMemberPhoneNo_2,
+      knownDuration_2,
+      otherFamilyMemberName_3,
+      otherFamilyMemberAddress_3,
+      otherFamilyMemberPhoneNo_3,
+      knownDuration_3,
+    } = req.body as {
+      otherFamilyMemberName_1: string;
+      otherFamilyMemberAddress_1: string;
+      otherFamilyMemberPhoneNo_1: string;
+      knownDuration_1: string;
+      otherFamilyMemberName_2: string;
+      otherFamilyMemberAddress_2: string;
+      otherFamilyMemberPhoneNo_2: string;
+      knownDuration_2: string;
+      otherFamilyMemberName_3: string;
+      otherFamilyMemberAddress_3: string;
+      otherFamilyMemberPhoneNo_3: string;
+      knownDuration_3: string;
+    };
+    const { personalRefId } = req.body;
+    if (
+      !otherFamilyMemberName_1.trim() ||
+      !otherFamilyMemberAddress_1.trim() ||
+      !otherFamilyMemberPhoneNo_1.trim() ||
+      !knownDuration_1.trim() ||
+      !otherFamilyMemberName_2.trim() ||
+      !otherFamilyMemberAddress_2.trim() ||
+      !otherFamilyMemberPhoneNo_2.trim() ||
+      !knownDuration_2.trim() ||
+      !otherFamilyMemberName_3.trim() ||
+      !otherFamilyMemberAddress_3.trim() ||
+      !otherFamilyMemberPhoneNo_3.trim() ||
+      !knownDuration_3.trim()
+    )
+      return res
+        .status(404)
+        .json({ Message: "Required fields can't be empty" });
+    if (
+      !isValidData(otherFamilyMemberName_1) ||
+      !isValidData(otherFamilyMemberName_2) ||
+      !isValidData(otherFamilyMemberName_3)
+    )
+      return res.status(400).json({ Message: "Invalid name" });
+    if (
+      !isValidPhone(otherFamilyMemberPhoneNo_1) ||
+      !isValidPhone(otherFamilyMemberPhoneNo_2) ||
+      !isValidPhone(otherFamilyMemberPhoneNo_3)
+    )
+      return res.status(400).json({ Message: "Invalid phone" });
+
+    const data = {
+      otherFamilyMemberName_1,
+      otherFamilyMemberAddress_1,
+      otherFamilyMemberPhoneNo_1,
+      knownDuration_1: `${knownDuration_1} Yr`,
+      otherFamilyMemberName_2,
+      otherFamilyMemberAddress_2,
+      otherFamilyMemberPhoneNo_2,
+      knownDuration_2: `${knownDuration_2} Yr`,
+      otherFamilyMemberName_3,
+      otherFamilyMemberAddress_3,
+      otherFamilyMemberPhoneNo_3,
+      knownDuration_3: `${knownDuration_3} Yr`,
+    };
+
+    let personalRefDoc;
+    if (personalRefId && personalRefId !== null) {
+      personalRefDoc = await personalRefrenceInfo.findByIdAndUpdate(
+        personalRefId,
+        { $set: data },
+        { new: true }
+      );
+
+      if (!personalRefDoc)
+        return res.status(401).json({ Message: "Data not found or update" });
+    } else {
+      personalRefDoc = await personalRefrenceInfo.create(data);
+    }
+    if (!personalRefDoc)
+      return res.status(500).json({ Message: "Internal Server error" });
+    return res.status(200).json({
+      Message: personalRefId
+        ? "Updated successfully"
+        : "Data save successfully",
+      personalRefDoc,
+    });
+  }
+);
+
+const addEmployementStatus = asyncHandler(
+  async (req: Request, res: Response) => {
+    const {
+      employementStatus, // if yes then fill further info
+      employerName,
+      employerSupervisorName,
+      employerAddress,
+      employerWorkingPeriod,
+      automobileColor,
+      previousEmployer,
+    } = req.body as {
+      employementStatus: boolean; // if yes then fill further info
+      employerName: string;
+      employerSupervisorName: string;
+      employerAddress: string;
+      employerWorkingPeriod: string;
+      automobileColor: string;
+      previousEmployer: string;
+    };
+    const { employeeId } = req.body;
+
+    const data = {
+      employementStatus, // if yes then fill further info
+      employerName: employementStatus ? employerName : " ",
+      employerSupervisorName: employementStatus ? employerSupervisorName : " ",
+      employerAddress: employementStatus ? employerAddress : " ",
+      employerWorkingPeriod: employementStatus
+        ? `${employerWorkingPeriod} Yr`
+        : " ",
+      automobileColor: employementStatus ? automobileColor : " ",
+      previousEmployer: employementStatus ? previousEmployer : " ",
+    };
+
+    let employeeDoc;
+    if (employeeId && employeeId !== null) {
+      employeeDoc = await EmployementInfo.findByIdAndUpdate(
+        employeeId,
+        {
+          $set: data,
+        },
+        {
+          new: true,
+        }
+      );
+
+      if (!employeeDoc)
+        return res.status(404).json({ Message: "Data not found or update" });
+    } else {
+      employeeDoc = await EmployementInfo.create(data);
+    }
+
+    if (!employeeDoc)
+      return res.status(500).json({
+        Message: "Internal server error occur during submitting data",
+      });
+    return res.status(200).json({
+      Message: employeeId ? "Updated successfully" : "Data save successfully",
+      EmployeData: employeeDoc,
+    });
+  }
+);
 
 export {
   registration,
@@ -746,4 +977,7 @@ export {
   addContactInfo,
   addLegalInfo,
   addPersonalInfo,
+  addDriverLicInfo,
+  addPersonalRefrenceInfo,
+  addEmployementStatus,
 };

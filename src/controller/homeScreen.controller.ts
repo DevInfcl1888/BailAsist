@@ -11,86 +11,25 @@ import {
 } from "../utils/dataValidators.js"; // data validators
 import { uploadToCloudinary } from "../utils/cloudinary.js"; // cloudinary upload
 
-const { Agency, CheckIn, Court } = HomeScreenModel; // Models
+const { Bondsman, CheckIn, Court } = HomeScreenModel; // Models
 
-// Create Check-in
-const creatCheckIn = asyncHandler(async (req: Request, res: Response) => {
-  const { day } = req.body as { day: number };
-  if (!day)
-    return res.status(404).json({
-      Message: "Please set next check-in day interval (e.g. 7 (in days))",
-    });
 
-  // Find the user's check-in record
-  let user = await User.findOne({ _id: req.user?._id });
-  console.log("user", user);
-
-  if (!user) return res.status(404).json({ msg: "User not found" });
-
-  const checkInRecord = await CheckIn.create({
-    user: user?._id,
-    lastCheckedInAt: {
-      date: new Date(),
-      status: Status.Pending,
-    },
-    nextCheckInDate: {
-      date: new Date(Date.now() + day * 24 * 60 * 60 * 1000),
-      status: Status.Pending,
-    },
-  });
-  if (!checkInRecord)
+const getUserBondsmanInfo = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    const isBondsmanExist = await User.findById(userId).populate([
+      {
+        path: "bondsman",
+        select: "name phoneNo",
+      },
+    ]).select("-password -refreshToken")
+    if (!isBondsmanExist)
+      return res.status(404).json({ Message: "User not found" });
     return res
-      .status(403)
-      .json({ Message: "Check-in couldn't complete! try again..." });
-
-  const formattedLastCheckIn = new Date(
-    checkInRecord.lastCheckedInAt.date!
-  ).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-  const formattedNextCheckIn = new Date(
-    checkInRecord.nextCheckInDate.date!
-  ).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-  console.log("cheackIn", checkInRecord);
-
-  return res.status(200).json({
-    msg: "Check-in successful",
-    lastCheckIn: {
-      date: formattedLastCheckIn,
-      status: checkInRecord.lastCheckedInAt.status,
-    },
-    nextCheckIn: {
-      date: formattedNextCheckIn,
-      status: checkInRecord.nextCheckInDate.status,
-    },
-  });
-});
-
-const getUserAgencyInfo = asyncHandler(async (req: Request, res: Response) => {
-  const { userId } = req.params;
-  const isUserExist = await User.findById(userId).populate([
-    {
-      path: "agency",
-      select: "name phoneNo email agentName address",
-    },
-  ]);
-  if (!isUserExist) return res.status(404).json({ message: "User not found" });
-  return res.status(200).json({ Message: "Agency Information", isUserExist });
-});
+      .status(200)
+      .json({ Message: "Bondsman Information", isBondsmanExist });
+  }
+);
 
 // you can filter your upcoming check-in dates and missed check-in dates and their status
 const getCheckInStatus = asyncHandler(async (req: Request, res: Response) => {
@@ -110,7 +49,6 @@ const getCheckInStatus = asyncHandler(async (req: Request, res: Response) => {
       $lte: endOfDay,
     },
   });
-  // console.log("isCheckInRecordExist", isCheckInRecordExist);
   if (!isCheckInRecordExist)
     return res.status(404).json({
       Message: "No Record found on this date.",
@@ -138,7 +76,7 @@ const getCheckInStatus = asyncHandler(async (req: Request, res: Response) => {
     hour12: false,
   });
   return res.status(200).json({
-    message: "Check-in found",
+    Message: "Check-in found",
     nextCheckInDate: formattedNextCheckIn,
     nextCheckInstatus: isCheckInRecordExist.nextCheckInDate.status,
     lastCheckInDate: formattedLastCheckIn,
@@ -159,7 +97,7 @@ const checkIn = asyncHandler(async (req: Request, res: Response) => {
   let isCheckInExist = await CheckIn.findOne({ _id: checkIn_Id });
 
   if (!isCheckInExist)
-    return res.status(404).json({ msg: "No check-In found" });
+    return res.status(404).json({ Message: "No check-In found" });
 
   const date = new Date();
   const nextCheckInDate = new Date(isCheckInExist.lastCheckedInAt.date);
@@ -227,7 +165,7 @@ const checkIn = asyncHandler(async (req: Request, res: Response) => {
   });
 
   return res.status(200).json({
-    msg: "Check-in successful",
+    Message: "Check-in successful",
     lastCheckIn: {
       lastCheckIn: formattedLastCheckIn,
       lastCheckInStatus: checkInRecord.lastCheckedInAt.status,
@@ -406,9 +344,9 @@ const updateLatAndLong = asyncHandler(async (req: Request, res: Response) => {
     .status(200)
     .json({ Message: "Location updated successfully", updatedLocation });
 });
+
 export {
-  getUserAgencyInfo,
-  creatCheckIn,
+  getUserBondsmanInfo,
   checkIn,
   getCheckInStatus,
   createCourt,

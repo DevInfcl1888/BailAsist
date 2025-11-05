@@ -71,13 +71,7 @@ export enum HAIR_COLOR {
   BLACK = "Black",
   OTHER = "Other",
 }
-export enum MARITAL_STATUS {
-  MARRIED = "Married",
-  DIVORCED = "Divorced",
-  SINGLE = "Single",
-  WIDOWED = "Widowed",
-  SEPRATED = "Seprated",
-}
+
 interface personalInfo extends Document {
   weight: string;
   height: string;
@@ -89,7 +83,7 @@ interface personalInfo extends Document {
   hairColor: HAIR_COLOR;
   UScitizen: boolean;
   nickname: string;
-  maritalStatus: MARITAL_STATUS;
+  maritalStatus: boolean;
   spouseName?: string;
   spouseOccupation?: string;
   spouseEmployer?: string; // The name of the company where your husband or wife works.
@@ -115,21 +109,21 @@ interface driversLicInfo extends Document {
   state: string;
   drivingLicenseNo: string;
   havingYourOwnAutomobile: boolean; //  if yes then fill further info
-  automobileColor: string;
-  automobileMake: string;
-  automobileNumberPlate: string;
-  automobileModel: string;
+  automobileColor?: string;
+  automobileMake?: string;
+  automobileNumberPlate?: string;
+  automobileModel?: string;
 }
 
 //  --------------------- Employement Information --------------------
 interface employementInfo extends Document {
   employementStatus: boolean; // if yes then fill further info
-  employerName: string;
-  employerSupervisorName: string;
-  employerAddress: string;
-  employerWorkingPeriod: string;
-  automobileColor: string;
-  previousEmployer: string;
+  employerName?: string;
+  employerSupervisorName?: string;
+  employerAddress?: string;
+  employerWorkingPeriod?: string;
+  automobileColor?: string;
+  previousEmployer?: string;
 }
 
 //  --------------------- Sign Up Information --------------------
@@ -139,6 +133,7 @@ interface signUp extends Document {
   lastName: string;
   email: string;
   password: string;
+  confirmPassword: string;
   phoneNo: string;
   isActive: boolean;
   deviceToken: string;
@@ -148,9 +143,10 @@ interface signUp extends Document {
   refreshToken: string;
   image: string;
   isAgreed: boolean;
-  agency: Schema.Types.ObjectId;
+  bondsman: Schema.Types.ObjectId;
   latitude: number;
   longitude: number;
+  countryCode: String;
   isCorrectPassword(password: string): Promise<boolean>;
   generateAccessToken(): string;
   generateRefreshToken(): string;
@@ -253,9 +249,8 @@ const personalInfoSchema = new Schema<personalInfo>({
     trim: true,
   },
   maritalStatus: {
-    type: String,
-    enum: Object.values(MARITAL_STATUS),
-    required: true,
+    type: Boolean,
+    default: false,
   },
   spouseName: {
     type: String,
@@ -285,8 +280,68 @@ const personalInfoSchema = new Schema<personalInfo>({
     trim: true,
   }, // only filled if isResponsible is true
 });
-const personalRefrenceInfoSchema = new Schema<personalRefrenceInfo>({});
-
+const personalRefrenceInfoSchema = new Schema<personalRefrenceInfo>({
+  otherFamilyMemberName_1: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  otherFamilyMemberAddress_1: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  otherFamilyMemberPhoneNo_1: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  knownDuration_1: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  otherFamilyMemberName_2: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  otherFamilyMemberAddress_2: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  otherFamilyMemberPhoneNo_2: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  knownDuration_2: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  otherFamilyMemberName_3: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  otherFamilyMemberAddress_3: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  otherFamilyMemberPhoneNo_3: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  knownDuration_3: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+});
 const legalInfoSchema = new Schema<legalInfo>({
   //  --------------------- Legal Information --------------------
   attorneyName: {
@@ -328,22 +383,18 @@ const driversLicInfoSchema = new Schema<driversLicInfo>({
   }, //  if yes then fill further info
   automobileColor: {
     type: String,
-    required: true,
     trim: true,
   },
   automobileMake: {
     type: String,
-    required: true,
     trim: true,
   },
   automobileNumberPlate: {
     type: String,
-    required: true,
     trim: true,
   },
   automobileModel: {
     type: String,
-    required: true,
     trim: true,
   },
 });
@@ -356,32 +407,26 @@ const employementInfoSchema = new Schema<employementInfo>({
   }, // if yes then fill further info
   employerName: {
     type: String,
-    required: true,
     trim: true,
   },
   employerSupervisorName: {
     type: String,
-    required: true,
     trim: true,
   },
   employerAddress: {
     type: String,
-    required: true,
     trim: true,
   },
   employerWorkingPeriod: {
     type: String,
-    required: true,
     trim: true,
   },
   automobileColor: {
     type: String,
-    required: true,
     trim: true,
   },
   previousEmployer: {
     type: String,
-    required: true,
     trim: true,
   },
 });
@@ -410,6 +455,10 @@ const userSchema = new Schema<signUp>(
       trim: true,
     },
     password: {
+      type: String,
+      required: true,
+    },
+    confirmPassword: {
       type: String,
       required: true,
     },
@@ -445,11 +494,14 @@ const userSchema = new Schema<signUp>(
       required: true,
       immutable: true,
     },
+    countryCode: {
+      type: String,
+      required: true,
+    },
     refreshToken: {
       type: String,
     },
-    agency: { type: Schema.Types.ObjectId, ref: "Agency" },
-
+    bondsman: { type: Schema.Types.ObjectId, ref: "Bondsman" },
     image: {
       type: String, // cloudinary url
     },
