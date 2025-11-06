@@ -10,10 +10,8 @@ interface IBondsman extends Document {
   password: string;
   countryCode: string;
   deviceToken?: string;
-  user: Array<{
-    name: Types.ObjectId;
-    phone: string;
-  }>;
+  user: Types.ObjectId[];
+  refreshToken?: string;
   isCorrectPassword(password: string): Promise<Boolean>;
   generateAccessToken(): string;
   generateRefreshToken(): string;
@@ -81,19 +79,13 @@ const BondsmanSchema = new Schema<IBondsman>(
     countryCode: { type: String, trim: true },
     user: [
       {
-        name: {
-          type: Schema.Types.ObjectId,
-          ref: "User",
-          trim: true,
-          required: true,
-        },
-        phone: {
-          type: String,
-          required: true,
-          trim: true,
-        },
+        type: Schema.Types.ObjectId,
+        ref: "User",
       },
     ],
+    refreshToken: {
+      type: String,
+    },
   },
   {
     timestamps: true,
@@ -132,7 +124,7 @@ const CheckInProofSchema = new Schema<ICheckInProof>(
     message: { type: String, trim: true },
     location: { type: String, required: true },
   },
-  { 
+  {
     timestamps: true,
   }
 );

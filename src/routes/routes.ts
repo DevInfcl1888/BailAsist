@@ -26,28 +26,36 @@ import {
   addDriverLicInfo,
   addPersonalRefrenceInfo,
   addEmployementStatus,
+  getCheckInStatus,
+  getUserBondsmanInfo,
+  checkIn,
+  updateAddressAndSendPictureAsProof,
+  updateLatAndLong,
 } from "../controller/user.controller.js";
 
 // Home Screen Import
 import {
-  getUserBondsmanInfo,
-  checkIn,
-  getCheckInStatus,
   createCourt,
   getCourtDetails,
-  updateAddressAndSendPictureAsProof,
-  updateLatAndLong,
 } from "../controller/homeScreen.controller.js";
 import {
   signUpAsBondsman,
   loginAsBondsman,
+  logoutAsBondsman,
   creatCheckIn,
   searchByPhoneNumber,
   deleteCheckIn,
+  addUser,
+  deleteUser,
+  getAllUsersOfBondsman,
+  updateUserDetailsByBondsman,
   // getRecentCheckedInByUser,
 } from "../controller/bondsman.controller.js";
 
 const router = Router();
+
+
+
 
 // User Routes
 router.route("/registration").post(registration);
@@ -66,19 +74,15 @@ router.route("/addContactInfo").post(authMiddleware, addContactInfo);
 router.route("/addLegalInfo").post(authMiddleware, addLegalInfo);
 router.route("/addPersonalInfo").post(authMiddleware, addPersonalInfo);
 router.route("/addDriverLicInfo").post(authMiddleware, addDriverLicInfo);
+router.route("/getCheckInStatus").get(authMiddleware, getCheckInStatus); // get all status of your upcoming check-in
+router.route("/bondsman/:userId").get(authMiddleware, getUserBondsmanInfo); // Get bondsman Info
+router.route("/checkIn/:checkIn_Id").post(authMiddleware, checkIn); // Check In
 router
   .route("/addPersonalRefrenceInfo")
   .post(authMiddleware, addPersonalRefrenceInfo);
 router
   .route("/addEmployementStatus")
   .post(authMiddleware, addEmployementStatus);
-
-// Home Screen Routes
-router.route("/bondsman/:userId").get(authMiddleware, getUserBondsmanInfo); // Get Agency Info
-router.route("/checkIn/:checkIn_Id").post(authMiddleware, checkIn); // Check In
-router.route("/getCheckInStatus").get(authMiddleware, getCheckInStatus); // get all status of your upcoming check-in
-router.route("/createCourt").post(authMiddleware, createCourt);
-router.route("/getCourtDetails/:courtId").get(authMiddleware, getCourtDetails); // get court details
 router
   .route("/updateAddressAndSendPictureAsProof")
   .post(
@@ -88,16 +92,35 @@ router
   ); // update address and send picture as proof
 router.route("/updateLatAndLong").post(authMiddleware, updateLatAndLong); // update latitude and longitude
 
+
+
+
+// Home Screen Routes
+router.route("/createCourt").post(authMiddleware, createCourt);
+router.route("/getCourtDetails/:courtId").get(authMiddleware, getCourtDetails); // get court details
+
+
+
+
 // Bondsman screen
 router.route("/signUpAsBondsman").post(signUpAsBondsman); // sign Up
 router.route("/loginAsBondsman").post(loginAsBondsman); // login
+router.route("/logoutAsBondsman").post(authMiddlewareForWeb, logoutAsBondsman); // logout
 router.route("/creatCheckIn/:userId").post(authMiddlewareForWeb, creatCheckIn); // Create Check In
 router
-  .route("/searchByPhoneNumber")
-  .get(authMiddlewareForWeb, searchByPhoneNumber); // search by phone no
+.route("/searchByPhoneNumber")
+.get(authMiddlewareForWeb, searchByPhoneNumber); // search by phone no
 router
-  .route("/deleteCheckIn/:checkIn_Id")
-  .delete(authMiddlewareForWeb, deleteCheckIn); // search by phone no
+.route("/deleteCheckIn/:checkIn_Id")
+.delete(authMiddlewareForWeb, deleteCheckIn); // delete check in
+router
+.route("/deleteUser/:userId")
+.delete(authMiddlewareForWeb, deleteUser); // delete user from bondsman
+router
+.route("/getAllUsersOfBondsman")
+.get(authMiddlewareForWeb, getAllUsersOfBondsman); // search by phone no
+router.route("/addUser/:userId").post(authMiddlewareForWeb, addUser); 
+router.route("/updateUserDetailsByBondsman/:userId").post(authMiddlewareForWeb, updateUserDetailsByBondsman); 
 // router
 //   .route("/getRecentCheckedInByUser/:userId")
 //   .get(authMiddlewareForWeb, getRecentCheckedInByUser);

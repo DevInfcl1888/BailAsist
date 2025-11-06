@@ -1,6 +1,8 @@
 import express, { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { Status } from "../models/homeScreen.model.js"; // enums
 import {
+  isDateValid,
   isValidData,
   isValidEmail,
   isValidPassword,
@@ -21,8 +23,12 @@ import {
   personalRefrenceInfo,
   EmployementInfo,
 } from "../models/user.model.js";
+import HomeScreenModel from "../models/homeScreen.model.js";
 import { generateOTP, sendOTPfun, otpStore } from "../utils/OTPsender.js";
 import bcrypt from "bcryptjs";
+import { uploadToCloudinary } from "../utils/cloudinary.js";
+
+const { Bondsman, CheckIn, Court } = HomeScreenModel; // Home screen models
 
 const registration = asyncHandler(async (req: Request, res: Response) => {
   const {
@@ -95,7 +101,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
       .json({ message: "Confirm password should be same as password" });
   const normalizedEmail = email.toLowerCase();
   const checkUserExistence = await User.findOne({
-    email: normalizedEmail
+    email: normalizedEmail,
   });
 
   if (checkUserExistence)
@@ -106,7 +112,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     firstName,
     middleName,
     lastName,
-    email:normalizedEmail,
+    email: normalizedEmail,
     password,
     confirmPassword,
     phoneNo,
@@ -268,24 +274,16 @@ const changePassword = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
-  const {
-    firstName,
-    middleName,
-    lastName,
-    email,
-    phoneNo,
-    // homeAddress,
-    street,
-    ZipCode,
-  } = req.body as {
-    firstName: string;
-    middleName: string;
-    lastName: string;
-    email: string;
-    phoneNo: string;
-    street: string;
-    ZipCode: string;
-  };
+  const { firstName, middleName, lastName, email, phoneNo, street, ZipCode } =
+    req.body as {
+      firstName: string;
+      middleName: string;
+      lastName: string;
+      email: string;
+      phoneNo: string;
+      street: string;
+      ZipCode: string;
+    };
   // Data validation
   if (
     !firstName?.trim() ||
@@ -301,13 +299,9 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
   if (!isValidEmail(email)) {
     return res.status(404).json({ message: "Invalid email" });
   }
-  if (phoneNo.length !== 10 || !/^\d{10}$/.test(phoneNo)) {
+  if (!isValidPhone(phoneNo)) {
     return res.status(404).json({ message: "Invalid phone no." });
   }
-  // if (homeAddress.length < 10 || homeAddress.length > 100)
-  //   return res.status(400).json({
-  //     Message: "Home address must be between 10 and 100 characters long.",
-  //   });
   if (street.length > 100 || ZipCode.length > 11)
     return res.status(400).json({ message: "Street or ZIP code is too long" });
 
@@ -323,7 +317,6 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     phoneNo,
-    // homeAddress,
     street,
     ZipCode,
   };
@@ -337,7 +330,6 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
         lastName: data.lastName,
         email: data.email,
         phoneNo: data.phoneNo,
-        // "signUp.homeAddress": data.homeAddress,
         street: data.street,
         ZipCode: data.ZipCode,
       },
@@ -960,6 +952,234 @@ const addEmployementStatus = asyncHandler(
   }
 );
 
+// you can filter your upcoming check-in dates and missed check-in dates and their status
+const getCheckInStatus = asyncHandler(async (req: Request, res: Response) => {
+  const { date } = req.body;
+  if (!date || !isDateValid(date))
+    return res
+      .status(400)
+      .json({ message: "Date should be in YYYY-MM-DD formate" });
+  const checkInDate = new Date(date);
+  const startOfDay = new Date(checkInDate.setHours(0, 0, 0, 0));
+  const endOfDay = new Date(checkInDate.setHours(23, 59, 59, 999));
+
+  const isCheckInRecordExist = await CheckIn.findOne({
+    user: req.user?._id,
+    "nextCheckInDate.date": {
+      $gte: startOfDay,
+      $lte: endOfDay,
+    },
+  });
+  if (!isCheckInRecordExist)
+    return res.status(404).json({
+      message: "No Record found on this date.",
+    });
+  const formattedNextCheckIn = new Date(
+    isCheckInRecordExist.nextCheckInDate.date!
+  ).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const formattedLastCheckIn = new Date(
+    isCheckInRecordExist.lastCheckedInAt.date!
+  ).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  return res.status(200).json({
+    message: "Check-in found",
+    nextCheckInDate: formattedNextCheckIn,
+    nextCheckInstatus: isCheckInRecordExist.nextCheckInDate.status,
+    lastCheckInDate: formattedLastCheckIn,
+    lastCheckInStatus: isCheckInRecordExist.lastCheckedInAt.status,
+  });
+});
+
+const getUserBondsmanInfo = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    const isBondsmanExist = await User.findById(userId)
+      .populate("bondsman", "name phoneNo email")
+      .select("-password -refreshToken");
+    if (!isBondsmanExist)
+      return res.status(404).json({ message: "User not found" });
+    return res
+      .status(200)
+      .json({ message: "Bondsman Information", isBondsmanExist });
+  }
+);
+
+// User Check-In Here
+const checkIn = asyncHandler(async (req: Request, res: Response) => {
+  const { checkIn_Id } = req.params;
+  const { message, location } = req.body as {
+    message?: string;
+    location: string;
+  };
+  if (!checkIn_Id)
+    return res.status(404).json({ message: "Check-in Id not found" });
+
+  let isCheckInExist = await CheckIn.findOne({ _id: checkIn_Id });
+
+  if (!isCheckInExist)
+    return res.status(404).json({ message: "No check-In found" });
+
+  const date = new Date();
+  const nextCheckInDate = new Date(isCheckInExist.lastCheckedInAt.date);
+  if (nextCheckInDate > date)
+    return res.status(401).json({ message: "Today is not your check-in date" });
+
+  if (
+    nextCheckInDate.toDateString() !== date.toDateString() &&
+    nextCheckInDate < date
+  ) {
+    return res.status(401).json({
+      message: "You missed your check-in date.",
+      nextCheckInDate,
+    });
+  }
+  if (!location)
+    return res.status(404).json({ message: "Location is invalid or missing" });
+  const uploads = await uploadToCloudinary(req.file?.buffer!);
+  if (!uploads)
+    return res.status(401).json({ message: "error during upload img" });
+  const checkInRecord = await CheckIn.findByIdAndUpdate(
+    checkIn_Id,
+    {
+      $set: {
+        "lastCheckedInAt.status": Status.Done,
+        "checkInProof.photoUrl": uploads.secure_url,
+        "checkInProof.userId": req.user?._id,
+        "checkInProof.message": message || "",
+        "checkInProof.location": location,
+      },
+    },
+    {
+      new: true,
+    }
+  );
+  // console.log("checkInRecord", checkInRecord);
+
+  if (!checkInRecord)
+    return res
+      .status(403)
+      .json({ message: "Check-in couldn't complete! try again..." });
+
+  const formattedNextCheckIn = new Date(
+    checkInRecord.nextCheckInDate.date!
+  ).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
+  const formattedLastCheckIn = new Date(
+    checkInRecord.lastCheckedInAt.date!
+  ).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
+  return res.status(200).json({
+    message: "Check-in successful",
+    lastCheckIn: {
+      lastCheckIn: formattedLastCheckIn,
+      lastCheckInStatus: checkInRecord.lastCheckedInAt.status,
+      nextCheckIn: formattedNextCheckIn,
+      nextCheckInStatus: checkInRecord.nextCheckInDate.status,
+    },
+  });
+});
+
+// User update their home address and send a picture to their bondsman as proof
+const updateAddressAndSendPictureAsProof = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { homeAddress } = req.body as { homeAddress: String };
+    if (!homeAddress)
+      return res.status(401).json({
+        message: "Home address can't be empty",
+      });
+
+    const uploads = await uploadToCloudinary(req.file?.buffer!);
+    if (!uploads)
+      return res.status(401).json({ message: "eror during upload img" });
+    console.log("uploads", uploads);
+
+    const updateUserAddress = await User.findByIdAndUpdate(
+      req.user?._id,
+      {
+        $set: {
+          homeAddress: homeAddress,
+          image: uploads.secure_url,
+        },
+      },
+      {
+        new: true,
+      }
+    );
+    const isUserAddressUpdated = await User.findById(
+      updateUserAddress?._id
+    ).select("-refreshToken -password");
+    if (!isUserAddressUpdated)
+      return res
+        .status(400)
+        .json({ message: "Address or image can't be update" });
+
+    return res
+      .status(200)
+      .json({ message: "Address submitted", isUserAddressUpdated });
+  }
+);
+
+const updateLatAndLong = asyncHandler(async (req: Request, res: Response) => {
+  const { latitude, longitude } = req.body as {
+    latitude: number;
+    longitude: number;
+  };
+  if (!latitude || !longitude) {
+    return res
+      .status(400)
+      .json({ message: "Please provide latitude and longitude" });
+  }
+
+  // Update user's location in the database
+  const updatedLocation = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: { latitude, longitude },
+    },
+    {
+      new: true,
+    }
+  ).select("-refreshToken -password");
+
+  if (!updatedLocation)
+    return res.status(400).json({ message: "Location couldn't be updated" });
+
+  return res
+    .status(200)
+    .json({ message: "Location updated successfully", updatedLocation });
+});
+
 export {
   registration,
   login,
@@ -979,4 +1199,9 @@ export {
   addDriverLicInfo,
   addPersonalRefrenceInfo,
   addEmployementStatus,
+  getCheckInStatus,
+  getUserBondsmanInfo,
+  checkIn,
+  updateAddressAndSendPictureAsProof,
+  updateLatAndLong,
 };

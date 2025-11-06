@@ -97,7 +97,9 @@ const loginAsBondsman = asyncHandler(async (req: Request, res: Response) => {
       new: true,
       validateBeforeSave: false,
     }
-  ).select("-password");
+  )
+    .select("-password -refreshToken")
+    .populate("user", "_id firstName middleName lastName phoneNo email");
 
   return res
     .status(200)
@@ -121,7 +123,30 @@ const loginAsBondsman = asyncHandler(async (req: Request, res: Response) => {
     });
 });
 
-// Create Check-in
+const logoutAsBondsman = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?._id;
+  if (!userId)
+    return res
+      .status(404)
+      .json({ message: "User not found or maybe it's already log out" });
+  await Bondsman.findByIdAndUpdate(
+    userId,
+    {
+      $set: {
+        refreshToken: "",
+      },
+    },
+    {
+      new: true,
+    }
+  );
+  return res
+    .status(200)
+    .clearCookie("accessToken", { httpOnly: true, secure: true })
+    .clearCookie("refreshToken")
+    .json({ message: "Bondsman logout successfully" });
+});
+
 const creatCheckIn = asyncHandler(async (req: Request, res: Response) => {
   const { day } = req.body as { day: number };
   const { userId } = req.params;
@@ -224,6 +249,172 @@ const deleteCheckIn = asyncHandler(async (req: Request, res: Response) => {
     .json({ message: "Delete Successfully", isDeletedCheckIn });
 });
 
+const addUser = asyncHandler(async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  const user = await User.findById(userId).select("-password -refreshToken");
+  if (!user) return res.status(404).json({ message: "User account not found" });
+
+  const userAdd = await Bondsman.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $addToSet: {
+        user: userId, // ignore duplications and add unique values only
+      },
+    },
+    {
+      new: true,
+    }
+  )
+    .select("-password -refreshToken")
+    .populate("user", "_id firstName middleName lastName phoneNo email");
+  await User.updateOne(
+    {
+      _id: userId,
+    },
+    { $set: { bondsman: req.user?._id } }
+  ); // map bondsman with user that add recently
+
+  const isUserAddedSuccessfully = await Bondsman.findById(userAdd?._id);
+  if (!isUserAddedSuccessfully)
+    return res
+      .status(500)
+      .json({ message: "Internal server error. User not added" });
+
+  return res.status(200).json({
+    message: `${isUserAddedSuccessfully.user.length} User added successfully`,
+    userAdd,
+  });
+});
+
+const deleteUser = asyncHandler(async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  const isUserRemove = await Bondsman.findOneAndUpdate(
+    {
+      _id: req.user?._id,
+    },
+    {
+      $pull: {
+        user: userId,
+      },
+    },
+    {
+      new: true,
+    }
+  )
+    .select("-password -refreshToken")
+    .populate("user", "_id firstName middleName lastName phoneNo email");
+  if (!isUserRemove)
+    return res
+      .status(404)
+      .json({ message: "Bondsman not found or user not linked" });
+  return res.status(200).json({
+    message: `${isUserRemove.user.length} User left`,
+    isUserRemove,
+  });
+});
+
+const getAllUsersOfBondsman = asyncHandler(
+  async (req: Request, res: Response) => {
+    const isBondsmanExist = await Bondsman.findById(req.user?._id).populate(
+      "user",
+      "_id firstName middleName lastName phoneNo email"
+    );
+    if (!isBondsmanExist)
+      return res
+        .status(404)
+        .json({ message: "Bondsman not exist or logged out" });
+
+    const filterdUser = isBondsmanExist.user;
+    return res.status(200).json({
+      message:
+        isBondsmanExist.user.length === 0
+          ? "No user found"
+          : `${isBondsmanExist.user.length} user found`,
+      filterdUser,
+    });
+  }
+);
+
+const updateUserDetailsByBondsman = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    const { firstName, middleName, lastName, email, phoneNo, street, ZipCode } =
+      req.body as {
+        firstName: string;
+        middleName: string;
+        lastName: string;
+        email: string;
+        phoneNo: string;
+        street: string;
+        ZipCode: string;
+      };
+
+    // Data validation
+    if (
+      !firstName?.trim() ||
+      !middleName?.trim() ||
+      !lastName?.trim() ||
+      !email?.trim() ||
+      !phoneNo?.trim() ||
+      !street?.trim() ||
+      !ZipCode?.trim()
+    ) {
+      return res.status(400).json({ message: "All credentials are required" });
+    }
+    if (!isValidEmail(email)) {
+      return res.status(404).json({ message: "Invalid email" });
+    }
+    if (!isValidPhone(phoneNo)) {
+      return res.status(404).json({ message: "Invalid phone no." });
+    }
+    if (street.length > 100 || ZipCode.length > 11)
+      return res
+        .status(400)
+        .json({ message: "Street or ZIP code is too long" });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    let data = {
+      firstName,
+      middleName,
+      lastName,
+      email,
+      phoneNo,
+      street,
+      ZipCode,
+    };
+
+    const updatedUserDetails = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          firstName: data.firstName,
+          middleName: data.middleName,
+          lastName: data.lastName,
+          email: data.email.toLowerCase(),
+          phoneNo: data.phoneNo,
+          street: data.street,
+          ZipCode: data.ZipCode,
+        },
+      },
+      {
+        new: true,
+      }
+    ).select("-password -refreshToken -isAgreed");
+
+    if (!updatedUserDetails)
+      return res.status(401).json({
+        message:
+          "Internal Server error so details are not updated. try again !..",
+      });
+
+    return res
+      .status(200)
+      .json({ message: "Details updated successfully", updatedUserDetails });
+  }
+);
+
 // const getRecentCheckedInByUser = asyncHandler(
 //   async (req: Request, res: Response) => {
 //     const { userId } = req.params;
@@ -272,7 +463,12 @@ export {
   signUpAsBondsman,
   creatCheckIn,
   loginAsBondsman,
+  logoutAsBondsman,
   searchByPhoneNumber,
-  deleteCheckIn
+  deleteCheckIn,
+  addUser,
+  deleteUser,
+  getAllUsersOfBondsman,
+  updateUserDetailsByBondsman,
   // getRecentCheckedInByUser,
 };
