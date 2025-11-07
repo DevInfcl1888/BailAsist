@@ -217,13 +217,24 @@ const creatCheckIn = asyncHandler(async (req: Request, res: Response) => {
 
 const searchByPhoneNumber = asyncHandler(
   async (req: Request, res: Response) => {
-    const { phone } = req.query;
-    if (!phone)
-      return res
-        .status(404)
-        .json({ message: "Search bar expect phone no for searching" });
+    const { search } = req.query;
+    if (!search)
+      return res.status(404).json({ message: "Search can't be empty" });
     const searchedUser = await User.find({
-      phoneNo: { $regex: phone, $options: "i" },
+      $or: [
+        {
+          phoneNo: { $regex: search, $options: "i" },
+        },
+        {
+          firstName: { $regex: search, $options: "i" },
+        },
+        {
+          lastName: { $regex: search, $options: "i" },
+        },
+        {
+          middleName: { $regex: search, $options: "i" },
+        },
+      ],
     }).select("-password");
     if (!searchedUser)
       return res.status(404).json({ message: "No result found" });
@@ -231,7 +242,7 @@ const searchByPhoneNumber = asyncHandler(
       message:
         searchedUser.length === 0
           ? "No data found while searching"
-          : "Searching finish",
+          : `${searchedUser.length} Users found`,
       searchedUser,
     });
   }
