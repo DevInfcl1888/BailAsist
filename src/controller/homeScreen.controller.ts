@@ -1,14 +1,12 @@
 import { Request, Response } from "express";
-import HomeScreenModel from "../models/homeScreen.model.js"; // Models
+import { Court } from "../models/bondsman.model.js"; // Models
 import { asyncHandler } from "../utils/asyncHandler.js"; // to handle async errors
-import { courtTypes, courtLevel, Status } from "../models/homeScreen.model.js"; // enums
+import { courtTypes, courtLevel, Status } from "../models/bondsman.model.js"; // enums
 import {
   isValidEmail,
   isValidPhone,
   isValidData,
 } from "../utils/dataValidators.js"; // data validators
-
-const { Court } = HomeScreenModel; // Models
 
 // Create court details
 const createCourt = asyncHandler(async (req: Request, res: Response) => {

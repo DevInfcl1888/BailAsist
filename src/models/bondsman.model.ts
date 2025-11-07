@@ -33,15 +33,14 @@ interface ICheckIn extends Document {
     date: Date;
     status: Status;
   };
-  checkInProof: ICheckInProof;
+  checkInProof: {
+    userId: Schema.Types.ObjectId;
+    photoUrl: string;
+    message: string;
+    location: string;
+  };
 }
 
-interface ICheckInProof extends Document {
-  userId: Schema.Types.ObjectId;
-  photoUrl: string;
-  message: string;
-  location: string;
-}
 export enum courtTypes {
   HIGH_COURT = "High Court",
   DISTRICT_COURT = "District Court",
@@ -75,7 +74,6 @@ const BondsmanSchema = new Schema<IBondsman>(
     phoneNo: { type: String, required: true, trim: true },
     password: { type: String, required: true, trim: true },
     email: { type: String, required: true, trim: true },
-    deviceToken: { type: String, trim: true },
     countryCode: { type: String, trim: true },
     user: [
       {
@@ -111,18 +109,12 @@ const CheckInSchema = new Schema<ICheckIn>(
         default: Status.Pending,
       },
     },
-  },
-  {
-    timestamps: true,
-  }
-);
-
-const CheckInProofSchema = new Schema<ICheckInProof>(
-  {
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    photoUrl: { type: String, required: true }, // cloudinary url
-    message: { type: String, trim: true },
-    location: { type: String, required: true },
+    checkInProof: {
+      // userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+      photoUrl: { type: String, required: true }, // cloudinary url
+      message: { type: String, trim: true },
+      location: { type: String, required: true },
+    },
   },
   {
     timestamps: true,
@@ -237,9 +229,6 @@ BondsmanSchema.methods.generateRefreshToken = function (): string {
   return jwt.sign(payload, secret, options);
 };
 
-const Bondsman = model("Bondsman", BondsmanSchema);
-const CheckIn = model("CheckIn", CheckInSchema);
-const CheckInProof = model("CheckInProof", CheckInProofSchema);
-const Court = model("Court", CourtSchema);
-
-export default { Bondsman, CheckIn, Court, CheckInProof };
+export const Bondsman = model("Bondsman", BondsmanSchema);
+export const CheckIn = model("CheckIn", CheckInSchema);
+export const Court = model("Court", CourtSchema);

@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import HomeScreenModel, { Status } from "../models/homeScreen.model.js";
+import { Bondsman, CheckIn, Status } from "../models/bondsman.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {
   isValidEmail,
@@ -7,19 +7,16 @@ import {
   isValidPhone,
 } from "../utils/dataValidators.js";
 import { User } from "../models/user.model.js";
-
-const { Bondsman, CheckIn, Court, CheckInProof } = HomeScreenModel;
+import { getCheckInStatus } from "./user.controller.js";
 
 const signUpAsBondsman = asyncHandler(async (req: Request, res: Response) => {
-  const { BondsmanName, phoneNo, password, email, deviceToken, countryCode } =
-    req.body as {
-      BondsmanName: string;
-      phoneNo: string;
-      password: string;
-      email: string;
-      deviceToken: string;
-      countryCode: string;
-    };
+  const { BondsmanName, phoneNo, password, email, countryCode } = req.body as {
+    BondsmanName: string;
+    phoneNo: string;
+    password: string;
+    email: string;
+    countryCode: string;
+  };
   if (!BondsmanName.trim() || !phoneNo.trim() || !password.trim())
     return res.status(400).json({ message: "All fields are required" });
   if (!isValidPhone(phoneNo))
@@ -45,7 +42,6 @@ const signUpAsBondsman = asyncHandler(async (req: Request, res: Response) => {
     phoneNo,
     password,
     email,
-    deviceToken: deviceToken ? deviceToken : " ",
     countryCode,
   });
   const accessToken = createBondsman.generateAccessToken();
@@ -71,7 +67,10 @@ const loginAsBondsman = asyncHandler(async (req: Request, res: Response) => {
     return res.status(404).json("Login can't complete without creadentials");
   if (!isValidPhone(phone))
     return res.status(400).json({ message: "Invalid Phone no." });
-  const isExistBondsman = await Bondsman.findOne({ phoneNo: phone });
+  const isExistBondsman = await Bondsman.findOne({ phoneNo: phone }).populate(
+    "user",
+    "_id firstName middleName lastName phone"
+  );
   if (!isExistBondsman)
     return res
       .status(404)
@@ -82,24 +81,6 @@ const loginAsBondsman = asyncHandler(async (req: Request, res: Response) => {
 
   const accessToken = isExistBondsman.generateAccessToken();
   const refreshToken = isExistBondsman.generateRefreshToken();
-
-  const updateData: any = {
-    refreshToken: refreshToken,
-    deviceToken: deviceToken || "",
-  };
-
-  const isExistingBondsmanUpdate = await Bondsman.findByIdAndUpdate(
-    isExistBondsman?._id,
-    {
-      $set: updateData,
-    },
-    {
-      new: true,
-      validateBeforeSave: false,
-    }
-  )
-    .select("-password -refreshToken")
-    .populate("user", "_id firstName middleName lastName phoneNo email");
 
   return res
     .status(200)
@@ -116,9 +97,8 @@ const loginAsBondsman = asyncHandler(async (req: Request, res: Response) => {
     .json({
       message: "Bondsman login successfully",
       data: {
-        isExistBondsman: isExistingBondsmanUpdate,
+        isExistBondsman: isExistBondsman,
         accessToken: `${accessToken}`,
-        deviceToken: deviceToken ? deviceToken : "",
       },
     });
 });
@@ -426,6 +406,28 @@ const updateUserDetailsByBondsman = asyncHandler(
   }
 );
 
+const getUserCheckInStatus = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    const getUserCheckIn = await CheckIn.find({ user: userId }).populate(
+      "user",
+      "_id firstName middleName lastName phoneNo email"
+    );
+    if (!getUserCheckIn)
+      return res.status(404).json({
+        message: "User not found or maybe check-in is not created yet",
+      });
+    console.log("getCheckIn", getUserCheckIn);
+    return res.status(200).json({
+      message:
+        getUserCheckIn.length === 0
+          ? "No check-in found"
+          : `${getUserCheckIn.length} Check-in found`,
+      getUserCheckIn,
+    });
+  }
+);
+
 // const getRecentCheckedInByUser = asyncHandler(
 //   async (req: Request, res: Response) => {
 //     const { userId } = req.params;
@@ -481,5 +483,6 @@ export {
   deleteUser,
   getAllUsersOfBondsman,
   updateUserDetailsByBondsman,
+  getUserCheckInStatus,
   // getRecentCheckedInByUser,
 };

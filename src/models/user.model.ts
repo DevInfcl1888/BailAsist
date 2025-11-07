@@ -540,8 +540,8 @@ const loggedInSchema = new Schema<login>(
 userSchema.pre("save", async function (next) {
   if (this.isModified("password")) {
     this.password = await bcrypt.hash(this.password, 10);
-    next();
   }
+  next();
 });
 
 // This function use for check password is correct or not

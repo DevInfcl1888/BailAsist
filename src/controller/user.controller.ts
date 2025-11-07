@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { Status } from "../models/homeScreen.model.js"; // enums
+import { Status } from "../models/bondsman.model.js"; // enums
 import {
   isDateValid,
   isValidData,
@@ -23,12 +23,11 @@ import {
   personalRefrenceInfo,
   EmployementInfo,
 } from "../models/user.model.js";
-import HomeScreenModel from "../models/homeScreen.model.js";
+import { Bondsman, CheckIn, Court } from "../models/bondsman.model.js";
 import { generateOTP, sendOTPfun, otpStore } from "../utils/OTPsender.js";
 import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 
-const { Bondsman, CheckIn, Court } = HomeScreenModel; // Home screen models
 
 const registration = asyncHandler(async (req: Request, res: Response) => {
   const {
@@ -969,39 +968,14 @@ const getCheckInStatus = asyncHandler(async (req: Request, res: Response) => {
       $gte: startOfDay,
       $lte: endOfDay,
     },
-  });
+  }).populate("user", "_id firstName middleName lastName phoneNo emai");
   if (!isCheckInRecordExist)
     return res.status(404).json({
       message: "No Record found on this date.",
     });
-  const formattedNextCheckIn = new Date(
-    isCheckInRecordExist.nextCheckInDate.date!
-  ).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-  const formattedLastCheckIn = new Date(
-    isCheckInRecordExist.lastCheckedInAt.date!
-  ).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
   return res.status(200).json({
     message: "Check-in found",
-    nextCheckInDate: formattedNextCheckIn,
-    nextCheckInstatus: isCheckInRecordExist.nextCheckInDate.status,
-    lastCheckInDate: formattedLastCheckIn,
-    lastCheckInStatus: isCheckInRecordExist.lastCheckedInAt.status,
+    isCheckInRecordExist,
   });
 });
 
@@ -1024,7 +998,7 @@ const checkIn = asyncHandler(async (req: Request, res: Response) => {
   const { checkIn_Id } = req.params;
   const { message, location } = req.body as {
     message?: string;
-    location: string;
+    location?: string;
   };
   if (!checkIn_Id)
     return res.status(404).json({ message: "Check-in Id not found" });
@@ -1067,7 +1041,7 @@ const checkIn = asyncHandler(async (req: Request, res: Response) => {
     {
       new: true,
     }
-  );
+  ).populate("user", "_id firstName middleName lastName phoneNo");
   // console.log("checkInRecord", checkInRecord);
 
   if (!checkInRecord)
@@ -1075,38 +1049,10 @@ const checkIn = asyncHandler(async (req: Request, res: Response) => {
       .status(403)
       .json({ message: "Check-in couldn't complete! try again..." });
 
-  const formattedNextCheckIn = new Date(
-    checkInRecord.nextCheckInDate.date!
-  ).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-
-  const formattedLastCheckIn = new Date(
-    checkInRecord.lastCheckedInAt.date!
-  ).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-
+  // let data = checkInRecord.checkInProof;
   return res.status(200).json({
     message: "Check-in successful",
-    lastCheckIn: {
-      lastCheckIn: formattedLastCheckIn,
-      lastCheckInStatus: checkInRecord.lastCheckedInAt.status,
-      nextCheckIn: formattedNextCheckIn,
-      nextCheckInStatus: checkInRecord.nextCheckInDate.status,
-    },
+    checkInRecord,
   });
 });
 
