@@ -147,6 +147,7 @@ interface signUp extends Document {
   latitude: number;
   longitude: number;
   countryCode: String;
+  reminders: Schema.Types.ObjectId[],
   isCorrectPassword(password: string): Promise<boolean>;
   generateAccessToken(): string;
   generateRefreshToken(): string;
@@ -505,6 +506,7 @@ const userSchema = new Schema<signUp>(
     image: {
       type: String, // cloudinary url
     },
+    reminders: [{ type: Schema.Types.ObjectId, ref: "Reminder" }],
     latitude: { type: Number },
     longitude: { type: Number },
   },

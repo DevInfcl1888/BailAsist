@@ -56,7 +56,7 @@ const AdminSchema = new Schema<IAdmin>(
       {
         url: { type: String, required: true },
         _id: { type: Schema.Types.ObjectId, auto: true }, // optional, Mongo adds it anyway
-        createdAt: { type:  Date, default: Date.now  },
+        createdAt: { type: Date, default: Date.now },
       },
     ],
     role: {
@@ -69,8 +69,10 @@ const AdminSchema = new Schema<IAdmin>(
 
 // set role as admin if no admin exist
 AdminSchema.pre("save", function (next) {
-  if (!this.role) this.role = "admin";
-  next();
+  if (!this.role) {
+    this.role = "admin";
+    next();
+  }
   next();
 });
 // This is middleware for encrypt password only when password is changed

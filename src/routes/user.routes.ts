@@ -32,11 +32,11 @@ import {
   updateLatAndLong,
 } from "../controller/user.controller.js";
 
-// // Home Screen Import
-// import {
-//   createCourt,
-//   getCourtDetails,
-// } from "../controller/homeScreen.controller.js";
+// Home Screen Import
+import {
+  createCourt,
+  getCourtDetails,
+} from "../controller/homeScreen.controller.js";
 
 
 const router = Router();
@@ -78,8 +78,8 @@ router
   ); // update address and send picture as proof
 router.route("/updateLatAndLong").post(authMiddleware, updateLatAndLong); // update latitude and longitude
 
-// // Home Screen Routes
-// router.route("/createCourt").post(authMiddleware, createCourt); // create court
-// router.route("/getCourtDetails/:courtId").get(authMiddleware, getCourtDetails); // get court details by id
+// Home Screen Routes
+router.route("/createCourt").post(authMiddleware, createCourt); // create court
+router.route("/getCourtDetails/:courtId").get(authMiddleware, getCourtDetails); // get court details by id
 
 export default router;

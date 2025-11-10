@@ -11,12 +11,12 @@ import {
   updateUserDetailsByBondsman,
   getUserCheckInStatus,
   userCheckInHistory,
-  // getRecentCheckedInByUser,
+  setCourtReminders,
+  getCourtReminderDetails,
+  cancelReminder,
 } from "../controller/bondsman.controller.js";
 import { Router } from "express";
-import {
-  authMiddlewareForWeb,
-} from "../middlewares/auth.middlewares.js";
+import { authMiddlewareForWeb } from "../middlewares/auth.middlewares.js";
 
 const router = Router();
 
@@ -45,8 +45,14 @@ router
 router
   .route("/userCheckInHistory/:userId")
   .get(authMiddlewareForWeb, userCheckInHistory); // get user check-in status
-// router
-//   .route("/getRecentCheckedInByUser/:userId")
-//   .get(authMiddlewareForWeb, getRecentCheckedInByUser);
+router
+  .route("/setCourtReminders/:userId/:courtId")
+  .post(authMiddlewareForWeb, setCourtReminders);
+router
+  .route("/getCourtReminderDetails/:reminderId")
+  .get(authMiddlewareForWeb, getCourtReminderDetails);
+router
+  .route("/cancelReminder/:reminderId")
+  .post(authMiddlewareForWeb, cancelReminder);
 
 export default router;

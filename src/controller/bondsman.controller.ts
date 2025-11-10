@@ -1,7 +1,14 @@
 import { Request, Response } from "express";
-import { Bondsman, CheckIn, Status } from "../models/bondsman.model.js";
+import {
+  Bondsman,
+  CheckIn,
+  Court,
+  Reminder,
+  Status,
+} from "../models/bondsman.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {
+  isDateValid,
   isValidEmail,
   isValidPassword,
   isValidPhone,
@@ -448,7 +455,10 @@ const userCheckInHistory = asyncHandler(async (req: Request, res: Response) => {
   if (!userId) return res.status(404).json({ message: "User id missing" });
   const isUserExist = await User.findById(userId).select("-password");
   if (!isUserExist) return res.status(404).json({ message: "User not found" });
-  const history = await CheckIn.find({ user: userId });
+  // const history = await CheckIn.find({ user: userId });
+  const history = await CheckIn.find({ user: userId })
+    .populate("user", "_id firstName lastName phoneNo email")
+    .sort({ createdAt: -1 });
   console.log("user", isUserExist);
   console.log("history", history);
   if (!history || history.length === 0)
@@ -456,49 +466,148 @@ const userCheckInHistory = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).json({ message: "History found", history });
 });
 
-// const getRecentCheckedInByUser = asyncHandler(
-//   async (req: Request, res: Response) => {
-//     const { userId } = req.params;
-//     if (!userId) return res.status(400).json({ message: "User not found" });
+const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
+  const { caseNumber, reminderDate, reminderNote } = req.body as {
+    caseNumber: string;
+    reminderDate: Date;
+    reminderNote?: string;
+  };
+  const { userId, courtId } = req.params;
+  const isUserExist = await User.findById(userId).select("-password");
+  const isCourtExist = await Court.findById(courtId);
+  if (!isUserExist) return res.status(404).json({ message: "User not found" });
+  if (!isCourtExist)
+    return res.status(404).json({ message: "Court not found" });
+  if (!caseNumber.trim() || !reminderDate)
+    return res
+      .status(401)
+      .json({ message: "Case number, Reminder date cannot be empty" });
 
-//     const proof = await CheckIn.find({ userId })
-//       .sort({ createdAt: -1 })
-//       .populate([
-//         {
-//           path: "user",
-//           select:
-//             "firstName middleName lastName email phoneNo isActive homeAddress image",
-//         },
-//       ]);
-//     console.log(proof);
-//     console.log(proof.length !== 0);
+  if (reminderNote && reminderNote.length < 10)
+    return res
+      .status(400)
+      .json({ message: "Reminder message should be 10 charcters long" });
 
-//     if (proof.length === 0 || !proof)
-//       return res
-//         .status(400)
-//         .json({ message: "No Check-in found of this user" });
+  const createReminder = await Reminder.create({
+    user: userId,
+    court: courtId,
+    caseNumber,
+    reminderDate,
+    reminderNote,
+  });
+  await User.findByIdAndUpdate(
+    userId,
+    {
+      $push: {
+        reminders: createReminder?._id,
+      },
+    },
+    { new: true }
+  );
+  await Court.findByIdAndUpdate(
+    courtId,
+    {
+      $push: {
+        reminders: createReminder?._id,
+      },
+    },
+    { new: true }
+  );
+  const isReminderCreated = await Reminder.findById(
+    createReminder?._id
+  ).populate([
+    {
+      path: "user",
+      select: "_id firstName middleName lastName email phoneNo reminders",
+      populate: {
+        path: "reminders",
+        select: "caseNumber reminderDate reminderNote ",
+      },
+    },
+    {
+      path: "court",
+      select: "courtName addressLine state city country reminders",
+      populate: {
+        path: "reminders",
+        select: "caseNumber reminderDate reminderNote ",
+      },
+    },
+  ]);
+  if (!isReminderCreated)
+    return res
+      .status(500)
+      .json({ message: "Internal server error. Reminder can't create" });
+  return res
+    .status(200)
+    .json({ message: "Reminder created success", isReminderCreated });
+});
 
-//     // const formattedData = proof.map((data) => {
-//     //   user: data.user;
-//     //   photoUrl: data.photoUrl;
-//     //   message: data.message;
-//     //   location: data.location;
-//     //   date: new Date(data.createdAt).toLocaleString("en-GB", {
-//     //     day: "2-digit",
-//     //     month: "short",
-//     //     year: "numeric",
-//     //     hour: "2-digit",
-//     //     minute: "2-digit",
-//     //     second: "2-digit",
-//     //   });
-//     // });
-//     return res.status(200).json({
-//       message: "Check-in history fetched successfully",
-//       // total: proof.length,
-//       // data: formattedData,
-//     });
-//   }
-// );
+const getCourtReminderDetails = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { reminderId } = req.params;
+    const isReminderExist = await Reminder.find({
+      _id: reminderId,
+      isActive: true,
+    })
+      .populate([
+        {
+          path: "user",
+          select: "_id firstName lastName email phoneNo",
+        },
+        {
+          path: "court",
+          select: "courtName addressLine city state country",
+        },
+      ])
+      .lean();
+    if (!isReminderExist)
+      return res.status(404).json({ message: "Reminder not found" });
+    isReminderExist;
+    return res
+      .status(200)
+      .json({
+        message: `${isReminderExist.length === 0}`
+          ? "No reminder found"
+          : "Reminder details fetched",
+        isReminderExist,
+      });
+  }
+);
+
+const cancelReminder = asyncHandler(async (req: Request, res: Response) => {
+  const { reminderId } = req.params;
+  const isReminderExist = await Reminder.find({
+    _id: reminderId,
+    isActive: true,
+  });
+  if (!isReminderExist)
+    return res.status(404).json({ message: "Reminder not found" });
+
+  const cancelReminder = await Reminder.findByIdAndUpdate(
+    reminderId,
+    {
+      $set: {
+        isActive: false,
+      },
+    },
+    { new: true }
+  )
+    .populate([
+      {
+        path: "user",
+        select: "_id firstName lastName email phoneNo",
+      },
+      {
+        path: "court",
+        select: "courtName addressLine city state country",
+      },
+    ])
+    .lean();
+  return res
+    .status(200)
+    .json({ message: "Reminder Cancelled success", cancelReminder });
+});
+
 
 export {
   signUpAsBondsman,
@@ -513,5 +622,7 @@ export {
   updateUserDetailsByBondsman,
   getUserCheckInStatus,
   userCheckInHistory,
-  // getRecentCheckedInByUser,
+  setCourtReminders,
+  getCourtReminderDetails,
+  cancelReminder,
 };

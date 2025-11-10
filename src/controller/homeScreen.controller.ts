@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { Court } from "../models/bondsman.model.js"; // Models
 import { asyncHandler } from "../utils/asyncHandler.js"; // to handle async errors
-import { courtTypes, courtLevel, Status } from "../models/bondsman.model.js"; // enums
+import { Status } from "../models/bondsman.model.js"; // enums
 import {
   isValidEmail,
   isValidPhone,
@@ -12,8 +12,6 @@ import {
 const createCourt = asyncHandler(async (req: Request, res: Response) => {
   const {
     courtName,
-    courtType,
-    level,
     addressLine,
     city,
     state,
@@ -23,8 +21,6 @@ const createCourt = asyncHandler(async (req: Request, res: Response) => {
     courtEmail,
   } = req.body as {
     courtName: string;
-    courtType: courtTypes; //  enum: Object.values(courtTypes),
-    level: courtLevel; //  enum: Object.values(courtLevel),
     addressLine: string;
     city: string;
     state: string;
@@ -35,8 +31,6 @@ const createCourt = asyncHandler(async (req: Request, res: Response) => {
   };
   if (
     !courtName.trim() ||
-    !courtType.trim() ||
-    !level.trim() ||
     !addressLine.trim() ||
     !city.trim() ||
     !state.trim() ||
@@ -58,18 +52,7 @@ const createCourt = asyncHandler(async (req: Request, res: Response) => {
     return res
       .status(401)
       .json({ message: "country name only contain characters" });
-  if (!Object.values(courtTypes).includes(courtType))
-    return res.status(404).json({
-      message: `Invalid court type. Allowed types are: ${Object.values(
-        courtTypes
-      ).join(", ")}`,
-    });
-  if (!Object.values(courtLevel).includes(level))
-    return res.status(404).json({
-      message: `Invalid court level. Allowed types are: ${Object.values(
-        courtLevel
-      ).join(", ")}`,
-    });
+
   if (!isValidEmail(courtEmail))
     return res.status(400).json({ message: "Invalid email" });
   if (!isValidPhone(courtContactNo))
@@ -77,8 +60,6 @@ const createCourt = asyncHandler(async (req: Request, res: Response) => {
 
   const court = await Court.create({
     courtName,
-    courtType,
-    level,
     addressLine,
     city,
     state,

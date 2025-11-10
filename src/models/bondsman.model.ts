@@ -44,23 +44,8 @@ interface ICheckIn extends Document {
   };
 }
 
-export enum courtTypes {
-  HIGH_COURT = "High Court",
-  DISTRICT_COURT = "District Court",
-  CIVIL_COURT = "Civil Court",
-  SUPREME_COURT = "Supreme Court",
-}
-
-export enum courtLevel {
-  NATIONAL = "National",
-  STATE = "State",
-  DISTRICT = "District", // Optional, based on hierarchy
-}
-
 interface ICourt extends Document {
   courtName: string;
-  courtType: string;
-  level: string;
   addressLine: string;
   city: string;
   state: string;
@@ -68,8 +53,24 @@ interface ICourt extends Document {
   zipCode: string;
   courtContactNo: string;
   courtEmail: string;
+  reminders: Schema.Types.ObjectId[]
 }
 
+export enum ReminderStatus {
+  Active = "Active",
+  Cancelled = "Cancelled",
+  Completed = "Completed",
+}
+
+interface ICourtReminder extends Document {
+  user: Schema.Types.ObjectId;
+  court: Schema.Types.ObjectId;
+  caseNumber: string;
+  reminderDate: Date;
+  reminderNote?: string;
+  status: ReminderStatus;
+  isActive: boolean;
+}
 // ------- Schemas -------
 const BondsmanSchema = new Schema<IBondsman>(
   {
@@ -136,18 +137,6 @@ const CourtSchema = new Schema<ICourt>(
       trim: true,
       required: true,
     },
-    courtType: {
-      type: String,
-      enum: Object.values(courtTypes),
-      trim: true,
-      required: true,
-    },
-    level: {
-      type: String,
-      enum: Object.values(courtLevel),
-      trim: true,
-      required: true,
-    },
     addressLine: {
       type: String,
       trim: true,
@@ -184,6 +173,26 @@ const CourtSchema = new Schema<ICourt>(
       unique: true,
       required: true,
     },
+    reminders: [{ type: Schema.Types.ObjectId, ref: "Reminder" }],
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const ReminderSchema = new Schema<ICourtReminder>(
+  {
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    court: { type: Schema.Types.ObjectId, ref: "Court", required: true },
+    caseNumber: { type: String, required: true },
+    reminderDate: { type: Date, required: true },
+    reminderNote: { type: String },
+    status: {
+      type: String,
+      enum: Object.values(ReminderStatus),
+      default: ReminderStatus.Active,
+    },
+    isActive: { type: Boolean, default: true },
   },
   {
     timestamps: true,
@@ -240,3 +249,4 @@ BondsmanSchema.methods.generateRefreshToken = function (): string {
 export const Bondsman = model("Bondsman", BondsmanSchema);
 export const CheckIn = model("CheckIn", CheckInSchema);
 export const Court = model("Court", CourtSchema);
+export const Reminder = model("Reminder", ReminderSchema);
