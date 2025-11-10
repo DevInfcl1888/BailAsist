@@ -159,18 +159,15 @@ const uploadAds = asyncHandler(async (req: Request, res: Response) => {
     return res
       .status(401)
       .json({ message: "Error occur during uploading image" });
-  const saveToDB = await Admin.findByIdAndUpdate(
-    isAdmin?._id,
-    {
-      $set: {
-        adImg: uploadAd.secure_url,
-      },
-    },
-    {
-      new: true,
-    }
-  ).select("adImg createdAt updatedAt username");
-  return res.status(200).json({ message: "Ad uploaded", saveToDB });
+  isAdmin?.adImg?.push(uploadAd?.secure_url);
+  await isAdmin.save();
+  const accessToken = isAdmin.generateAccessToken();
+  const resp = {
+    username: isAdmin.username,
+    img: isAdmin.adImg,
+    accessToken: accessToken,
+  };
+  return res.status(200).json({ message: "Ad uploaded", resp });
 });
 
 export {

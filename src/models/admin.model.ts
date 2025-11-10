@@ -10,7 +10,7 @@ interface IAdmin extends Document {
   avatarUrl?: string;
   role: string;
   refreshToken: string;
-  adImg: string;
+  adImg: string[];
   isCorrectPassword(password: string): Promise<boolean>;
   generateRefreshToken(): string;
   generateAccessToken(): string;
@@ -47,7 +47,8 @@ const AdminSchema = new Schema<IAdmin>(
       type: String,
     },
     adImg: {
-      type: String, // cloudinary url
+      type: [String], // array of strings (URLs)
+      default: [],    // initialize empty array
     },
     role: {
       type: String,
