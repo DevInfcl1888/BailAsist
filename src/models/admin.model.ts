@@ -10,7 +10,13 @@ interface IAdmin extends Document {
   avatarUrl?: string;
   role: string;
   refreshToken: string;
-  adImg: string[];
+  adImg: [
+    {
+      url: string;
+      _id: Schema.Types.ObjectId; // optional, Mongo adds it anyway
+      createdAt: Date;
+    }
+  ];
   isCorrectPassword(password: string): Promise<boolean>;
   generateRefreshToken(): string;
   generateAccessToken(): string;
@@ -46,10 +52,13 @@ const AdminSchema = new Schema<IAdmin>(
     refreshToken: {
       type: String,
     },
-    adImg: {
-      type: [String], // array of strings (URLs)
-      default: [],    // initialize empty array
-    },
+    adImg: [
+      {
+        url: { type: String, required: true },
+        _id: { type: Schema.Types.ObjectId, auto: true }, // optional, Mongo adds it anyway
+        createdAt: { type:  Date, default: Date.now  },
+      },
+    ],
     role: {
       type: String,
       set: () => "admin",

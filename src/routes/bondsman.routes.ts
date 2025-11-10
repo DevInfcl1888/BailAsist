@@ -10,14 +10,13 @@ import {
   getAllUsersOfBondsman,
   updateUserDetailsByBondsman,
   getUserCheckInStatus,
+  userCheckInHistory,
   // getRecentCheckedInByUser,
 } from "../controller/bondsman.controller.js";
 import { Router } from "express";
 import {
   authMiddlewareForWeb,
 } from "../middlewares/auth.middlewares.js";
-import { upload } from "../middlewares/multer.middlewares.js";
-import { otpLimiter } from "../utils/rateLimiter.js";
 
 const router = Router();
 
@@ -31,7 +30,7 @@ router
   .get(authMiddlewareForWeb, searchByPhoneNumber); // search by phone no
 router
   .route("/deleteCheckIn/:checkIn_Id")
-  .delete(authMiddlewareForWeb, deleteCheckIn); // delete check in
+  .post(authMiddlewareForWeb, deleteCheckIn); // delete check in
 router.route("/deleteUser/:userId").delete(authMiddlewareForWeb, deleteUser); // delete user from bondsman
 router
   .route("/getAllUsersOfBondsman")
@@ -43,6 +42,9 @@ router
 router
   .route("/getUserCheckInStatus/:userId")
   .get(authMiddlewareForWeb, getUserCheckInStatus); // get user check-in status
+router
+  .route("/userCheckInHistory/:userId")
+  .get(authMiddlewareForWeb, userCheckInHistory); // get user check-in status
 // router
 //   .route("/getRecentCheckedInByUser/:userId")
 //   .get(authMiddlewareForWeb, getRecentCheckedInByUser);

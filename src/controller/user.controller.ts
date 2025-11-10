@@ -28,7 +28,6 @@ import { generateOTP, sendOTPfun, otpStore } from "../utils/OTPsender.js";
 import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 
-
 const registration = asyncHandler(async (req: Request, res: Response) => {
   const {
     firstName,
@@ -968,6 +967,7 @@ const getCheckInStatus = asyncHandler(async (req: Request, res: Response) => {
       $gte: startOfDay,
       $lte: endOfDay,
     },
+    isActive:true
   }).populate("user", "_id firstName middleName lastName phoneNo emai");
   if (!isCheckInRecordExist)
     return res.status(404).json({
@@ -1003,7 +1003,10 @@ const checkIn = asyncHandler(async (req: Request, res: Response) => {
   if (!checkIn_Id)
     return res.status(404).json({ message: "Check-in Id not found" });
 
-  let isCheckInExist = await CheckIn.findOne({ _id: checkIn_Id });
+  let isCheckInExist = await CheckIn.findOne({
+    _id: checkIn_Id,
+    isActive: true,
+  });
 
   if (!isCheckInExist)
     return res.status(404).json({ message: "No check-In found" });
@@ -1043,7 +1046,7 @@ const checkIn = asyncHandler(async (req: Request, res: Response) => {
     }
   ).populate("user", "_id firstName middleName lastName phoneNo");
   // console.log("checkInRecord", checkInRecord);
-
+  // const checkInProof= await CheckInProof.findByIdAndUpdate()
   if (!checkInRecord)
     return res
       .status(403)

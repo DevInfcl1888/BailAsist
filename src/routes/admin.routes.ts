@@ -1,20 +1,33 @@
 import {
   adminSignUp,
   adminLogin,
+  adminLogout,
   adminLoginAsBondsman,
   adminLogoutAsBondsman,
   uploadAds,
+  getAllAds,
+  deleteAd,
+  createNewBondsman,
+  removeBondsman,
+  addNewBondsman,
+  listAllActiveBondsman,
+  getBondsmanDetails,
+  getTotalBondsmanCount,
+  getTotalUsersCount,
 } from "../controller/admin.controller.js";
 import { Router } from "express";
 import { authMiddlewareForWeb } from "../middlewares/auth.middlewares.js";
 import { upload } from "../middlewares/multer.middlewares.js";
-import { otpLimiter } from "../utils/rateLimiter.js";
 
 const router = Router();
 
 // Admin routes
 router.route("/adminSignUp").post(adminSignUp); // Admin Sign Up
 router.route("/adminLogin").post(adminLogin); // Admin Login
+router.route("/adminLogout").post(authMiddlewareForWeb, adminLogout); // Admin Logout
+router
+  .route("/createNewBondsman")
+  .post(authMiddlewareForWeb, createNewBondsman); // signup Bondsman via admin
 router
   .route("/adminLoginAsBondsman/:bondsmanId")
   .post(authMiddlewareForWeb, adminLoginAsBondsman); // admin Login As Bondsman Login
@@ -24,5 +37,25 @@ router
 router
   .route("/uploadAds")
   .post(authMiddlewareForWeb, upload.single("adImg"), uploadAds); // upload ads
+router.route("/getAllAds").get(authMiddlewareForWeb, getAllAds); // get all ads
+router.route("/deleteAd/:adId").post(authMiddlewareForWeb, deleteAd); // delete ads
+router
+  .route("/removeBondsman/:bondsmanId")
+  .post(authMiddlewareForWeb, removeBondsman); // remove bondsman
+router
+  .route("/addNewBondsman/:bondsmanId")
+  .post(authMiddlewareForWeb, addNewBondsman); // add bondsman
+router
+  .route("/listAllActiveBondsman")
+  .get(authMiddlewareForWeb, listAllActiveBondsman); // list all active bondsman
+router
+  .route("/getBondsmanDetails")
+  .get(authMiddlewareForWeb, getBondsmanDetails); // get All Bondsman bondsman
+router
+  .route("/getTotalBondsmanCount")
+  .get(authMiddlewareForWeb, getTotalBondsmanCount); // get All Bondsman count bondsman
+router
+  .route("/getTotalUsersCount")
+  .get(authMiddlewareForWeb, getTotalUsersCount); // get All User count bondsman
 
 export default router;

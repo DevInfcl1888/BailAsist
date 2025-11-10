@@ -11,12 +11,11 @@ interface IBondsman extends Document {
   countryCode: string;
   deviceToken?: string;
   user: Types.ObjectId[];
+  isActive: boolean;
   refreshToken?: string;
   isCorrectPassword(password: string): Promise<Boolean>;
   generateAccessToken(): string;
   generateRefreshToken(): string;
-  // email: string;
-  // address: string;
 }
 
 export enum Status {
@@ -32,6 +31,10 @@ interface ICheckIn extends Document {
   nextCheckInDate: {
     date: Date;
     status: Status;
+  };
+  isActive: {
+    type: boolean;
+    default: true;
   };
   checkInProof: {
     userId: Schema.Types.ObjectId;
@@ -75,6 +78,7 @@ const BondsmanSchema = new Schema<IBondsman>(
     password: { type: String, required: true, trim: true },
     email: { type: String, required: true, trim: true },
     countryCode: { type: String, trim: true },
+    isActive: { type: Boolean, default: true },
     user: [
       {
         type: Schema.Types.ObjectId,
@@ -110,10 +114,14 @@ const CheckInSchema = new Schema<ICheckIn>(
       },
     },
     checkInProof: {
-      // userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-      photoUrl: { type: String, required: true }, // cloudinary url
+      userId: { type: Schema.Types.ObjectId, ref: "User" },
+      photoUrl: { type: String }, // cloudinary url
       message: { type: String, trim: true },
-      location: { type: String, required: true },
+      location: { type: String },
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
   {

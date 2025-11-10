@@ -135,11 +135,6 @@ const creatCheckIn = asyncHandler(async (req: Request, res: Response) => {
       message: "Please set next check-in day interval (e.g. 7 (in days))",
     });
 
-  // Find the user's check-in record
-  let bondsman = await Bondsman.findOne({ _id: req.user?._id });
-  // console.log("bondsman", bondsman);
-  if (!bondsman) return res.status(404).json({ message: "Bondsman not found" });
-
   let user = await User.findOne({ _id: userId });
   // console.log("user", user);
   if (!user) return res.status(404).json({ message: "User not found" });
@@ -192,6 +187,7 @@ const creatCheckIn = asyncHandler(async (req: Request, res: Response) => {
       date: formattedNextCheckIn,
       status: checkInRecord.nextCheckInDate.status,
     },
+    isActive: checkInRecord.isActive,
   });
 });
 
@@ -230,14 +226,33 @@ const searchByPhoneNumber = asyncHandler(
 
 const deleteCheckIn = asyncHandler(async (req: Request, res: Response) => {
   const { checkIn_Id } = req.params;
-  if (!checkIn_Id) return res.status(400).json({ message: "Invalid _id" });
-  const isDeletedCheckIn = await CheckIn.deleteOne({ _id: checkIn_Id });
+  const isDeletedCheckIn = await CheckIn.find({
+    _id: checkIn_Id,
+    isActive: true,
+  });
+  if (isDeletedCheckIn.length === 0)
+    return res.status(400).json({ message: "No check in found for delete" });
   console.log("isDeleteCheckIn", isDeletedCheckIn);
-  if (!isDeletedCheckIn.acknowledged)
-    return res.status(401).json({ message: "Deletion couldn't be complete" });
+
+  const isCheckInAvailableForDelete = await CheckIn.findByIdAndUpdate(
+    checkIn_Id,
+    {
+      $set: {
+        isActive: false,
+      },
+    },
+    {
+      new: true,
+    }
+  );
+  if (!isCheckInAvailableForDelete)
+    return res
+      .status(404)
+      .json({ message: "Check-in cancellation not complete " });
+
   return res
     .status(200)
-    .json({ message: "Delete Successfully", isDeletedCheckIn });
+    .json({ message: "Delete Successfully", isCheckInAvailableForDelete });
 });
 
 const addUser = asyncHandler(async (req: Request, res: Response) => {
@@ -428,6 +443,19 @@ const getUserCheckInStatus = asyncHandler(
   }
 );
 
+const userCheckInHistory = asyncHandler(async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  if (!userId) return res.status(404).json({ message: "User id missing" });
+  const isUserExist = await User.findById(userId).select("-password");
+  if (!isUserExist) return res.status(404).json({ message: "User not found" });
+  const history = await CheckIn.find({ user: userId });
+  console.log("user", isUserExist);
+  console.log("history", history);
+  if (!history || history.length === 0)
+    return res.status(404).json({ message: "No check-in history found" });
+  return res.status(200).json({ message: "History found", history });
+});
+
 // const getRecentCheckedInByUser = asyncHandler(
 //   async (req: Request, res: Response) => {
 //     const { userId } = req.params;
@@ -484,5 +512,6 @@ export {
   getAllUsersOfBondsman,
   updateUserDetailsByBondsman,
   getUserCheckInStatus,
+  userCheckInHistory,
   // getRecentCheckedInByUser,
 };
