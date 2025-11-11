@@ -15,11 +15,20 @@ const PORT = process.env.PORT || 8000;
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "https://assistt.duckdns.org",
+      "http://localhost:5172",
+      "http://localhost:5173",
+    ],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
-
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Server started and running successfully!");
@@ -47,4 +56,4 @@ const startServer = async () => {
 // sever start
 startServer();
 
-export { };
+export {};
