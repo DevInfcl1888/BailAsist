@@ -1,25 +1,30 @@
 import { Request, Response } from "express";
-import HomeScreenModel, { Status } from "../models/homeScreen.model.js";
+import {
+  Bondsman,
+  CheckIn,
+  Court,
+  Reminder,
+  Status,
+} from "../models/bondsman.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {
+  isDateValid,
   isValidEmail,
   isValidPassword,
   isValidPhone,
 } from "../utils/dataValidators.js";
 import { User } from "../models/user.model.js";
-
-const { Bondsman, CheckIn, Court, CheckInProof } = HomeScreenModel;
+import { getCheckInStatus } from "./user.controller.js";
+import { Admin } from "../models/admin.model.js";
 
 const signUpAsBondsman = asyncHandler(async (req: Request, res: Response) => {
-  const { BondsmanName, phoneNo, password, email, deviceToken, countryCode } =
-    req.body as {
-      BondsmanName: string;
-      phoneNo: string;
-      password: string;
-      email: string;
-      deviceToken: string;
-      countryCode: string;
-    };
+  const { BondsmanName, phoneNo, password, email, countryCode } = req.body as {
+    BondsmanName: string;
+    phoneNo: string;
+    password: string;
+    email: string;
+    countryCode: string;
+  };
   if (!BondsmanName.trim() || !phoneNo.trim() || !password.trim())
     return res.status(400).json({ message: "All fields are required" });
   if (!isValidPhone(phoneNo))
@@ -45,7 +50,6 @@ const signUpAsBondsman = asyncHandler(async (req: Request, res: Response) => {
     phoneNo,
     password,
     email,
-    deviceToken: deviceToken ? deviceToken : " ",
     countryCode,
   });
   const accessToken = createBondsman.generateAccessToken();
@@ -71,7 +75,10 @@ const loginAsBondsman = asyncHandler(async (req: Request, res: Response) => {
     return res.status(404).json("Login can't complete without creadentials");
   if (!isValidPhone(phone))
     return res.status(400).json({ message: "Invalid Phone no." });
-  const isExistBondsman = await Bondsman.findOne({ phoneNo: phone });
+  const isExistBondsman = await Bondsman.findOne({ phoneNo: phone }).populate(
+    "user",
+    "_id firstName middleName lastName phone"
+  );
   if (!isExistBondsman)
     return res
       .status(404)
@@ -82,22 +89,6 @@ const loginAsBondsman = asyncHandler(async (req: Request, res: Response) => {
 
   const accessToken = isExistBondsman.generateAccessToken();
   const refreshToken = isExistBondsman.generateRefreshToken();
-
-  const updateData: any = {
-    refreshToken: refreshToken,
-    deviceToken: deviceToken || "",
-  };
-
-  const isExistingBondsmanUpdate = await Bondsman.findByIdAndUpdate(
-    isExistBondsman?._id,
-    {
-      $set: updateData,
-    },
-    {
-      new: true,
-      validateBeforeSave: false,
-    }
-  ).select("-password");
 
   return res
     .status(200)
@@ -114,14 +105,36 @@ const loginAsBondsman = asyncHandler(async (req: Request, res: Response) => {
     .json({
       message: "Bondsman login successfully",
       data: {
-        isExistBondsman: isExistingBondsmanUpdate,
+        isExistBondsman: isExistBondsman,
         accessToken: `${accessToken}`,
-        deviceToken: deviceToken ? deviceToken : "",
       },
     });
 });
 
-// Create Check-in
+const logoutAsBondsman = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?._id;
+  if (!userId)
+    return res
+      .status(404)
+      .json({ message: "User not found or maybe it's already log out" });
+  await Bondsman.findByIdAndUpdate(
+    userId,
+    {
+      $set: {
+        refreshToken: "",
+      },
+    },
+    {
+      new: true,
+    }
+  );
+  return res
+    .status(200)
+    .clearCookie("accessToken", { httpOnly: true, secure: true })
+    .clearCookie("refreshToken")
+    .json({ message: "Bondsman logout successfully" });
+});
+
 const creatCheckIn = asyncHandler(async (req: Request, res: Response) => {
   const { day } = req.body as { day: number };
   const { userId } = req.params;
@@ -129,11 +142,6 @@ const creatCheckIn = asyncHandler(async (req: Request, res: Response) => {
     return res.status(400).json({
       message: "Please set next check-in day interval (e.g. 7 (in days))",
     });
-
-  // Find the user's check-in record
-  let bondsman = await Bondsman.findOne({ _id: req.user?._id });
-  // console.log("bondsman", bondsman);
-  if (!bondsman) return res.status(404).json({ message: "Bondsman not found" });
 
   let user = await User.findOne({ _id: userId });
   // console.log("user", user);
@@ -187,18 +195,30 @@ const creatCheckIn = asyncHandler(async (req: Request, res: Response) => {
       date: formattedNextCheckIn,
       status: checkInRecord.nextCheckInDate.status,
     },
+    isActive: checkInRecord.isActive,
   });
 });
 
 const searchByPhoneNumber = asyncHandler(
   async (req: Request, res: Response) => {
-    const { phone } = req.query;
-    if (!phone)
-      return res
-        .status(404)
-        .json({ message: "Search bar expect phone no for searching" });
+    const { search } = req.query;
+    if (!search)
+      return res.status(404).json({ message: "Search can't be empty" });
     const searchedUser = await User.find({
-      phoneNo: { $regex: phone, $options: "i" },
+      $or: [
+        {
+          phoneNo: { $regex: search, $options: "i" },
+        },
+        {
+          firstName: { $regex: search, $options: "i" },
+        },
+        {
+          lastName: { $regex: search, $options: "i" },
+        },
+        {
+          middleName: { $regex: search, $options: "i" },
+        },
+      ],
     }).select("-password");
     if (!searchedUser)
       return res.status(404).json({ message: "No result found" });
@@ -206,7 +226,7 @@ const searchByPhoneNumber = asyncHandler(
       message:
         searchedUser.length === 0
           ? "No data found while searching"
-          : "Searching finish",
+          : `${searchedUser.length} Users found`,
       searchedUser,
     });
   }
@@ -214,65 +234,421 @@ const searchByPhoneNumber = asyncHandler(
 
 const deleteCheckIn = asyncHandler(async (req: Request, res: Response) => {
   const { checkIn_Id } = req.params;
-  if (!checkIn_Id) return res.status(400).json({ message: "Invalid _id" });
-  const isDeletedCheckIn = await CheckIn.deleteOne({ _id: checkIn_Id });
+  const isDeletedCheckIn = await CheckIn.find({
+    _id: checkIn_Id,
+    isActive: true,
+  });
+  if (isDeletedCheckIn.length === 0)
+    return res.status(400).json({ message: "No check in found for delete" });
   console.log("isDeleteCheckIn", isDeletedCheckIn);
-  if (!isDeletedCheckIn.acknowledged)
-    return res.status(401).json({ message: "Deletion couldn't be complete" });
+
+  const isCheckInAvailableForDelete = await CheckIn.findByIdAndUpdate(
+    checkIn_Id,
+    {
+      $set: {
+        isActive: false,
+      },
+    },
+    {
+      new: true,
+    }
+  );
+  if (!isCheckInAvailableForDelete)
+    return res
+      .status(404)
+      .json({ message: "Check-in cancellation not complete " });
+
   return res
     .status(200)
-    .json({ message: "Delete Successfully", isDeletedCheckIn });
+    .json({ message: "Delete Successfully", isCheckInAvailableForDelete });
 });
 
-// const getRecentCheckedInByUser = asyncHandler(
-//   async (req: Request, res: Response) => {
-//     const { userId } = req.params;
-//     if (!userId) return res.status(400).json({ message: "User not found" });
+const addUser = asyncHandler(async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  const user = await User.findById(userId).select("-password -refreshToken");
+  if (!user) return res.status(404).json({ message: "User account not found" });
 
-//     const proof = await CheckIn.find({ userId })
-//       .sort({ createdAt: -1 })
-//       .populate([
-//         {
-//           path: "user",
-//           select:
-//             "firstName middleName lastName email phoneNo isActive homeAddress image",
-//         },
-//       ]);
-//     console.log(proof);
-//     console.log(proof.length !== 0);
+  const userAdd = await Bondsman.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $addToSet: {
+        user: userId, // ignore duplications and add unique values only
+      },
+    },
+    {
+      new: true,
+    }
+  )
+    .select("-password -refreshToken")
+    .populate("user", "_id firstName middleName lastName phoneNo email");
+  await User.updateOne(
+    {
+      _id: userId,
+    },
+    { $set: { bondsman: req.user?._id } }
+  ); // map bondsman with user that add recently
 
-//     if (proof.length === 0 || !proof)
-//       return res
-//         .status(400)
-//         .json({ message: "No Check-in found of this user" });
+  const isUserAddedSuccessfully = await Bondsman.findById(userAdd?._id);
+  if (!isUserAddedSuccessfully)
+    return res
+      .status(500)
+      .json({ message: "Internal server error. User not added" });
 
-//     // const formattedData = proof.map((data) => {
-//     //   user: data.user;
-//     //   photoUrl: data.photoUrl;
-//     //   message: data.message;
-//     //   location: data.location;
-//     //   date: new Date(data.createdAt).toLocaleString("en-GB", {
-//     //     day: "2-digit",
-//     //     month: "short",
-//     //     year: "numeric",
-//     //     hour: "2-digit",
-//     //     minute: "2-digit",
-//     //     second: "2-digit",
-//     //   });
-//     // });
-//     return res.status(200).json({
-//       message: "Check-in history fetched successfully",
-//       // total: proof.length,
-//       // data: formattedData,
-//     });
-//   }
-// );
+  return res.status(200).json({
+    message: `${isUserAddedSuccessfully.user.length} User added successfully`,
+    userAdd,
+  });
+});
+
+const deleteUser = asyncHandler(async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  const isUserRemove = await Bondsman.findOneAndUpdate(
+    {
+      _id: req.user?._id,
+    },
+    {
+      $pull: {
+        user: userId,
+      },
+    },
+    {
+      new: true,
+    }
+  )
+    .select("-password -refreshToken")
+    .populate("user", "_id firstName middleName lastName phoneNo email");
+  if (!isUserRemove)
+    return res
+      .status(404)
+      .json({ message: "Bondsman not found or user not linked" });
+  return res.status(200).json({
+    message: `${isUserRemove.user.length} User left`,
+    isUserRemove,
+  });
+});
+
+const getAllUsersOfBondsman = asyncHandler(
+  async (req: Request, res: Response) => {
+    const isBondsmanExist = await Bondsman.findById(req.user?._id).populate(
+      "user",
+      "_id firstName middleName lastName phoneNo email"
+    );
+    if (!isBondsmanExist)
+      return res
+        .status(404)
+        .json({ message: "Bondsman not exist or logged out" });
+
+    const filterdUser = isBondsmanExist.user;
+    return res.status(200).json({
+      message:
+        isBondsmanExist.user.length === 0
+          ? "No user found"
+          : `${isBondsmanExist.user.length} user found`,
+      filterdUser,
+    });
+  }
+);
+
+const updateUserDetailsByBondsman = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    const { firstName, middleName, lastName, email, phoneNo, street, ZipCode } =
+      req.body as {
+        firstName: string;
+        middleName: string;
+        lastName: string;
+        email: string;
+        phoneNo: string;
+        street: string;
+        ZipCode: string;
+      };
+
+    // Data validation
+    if (
+      !firstName?.trim() ||
+      !middleName?.trim() ||
+      !lastName?.trim() ||
+      !email?.trim() ||
+      !phoneNo?.trim() ||
+      !street?.trim() ||
+      !ZipCode?.trim()
+    ) {
+      return res.status(400).json({ message: "All credentials are required" });
+    }
+    if (!isValidEmail(email)) {
+      return res.status(404).json({ message: "Invalid email" });
+    }
+    if (!isValidPhone(phoneNo)) {
+      return res.status(404).json({ message: "Invalid phone no." });
+    }
+    if (street.length > 100 || ZipCode.length > 11)
+      return res
+        .status(400)
+        .json({ message: "Street or ZIP code is too long" });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    let data = {
+      firstName,
+      middleName,
+      lastName,
+      email,
+      phoneNo,
+      street,
+      ZipCode,
+    };
+
+    const updatedUserDetails = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          firstName: data.firstName,
+          middleName: data.middleName,
+          lastName: data.lastName,
+          email: data.email.toLowerCase(),
+          phoneNo: data.phoneNo,
+          street: data.street,
+          ZipCode: data.ZipCode,
+        },
+      },
+      {
+        new: true,
+      }
+    ).select("-password -refreshToken -isAgreed");
+
+    if (!updatedUserDetails)
+      return res.status(401).json({
+        message:
+          "Internal Server error so details are not updated. try again !..",
+      });
+
+    return res
+      .status(200)
+      .json({ message: "Details updated successfully", updatedUserDetails });
+  }
+);
+
+const getUserCheckInStatus = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { userId } = req.params;
+    const getUserCheckIn = await CheckIn.find({ user: userId }).populate(
+      "user",
+      "_id firstName middleName lastName phoneNo email"
+    );
+    if (!getUserCheckIn)
+      return res.status(404).json({
+        message: "User not found or maybe check-in is not created yet",
+      });
+    console.log("getCheckIn", getUserCheckIn);
+    return res.status(200).json({
+      message:
+        getUserCheckIn.length === 0
+          ? "No check-in found"
+          : `${getUserCheckIn.length} Check-in found`,
+      getUserCheckIn,
+    });
+  }
+);
+
+const userCheckInHistory = asyncHandler(async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  if (!userId) return res.status(404).json({ message: "User id missing" });
+  const isUserExist = await User.findById(userId).select("-password");
+  if (!isUserExist) return res.status(404).json({ message: "User not found" });
+  // const history = await CheckIn.find({ user: userId });
+  const history = await CheckIn.find({ user: userId })
+    .populate("user", "_id firstName lastName phoneNo email")
+    .sort({ createdAt: -1 });
+  console.log("user", isUserExist);
+  console.log("history", history);
+  if (!history || history.length === 0)
+    return res.status(404).json({ message: "No check-in history found" });
+  return res.status(200).json({ message: "History found", history });
+});
+
+const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
+  const { caseNumber, reminderDate, reminderNote } = req.body as {
+    caseNumber: string;
+    reminderDate: Date;
+    reminderNote?: string;
+  };
+  const { userId, courtId } = req.params;
+  const isUserExist = await User.findById(userId).select("-password");
+  const isCourtExist = await Court.findById(courtId);
+  if (!isUserExist) return res.status(404).json({ message: "User not found" });
+  if (!isCourtExist)
+    return res.status(404).json({ message: "Court not found" });
+  if (!caseNumber.trim() || !reminderDate)
+    return res
+      .status(401)
+      .json({ message: "Case number, Reminder date cannot be empty" });
+
+  if (reminderNote && reminderNote.length < 10)
+    return res
+      .status(400)
+      .json({ message: "Reminder message should be 10 charcters long" });
+
+  const createReminder = await Reminder.create({
+    user: userId,
+    court: courtId,
+    caseNumber,
+    reminderDate,
+    reminderNote,
+  });
+  await User.findByIdAndUpdate(
+    userId,
+    {
+      $push: {
+        reminders: createReminder?._id,
+      },
+    },
+    { new: true }
+  );
+  await Court.findByIdAndUpdate(
+    courtId,
+    {
+      $push: {
+        reminders: createReminder?._id,
+      },
+    },
+    { new: true }
+  );
+  const isReminderCreated = await Reminder.findById(
+    createReminder?._id
+  ).populate([
+    {
+      path: "user",
+      select: "_id firstName middleName lastName email phoneNo reminders",
+      populate: {
+        path: "reminders",
+        select: "caseNumber reminderDate reminderNote ",
+      },
+    },
+    {
+      path: "court",
+      select: "courtName addressLine state city country reminders",
+      populate: {
+        path: "reminders",
+        select: "caseNumber reminderDate reminderNote ",
+      },
+    },
+  ]);
+  if (!isReminderCreated)
+    return res
+      .status(500)
+      .json({ message: "Internal server error. Reminder can't create" });
+  return res
+    .status(200)
+    .json({ message: "Reminder created success", isReminderCreated });
+});
+
+const getCourtReminderDetails = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { reminderId } = req.params;
+    const isReminderExist = await Reminder.find({
+      _id: reminderId,
+      isActive: true,
+    })
+      .populate([
+        {
+          path: "user",
+          select: "_id firstName lastName email phoneNo",
+        },
+        {
+          path: "court",
+          select: "courtName addressLine city state country",
+        },
+      ])
+      .lean();
+    if (!isReminderExist)
+      return res.status(404).json({ message: "Reminder not found" });
+    isReminderExist;
+    return res.status(200).json({
+      message: `${isReminderExist.length === 0}`
+        ? "No reminder found"
+        : "Reminder details fetched",
+      isReminderExist,
+    });
+  }
+);
+
+const cancelReminder = asyncHandler(async (req: Request, res: Response) => {
+  const { reminderId } = req.params;
+  const isReminderExist = await Reminder.find({
+    _id: reminderId,
+    isActive: true,
+  });
+  if (!isReminderExist)
+    return res.status(404).json({ message: "Reminder not found" });
+
+  const cancelReminder = await Reminder.findByIdAndUpdate(
+    reminderId,
+    {
+      $set: {
+        isActive: false,
+      },
+    },
+    { new: true }
+  )
+    .populate([
+      {
+        path: "user",
+        select: "_id firstName lastName email phoneNo",
+      },
+      {
+        path: "court",
+        select: "courtName addressLine city state country",
+      },
+    ])
+    .lean();
+  return res
+    .status(200)
+    .json({ message: "Reminder Cancelled success", cancelReminder });
+});
+
+const deleteReminder = asyncHandler(async (req: Request, res: Response) => {
+  const { reminderId } = req.params;
+  if (!reminderId)
+    return res.status(404).json({ message: "Reminder Id missing" });
+  const isReminderExist = await Reminder.findById(reminderId);
+  if (!isReminderExist)
+    return res.status(404).json({ message: "Reminder not found" });
+  const isReminderDeleted = await Reminder.findByIdAndDelete({
+    _id: reminderId,
+  });
+  if (!isReminderDeleted?._id)
+    return res.status(500).json({ message: "Internal server error" });
+  return res
+    .status(200)
+    .json({ message: "Reminder delete success", isReminderDeleted });
+});
+
+const getAd = asyncHandler(async (req: Request, res: Response) => {
+  const fetchedAd = await Admin.find({}, "adImg");
+  if (fetchedAd.length === 0)
+    return res.status(201).json({ message: "No ad found" });
+  return res
+    .status(200)
+    .json({ message: `${fetchedAd[0].adImg.length} ad found`, fetchedAd });
+});
 
 export {
   signUpAsBondsman,
   creatCheckIn,
   loginAsBondsman,
+  logoutAsBondsman,
   searchByPhoneNumber,
-  deleteCheckIn
-  // getRecentCheckedInByUser,
+  deleteCheckIn,
+  addUser,
+  deleteUser,
+  getAllUsersOfBondsman,
+  updateUserDetailsByBondsman,
+  getUserCheckInStatus,
+  userCheckInHistory,
+  setCourtReminders,
+  getCourtReminderDetails,
+  cancelReminder,
+  getAd,
+  deleteReminder
 };

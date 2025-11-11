@@ -1,5 +1,7 @@
 import express, { Request, Response } from "express";
-import router from "./routes/routes.js";
+import userRouter from "./routes/user.routes.js";
+import bondsmanRouter from "./routes/bondsman.routes.js";
+import adminRouter from "./routes/admin.routes.js";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import cors from "cors";
@@ -24,7 +26,9 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 // Routes
-app.use("/api/v1", router);
+app.use("/api/v1/user", userRouter);
+app.use("/api/v1/admin", adminRouter);
+app.use("/api/v1/bondsman", bondsmanRouter);
 
 // DB Connect
 const startServer = async () => {

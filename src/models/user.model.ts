@@ -147,6 +147,7 @@ interface signUp extends Document {
   latitude: number;
   longitude: number;
   countryCode: String;
+  reminders: Schema.Types.ObjectId[],
   isCorrectPassword(password: string): Promise<boolean>;
   generateAccessToken(): string;
   generateRefreshToken(): string;
@@ -505,6 +506,7 @@ const userSchema = new Schema<signUp>(
     image: {
       type: String, // cloudinary url
     },
+    reminders: [{ type: Schema.Types.ObjectId, ref: "Reminder" }],
     latitude: { type: Number },
     longitude: { type: Number },
   },
@@ -540,8 +542,8 @@ const loggedInSchema = new Schema<login>(
 userSchema.pre("save", async function (next) {
   if (this.isModified("password")) {
     this.password = await bcrypt.hash(this.password, 10);
-    next();
   }
+  next();
 });
 
 // This function use for check password is correct or not

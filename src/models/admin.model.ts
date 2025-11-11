@@ -8,31 +8,80 @@ interface IAdmin extends Document {
   phoneNo: string;
   password: string;
   avatarUrl?: string;
+  role: string;
+  refreshToken: string;
+  adImg: [
+    {
+      url: string;
+      _id: Schema.Types.ObjectId; // optional, Mongo adds it anyway
+      createdAt: Date;
+    }
+  ];
+  isCorrectPassword(password: string): Promise<boolean>;
+  generateRefreshToken(): string;
+  generateAccessToken(): string;
 }
 
 const AdminSchema = new Schema<IAdmin>(
   {
-    username: { type: String, required: true, trim: true },
+    username: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     email: {
       type: String,
       required: true,
       trim: true,
       lowercase: true,
-      unique: true,
     },
-    phoneNo: { type: String, required: true, trim: true },
-    password: { type: String, required: true, trim: true },
-    avatarUrl: { type: String, trim: true },
+    phoneNo: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    password: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    avatarUrl: {
+      type: String,
+      trim: true,
+    },
+    refreshToken: {
+      type: String,
+    },
+    adImg: [
+      {
+        url: { type: String, required: true },
+        _id: { type: Schema.Types.ObjectId, auto: true }, // optional, Mongo adds it anyway
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+    role: {
+      type: String,
+      set: () => "admin",
+    },
   },
   { timestamps: true }
 );
 
+// set role as admin if no admin exist
+AdminSchema.pre("save", function (next) {
+  if (!this.role) {
+    this.role = "admin";
+    next();
+  }
+  next();
+});
 // This is middleware for encrypt password only when password is changed
 AdminSchema.pre("save", async function (next) {
   if (this.isModified("password")) {
-    this.password = await bcrypt.hash(this.password, 10); // error here
-    next();
+    this.password = await bcrypt.hash(this.password, 10);
+    next(); // error here
   }
+  next();
 });
 
 // This function use for check password is correct or not
@@ -75,6 +124,4 @@ AdminSchema.methods.generateRefreshToken = function (): string {
   return jwt.sign(payload, secret, options);
 };
 
-const Admin = model("Admin", AdminSchema);
-
-export default Admin;
+export const Admin = model("Admin", AdminSchema);

@@ -10,15 +10,12 @@ interface IBondsman extends Document {
   password: string;
   countryCode: string;
   deviceToken?: string;
-  user: Array<{
-    name: Types.ObjectId;
-    phone: string;
-  }>;
+  user: Types.ObjectId[];
+  isActive: boolean;
+  refreshToken?: string;
   isCorrectPassword(password: string): Promise<Boolean>;
   generateAccessToken(): string;
   generateRefreshToken(): string;
-  // email: string;
-  // address: string;
 }
 
 export enum Status {
@@ -35,32 +32,20 @@ interface ICheckIn extends Document {
     date: Date;
     status: Status;
   };
-  checkInProof: ICheckInProof;
-}
-
-interface ICheckInProof extends Document {
-  userId: Schema.Types.ObjectId;
-  photoUrl: string;
-  message: string;
-  location: string;
-}
-export enum courtTypes {
-  HIGH_COURT = "High Court",
-  DISTRICT_COURT = "District Court",
-  CIVIL_COURT = "Civil Court",
-  SUPREME_COURT = "Supreme Court",
-}
-
-export enum courtLevel {
-  NATIONAL = "National",
-  STATE = "State",
-  DISTRICT = "District", // Optional, based on hierarchy
+  isActive: {
+    type: boolean;
+    default: true;
+  };
+  checkInProof: {
+    userId: Schema.Types.ObjectId;
+    photoUrl: string;
+    message: string;
+    location: string;
+  };
 }
 
 interface ICourt extends Document {
   courtName: string;
-  courtType: string;
-  level: string;
   addressLine: string;
   city: string;
   state: string;
@@ -68,8 +53,24 @@ interface ICourt extends Document {
   zipCode: string;
   courtContactNo: string;
   courtEmail: string;
+  reminders: Schema.Types.ObjectId[]
 }
 
+export enum ReminderStatus {
+  Active = "Active",
+  Cancelled = "Cancelled",
+  Completed = "Completed",
+}
+
+interface ICourtReminder extends Document {
+  user: Schema.Types.ObjectId;
+  court: Schema.Types.ObjectId;
+  caseNumber: string;
+  reminderDate: Date;
+  reminderNote?: string;
+  status: ReminderStatus;
+  isActive: boolean;
+}
 // ------- Schemas -------
 const BondsmanSchema = new Schema<IBondsman>(
   {
@@ -77,23 +78,17 @@ const BondsmanSchema = new Schema<IBondsman>(
     phoneNo: { type: String, required: true, trim: true },
     password: { type: String, required: true, trim: true },
     email: { type: String, required: true, trim: true },
-    deviceToken: { type: String, trim: true },
     countryCode: { type: String, trim: true },
+    isActive: { type: Boolean, default: true },
     user: [
       {
-        name: {
-          type: Schema.Types.ObjectId,
-          ref: "User",
-          trim: true,
-          required: true,
-        },
-        phone: {
-          type: String,
-          required: true,
-          trim: true,
-        },
+        type: Schema.Types.ObjectId,
+        ref: "User",
       },
     ],
+    refreshToken: {
+      type: String,
+    },
   },
   {
     timestamps: true,
@@ -119,20 +114,18 @@ const CheckInSchema = new Schema<ICheckIn>(
         default: Status.Pending,
       },
     },
+    checkInProof: {
+      userId: { type: Schema.Types.ObjectId, ref: "User" },
+      photoUrl: { type: String }, // cloudinary url
+      message: { type: String, trim: true },
+      location: { type: String },
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
-    timestamps: true,
-  }
-);
-
-const CheckInProofSchema = new Schema<ICheckInProof>(
-  {
-    userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    photoUrl: { type: String, required: true }, // cloudinary url
-    message: { type: String, trim: true },
-    location: { type: String, required: true },
-  },
-  { 
     timestamps: true,
   }
 );
@@ -141,18 +134,6 @@ const CourtSchema = new Schema<ICourt>(
   {
     courtName: {
       type: String,
-      trim: true,
-      required: true,
-    },
-    courtType: {
-      type: String,
-      enum: Object.values(courtTypes),
-      trim: true,
-      required: true,
-    },
-    level: {
-      type: String,
-      enum: Object.values(courtLevel),
       trim: true,
       required: true,
     },
@@ -192,6 +173,26 @@ const CourtSchema = new Schema<ICourt>(
       unique: true,
       required: true,
     },
+    reminders: [{ type: Schema.Types.ObjectId, ref: "Reminder" }],
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const ReminderSchema = new Schema<ICourtReminder>(
+  {
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    court: { type: Schema.Types.ObjectId, ref: "Court", required: true },
+    caseNumber: { type: String, required: true },
+    reminderDate: { type: Date, required: true },
+    reminderNote: { type: String },
+    status: {
+      type: String,
+      enum: Object.values(ReminderStatus),
+      default: ReminderStatus.Active,
+    },
+    isActive: { type: Boolean, default: true },
   },
   {
     timestamps: true,
@@ -245,9 +246,7 @@ BondsmanSchema.methods.generateRefreshToken = function (): string {
   return jwt.sign(payload, secret, options);
 };
 
-const Bondsman = model("Bondsman", BondsmanSchema);
-const CheckIn = model("CheckIn", CheckInSchema);
-const CheckInProof = model("CheckInProof", CheckInProofSchema);
-const Court = model("Court", CourtSchema);
-
-export default { Bondsman, CheckIn, Court, CheckInProof };
+export const Bondsman = model("Bondsman", BondsmanSchema);
+export const CheckIn = model("CheckIn", CheckInSchema);
+export const Court = model("Court", CourtSchema);
+export const Reminder = model("Reminder", ReminderSchema);
