@@ -15,6 +15,7 @@ import {
 } from "../utils/dataValidators.js";
 import { User } from "../models/user.model.js";
 import { getCheckInStatus } from "./user.controller.js";
+import { Admin } from "../models/admin.model.js";
 
 const signUpAsBondsman = asyncHandler(async (req: Request, res: Response) => {
   const { BondsmanName, phoneNo, password, email, countryCode } = req.body as {
@@ -563,14 +564,12 @@ const getCourtReminderDetails = asyncHandler(
     if (!isReminderExist)
       return res.status(404).json({ message: "Reminder not found" });
     isReminderExist;
-    return res
-      .status(200)
-      .json({
-        message: `${isReminderExist.length === 0}`
-          ? "No reminder found"
-          : "Reminder details fetched",
-        isReminderExist,
-      });
+    return res.status(200).json({
+      message: `${isReminderExist.length === 0}`
+        ? "No reminder found"
+        : "Reminder details fetched",
+      isReminderExist,
+    });
   }
 );
 
@@ -608,6 +607,31 @@ const cancelReminder = asyncHandler(async (req: Request, res: Response) => {
     .json({ message: "Reminder Cancelled success", cancelReminder });
 });
 
+const deleteReminder = asyncHandler(async (req: Request, res: Response) => {
+  const { reminderId } = req.params;
+  if (!reminderId)
+    return res.status(404).json({ message: "Reminder Id missing" });
+  const isReminderExist = await Reminder.findById(reminderId);
+  if (!isReminderExist)
+    return res.status(404).json({ message: "Reminder not found" });
+  const isReminderDeleted = await Reminder.findByIdAndDelete({
+    _id: reminderId,
+  });
+  if (!isReminderDeleted?._id)
+    return res.status(500).json({ message: "Internal server error" });
+  return res
+    .status(200)
+    .json({ message: "Reminder delete success", isReminderDeleted });
+});
+
+const getAd = asyncHandler(async (req: Request, res: Response) => {
+  const fetchedAd = await Admin.find({}, "adImg");
+  if (fetchedAd.length === 0)
+    return res.status(201).json({ message: "No ad found" });
+  return res
+    .status(200)
+    .json({ message: `${fetchedAd[0].adImg.length} ad found`, fetchedAd });
+});
 
 export {
   signUpAsBondsman,
@@ -625,4 +649,6 @@ export {
   setCourtReminders,
   getCourtReminderDetails,
   cancelReminder,
+  getAd,
+  deleteReminder
 };

@@ -14,6 +14,8 @@ import {
   setCourtReminders,
   getCourtReminderDetails,
   cancelReminder,
+  getAd,
+  deleteReminder,
 } from "../controller/bondsman.controller.js";
 import { Router } from "express";
 import { authMiddlewareForWeb } from "../middlewares/auth.middlewares.js";
@@ -54,5 +56,7 @@ router
 router
   .route("/cancelReminder/:reminderId")
   .post(authMiddlewareForWeb, cancelReminder);
+router.route("/getAd").get(authMiddlewareForWeb, getAd);
+router.route("/deleteReminder/:reminderId").post(authMiddlewareForWeb, deleteReminder);
 
 export default router;
