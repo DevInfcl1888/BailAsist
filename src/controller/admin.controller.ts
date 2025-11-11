@@ -59,7 +59,7 @@ const adminLogin = asyncHandler(async (req: Request, res: Response) => {
     username: string;
     password: string;
   };
-  const isAdminExist = await Admin.find({ role: "admin" });
+  const isAdminExist = await Admin.find({ role: "admin", username: username });
   if (isAdminExist.length === 0)
     return res.status(400).json({ message: "Admin not exist" });
 
@@ -418,24 +418,24 @@ const getBondsmanDetails = asyncHandler(async (req: Request, res: Response) => {
 const getTotalBondsmanCount = asyncHandler(
   async (req: Request, res: Response) => {
     const isAdmin = await Admin.findById(req.user?._id);
-  if (!isAdmin)
-    return res.status(403).json({ message: "only admin can allow this route" });
+    if (!isAdmin)
+      return res
+        .status(403)
+        .json({ message: "only admin can allow this route" });
 
-  const totalCount = await Bondsman.countDocuments()
-  return res.status(200).json({message:`${totalCount} Bondsman found`})
+    const totalCount = await Bondsman.countDocuments();
+    return res.status(200).json({ message: `${totalCount} Bondsman found` });
   }
 );
 
-const getTotalUsersCount =asyncHandler(
-  async (req: Request, res: Response) => {
-    const isAdmin = await Admin.findById(req.user?._id);
+const getTotalUsersCount = asyncHandler(async (req: Request, res: Response) => {
+  const isAdmin = await Admin.findById(req.user?._id);
   if (!isAdmin)
     return res.status(403).json({ message: "only admin can allow this route" });
 
-  const totalCount = await User.countDocuments()
-  return res.status(200).json({message:`${totalCount} User found`})
-  }
-);
+  const totalCount = await User.countDocuments();
+  return res.status(200).json({ message: `${totalCount} User found` });
+});
 
 export {
   adminSignUp,

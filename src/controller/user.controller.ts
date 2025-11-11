@@ -735,19 +735,19 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     state,
     drivingLicenseNo,
     havingYourOwnAutomobile, //  if yes then fill further info
-    automobileColor,
-    automobileMake,
-    bileNumberPlate,
-    automobileModel,
+    automobikeColor,
+    automobikeMake,
+    bikeNumberPlate,
+    automobikeModel,
   } = req.body as {
     socialSecurityNumber: String;
     state: String;
     drivingLicenseNo: String;
     havingYourOwnAutomobile: boolean; //  if yes then fill further info
-    automobileColor: String;
-    automobileMake: String;
-    bileNumberPlate: String;
-    automobileModel: String;
+    automobikeColor: String;
+    automobikeMake: String;
+    bikeNumberPlate: String;
+    automobikeModel: String;
   };
   const { driverLicId } = req.body;
   if (!socialSecurityNumber.trim() || !state.trim() || !drivingLicenseNo.trim())
@@ -757,10 +757,10 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     state,
     drivingLicenseNo,
     havingYourOwnAutomobile, //  if yes then fill further info
-    automobileColor: havingYourOwnAutomobile ? automobileColor : " ",
-    automobileMake: havingYourOwnAutomobile ? automobileMake : " ",
-    bileNumberPlate: havingYourOwnAutomobile ? bileNumberPlate : " ",
-    automobileModel: havingYourOwnAutomobile ? automobileModel : " ",
+    automobikeColor: havingYourOwnAutomobile ? automobikeColor : " ",
+    automobikeMake: havingYourOwnAutomobile ? automobikeMake : " ",
+    bikeNumberPlate: havingYourOwnAutomobile ? bikeNumberPlate : " ",
+    automobikeModel: havingYourOwnAutomobile ? automobikeModel : " ",
   };
 
   let driverLicDoc;

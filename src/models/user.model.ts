@@ -109,10 +109,10 @@ interface driversLicInfo extends Document {
   state: string;
   drivingLicenseNo: string;
   havingYourOwnAutomobile: boolean; //  if yes then fill further info
-  automobileColor?: string;
-  automobileMake?: string;
-  automobileNumberPlate?: string;
-  automobileModel?: string;
+  automobikeColor?: string;
+  automobikeMake?: string;
+  automobikeNumberPlate?: string;
+  automobikeModel?: string;
 }
 
 //  --------------------- Employement Information --------------------
@@ -382,19 +382,19 @@ const driversLicInfoSchema = new Schema<driversLicInfo>({
     type: Boolean,
     default: false,
   }, //  if yes then fill further info
-  automobileColor: {
+  automobikeColor: {
     type: String,
     trim: true,
   },
-  automobileMake: {
+  automobikeMake: {
     type: String,
     trim: true,
   },
-  automobileNumberPlate: {
+  automobikeNumberPlate: {
     type: String,
     trim: true,
   },
-  automobileModel: {
+  automobikeModel: {
     type: String,
     trim: true,
   },
