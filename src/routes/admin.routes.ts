@@ -14,6 +14,7 @@ import {
   getBondsmanDetails,
   getTotalBondsmanCount,
   getTotalUsersCount,
+  verifyToken,
 } from "../controller/admin.controller.js";
 import { Router } from "express";
 import { authMiddlewareForWeb } from "../middlewares/auth.middlewares.js";
@@ -57,5 +58,8 @@ router
 router
   .route("/getTotalUsersCount")
   .get(authMiddlewareForWeb, getTotalUsersCount); // get All User count bondsman
+
+// router.get("/verifyToken", authMiddlewareForWeb,
+router.route("/verifyToken").get(authMiddlewareForWeb, verifyToken);
 
 export default router;

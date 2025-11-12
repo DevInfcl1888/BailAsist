@@ -439,6 +439,12 @@ const getTotalUsersCount = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).json({ message: `${totalCount} User found` });
 });
 
+const verifyToken = asyncHandler(async(req:Request, res:Response)=>{
+  res.status(200).json({ authenticated: true, user: req.user });;
+
+
+})
+
 export {
   adminSignUp,
   adminLogin,
@@ -455,4 +461,5 @@ export {
   getBondsmanDetails,
   getTotalBondsmanCount,
   getTotalUsersCount,
+  verifyToken
 };
