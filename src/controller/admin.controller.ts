@@ -76,11 +76,13 @@ const adminLogin = asyncHandler(async (req: Request, res: Response) => {
     .cookie("accessToken", accessToken, {
       httpOnly: true,
       secure: true,
+      sameSite: "none",
       maxAge: 15 * 60 * 1000,
     })
     .cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: true,
+      sameSite: "none",
       maxAge: 15 * 24 * 60 * 60 * 1000,
     })
     .json({
