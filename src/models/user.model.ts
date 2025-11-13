@@ -13,14 +13,9 @@ interface contactInfo extends Document {
 }
 
 //  --------------------- Residence Information --------------------
-export enum ResidenceType {
-  OWN = "own",
-  RENT = "rent",
-}
 interface residenceInfo extends Document {
   user: Schema.Types.ObjectId;
   yearsAtCurrentAddress: string;
-  residenceType: ResidenceType;
   landlordName: string;
   landlordAddress: string;
 }
@@ -200,11 +195,6 @@ const residenceInfoSchema = new Schema<residenceInfo>({
   //  --------------------- Residence Information --------------------
   user: { type: Schema.Types.ObjectId, ref: "User", required: true },
   yearsAtCurrentAddress: { type: String, required: true },
-  residenceType: {
-    type: String,
-    enum: Object.values(ResidenceType), // return ["own", "rent"]
-    required: true,
-  },
   landlordName: { type: String, required: true },
   landlordAddress: { type: String, required: true },
 });

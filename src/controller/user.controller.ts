@@ -9,7 +9,6 @@ import {
   isValidPhone,
 } from "../utils/dataValidators.js";
 import {
-  ResidenceType,
   ResidenceInfo,
   LegalInfo,
   User,
@@ -455,14 +454,8 @@ const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
-  const {
-    yearsAtCurrentAddress,
-    residenceType,
-    landlordName,
-    landlordAddress,
-  } = req.body as {
+  const { yearsAtCurrentAddress, landlordName, landlordAddress } = req.body as {
     yearsAtCurrentAddress: string;
-    residenceType: ResidenceType;
     landlordName: string;
     landlordAddress: string;
   };
@@ -474,14 +467,6 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
   ) {
     return res.status(404).json({ message: "Fields can't be empty" });
   }
-  if (!Object.values(ResidenceType).includes(residenceType)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid residence type. Must be one of: ${Object.values(
-        ResidenceType
-      ).join(", ")}`,
-    });
-  }
   if (!isValidData(landlordName))
     return res
       .status(400)
@@ -492,7 +477,6 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
   const data = {
     user: req.user?._id,
     yearsAtCurrentAddress: `${yearsAtCurrentAddress} Yr`,
-    residenceType,
     landlordName,
     landlordAddress,
   };
