@@ -82,7 +82,7 @@ interface personalInfo extends Document {
   hairColor: HAIR_COLOR;
   UScitizen: boolean;
   nickname: string;
-  maritalStatus: boolean;
+  maritalStatus: string;
   spouseName?: string;
   spouseOccupation?: string;
   spouseEmployer?: string; // The name of the company where your husband or wife works.
@@ -250,8 +250,8 @@ const personalInfoSchema = new Schema<personalInfo>({
     trim: true,
   },
   maritalStatus: {
-    type: Boolean,
-    default: false,
+    type: String,
+    trim: true,
   },
   spouseName: {
     type: String,
