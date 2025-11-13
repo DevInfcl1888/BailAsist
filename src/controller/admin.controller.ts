@@ -76,11 +76,13 @@ const adminLogin = asyncHandler(async (req: Request, res: Response) => {
     .cookie("accessToken", accessToken, {
       httpOnly: true,
       secure: true,
+      sameSite: "none",
       maxAge: 15 * 60 * 1000,
     })
     .cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: true,
+      sameSite: "none",
       maxAge: 15 * 24 * 60 * 60 * 1000,
     })
     .json({
@@ -437,6 +439,12 @@ const getTotalUsersCount = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).json({ message: `${totalCount} User found` });
 });
 
+const verifyToken = asyncHandler(async(req:Request, res:Response)=>{
+  res.status(200).json({ authenticated: true, user: req.user });;
+
+
+})
+
 export {
   adminSignUp,
   adminLogin,
@@ -453,4 +461,5 @@ export {
   getBondsmanDetails,
   getTotalBondsmanCount,
   getTotalUsersCount,
+  verifyToken
 };
