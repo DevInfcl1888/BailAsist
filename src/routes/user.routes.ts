@@ -1,7 +1,5 @@
 import { Router } from "express";
-import {
-  authMiddleware,
-} from "../middlewares/auth.middlewares.js";
+import { authMiddleware } from "../middlewares/auth.middlewares.js";
 import { upload } from "../middlewares/multer.middlewares.js";
 import { otpLimiter } from "../utils/rateLimiter.js";
 
@@ -30,6 +28,13 @@ import {
   checkIn,
   updateAddressAndSendPictureAsProof,
   updateLatAndLong,
+  getResidenceInfo,
+  getContactInfo,
+  getLegalInfo,
+  getPersonalInfo,
+  getDriverLicInfo,
+  getPersonalRefrenceInfo,
+  getEmployementStatus,
 } from "../controller/user.controller.js";
 
 // Home Screen Import
@@ -37,7 +42,6 @@ import {
   createCourt,
   getCourtDetails,
 } from "../controller/homeScreen.controller.js";
-
 
 const router = Router();
 
@@ -52,12 +56,17 @@ router.route("/updateUserDetails").patch(authMiddleware, updateUserDetails); // 
 router.route("/sendOTP").post(otpLimiter, sendOTP); // send OTP
 router.route("/verifyOTP").post(verifyOTP); // verify OTP
 router.route("/deleteUserProfile").delete(authMiddleware, deleteUserProfile); // delete user profile
-router.route("/getdata").get(authMiddleware, getdata); // get user data
+router.route("/getdata").get(authMiddleware, getdata); // This is only for checking that user still logged in or not
 router.route("/addResidenceInfo").post(authMiddleware, addResidenceInfo); // add residence info
+router.route("/getResidenceInfo").get(authMiddleware, getResidenceInfo); // get residence info
 router.route("/addContactInfo").post(authMiddleware, addContactInfo); // add contact info
+router.route("/getContactInfo").get(authMiddleware, getContactInfo); // get contact info
 router.route("/addLegalInfo").post(authMiddleware, addLegalInfo); // add legal info
+router.route("/getLegalInfo").get(authMiddleware, getLegalInfo); // get legal info
 router.route("/addPersonalInfo").post(authMiddleware, addPersonalInfo); // add personal info
+router.route("/getPersonalInfo").get(authMiddleware, getPersonalInfo); // get personal info
 router.route("/addDriverLicInfo").post(authMiddleware, addDriverLicInfo); // add driver license info
+router.route("/getDriverLicInfo").get(authMiddleware, getDriverLicInfo); // get driver license info
 router.route("/getCheckInStatus").get(authMiddleware, getCheckInStatus); // get check-in status
 router.route("/bondsman/:userId").get(authMiddleware, getUserBondsmanInfo); // get user's bondsman info
 router
@@ -67,8 +76,12 @@ router
   .route("/addPersonalRefrenceInfo")
   .post(authMiddleware, addPersonalRefrenceInfo); // add personal reference info
 router
+  .route("/getPersonalRefrenceInfo")
+  .get(authMiddleware, getPersonalRefrenceInfo); // get personal reference info
+router
   .route("/addEmployementStatus")
   .post(authMiddleware, addEmployementStatus); // add employement status
+router.route("/getEmployementStatus").get(authMiddleware, getEmployementStatus); // get employement status
 router
   .route("/updateAddressAndSendPictureAsProof")
   .post(
