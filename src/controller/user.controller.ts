@@ -9,7 +9,6 @@ import {
   isValidPhone,
 } from "../utils/dataValidators.js";
 import {
-  ResidenceType,
   ResidenceInfo,
   LegalInfo,
   User,
@@ -455,14 +454,8 @@ const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
-  const {
-    yearsAtCurrentAddress,
-    residenceType,
-    landlordName,
-    landlordAddress,
-  } = req.body as {
+  const { yearsAtCurrentAddress, landlordName, landlordAddress } = req.body as {
     yearsAtCurrentAddress: string;
-    residenceType: ResidenceType;
     landlordName: string;
     landlordAddress: string;
   };
@@ -474,25 +467,21 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
   ) {
     return res.status(404).json({ message: "Fields can't be empty" });
   }
-  if (!Object.values(ResidenceType).includes(residenceType)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid residence type. Must be one of: ${Object.values(
-        ResidenceType
-      ).join(", ")}`,
-    });
-  }
   if (!isValidData(landlordName))
     return res
       .status(400)
       .json({ message: "Invalid landlord name. please use only alphabets" });
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
 
   const data = {
+    user: req.user?._id,
     yearsAtCurrentAddress: `${yearsAtCurrentAddress} Yr`,
-    residenceType,
     landlordName,
     landlordAddress,
   };
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
   let residenceDoc;
   if (residenceId && residenceId !== null) {
     residenceDoc = await ResidenceInfo.findByIdAndUpdate(
@@ -512,11 +501,29 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
   }
 
   if (!residenceDoc)
-    return res.status(500).json({ message: "Error occur during submit data." });
+    return res.status(500).json({ message: "Error data can't create" });
 
   return res.status(200).json({
     message: residenceId ? "Updated succesfully" : "Data save successfully",
     residenceDoc,
+    accessToken: accessToken,
+    refreshToken: refreshToken,
+  });
+});
+
+const getResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  const residenceInfo = await ResidenceInfo.find({ user: req.user?._id });
+  if (!residenceInfo)
+    return res.status(404).json({ message: "No residence data found" });
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+  return res.status(200).json({
+    message: "Residence data fetched",
+    residenceInfo,
+    accessToken: accessToken,
+    refreshToken: refreshToken,
   });
 });
 
@@ -551,8 +558,16 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
     return res.status(400).json({ message: "Invalid email" });
   if (!isValidPhone(phoneNo))
     return res.status(400).json({ message: "Invalid phone" });
-
-  const data = { firstName, middleName, lastName, email, phoneNo };
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  const data = {
+    user: req.user?._id,
+    firstName,
+    middleName,
+    lastName,
+    email,
+    phoneNo,
+  };
   let contactInfoDoc;
   if (contactInfoId && contactInfoId !== null) {
     contactInfoDoc = await ContactInfo.findByIdAndUpdate(
@@ -573,10 +588,28 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
 
   if (!contactInfoDoc)
     return res.status(500).json({ message: "Error occur during submit data." });
-
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
     message: contactInfoId ? "Updated successfully" : "Data save successfully",
-    contactInfoDoc,
+    accessToken: accessToken,
+    refreshToken: refreshToken,
+  });
+});
+
+const getContactInfo = asyncHandler(async (req: Request, res: Response) => {
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  const contactInfo = await ContactInfo.find({ user: req.user?._id });
+  if (!contactInfo)
+    return res.status(404).json({ message: "No Contact data found" });
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+  return res.status(200).json({
+    message: "Contact info data fetched",
+    contactInfo,
+    accessToken: accessToken,
+    refreshToken: refreshToken,
   });
 });
 
@@ -600,9 +633,11 @@ const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
     });
   if (!isValidPhone(attorneyPhoneNo))
     return res.status(400).json({ message: "Phone no is Invalid" });
-
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
   let legalInfoDoc;
   const data = {
+    user: req.user?._id,
     attorneyName,
     attorneyAddress,
     attorneyPhoneNo,
@@ -625,9 +660,28 @@ const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
 
   if (!legalInfoDoc)
     return res.status(500).json({ message: "Internal server error." });
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
     message: legalInfoId ? "Updated successfully" : "Data save successfully",
-    legalInfoDoc,
+    accessToken: accessToken,
+    refreshToken: refreshToken,
+  });
+});
+
+const getLegalInfo = asyncHandler(async (req: Request, res: Response) => {
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  const legalInfo = await LegalInfo.find({ user: req.user?._id });
+  if (!legalInfo)
+    return res.status(404).json({ message: "No Legal data found" });
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+  return res.status(200).json({
+    message: "Legal info data fetched",
+    legalInfo,
+    accessToken: accessToken,
+    refreshToken: refreshToken,
   });
 });
 
@@ -683,6 +737,7 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
   if (isResponsible) dependentContent = dependents;
 
   const data = {
+    user: req.user?._id,
     weight,
     height,
     race,
@@ -701,7 +756,8 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
     isResponsible,
     dependents: dependentContent,
   };
-
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
   let personalInfoDoc;
 
   // ✅ If personalInfoId exists, update
@@ -721,11 +777,28 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
   else {
     personalInfoDoc = await PersonalInfo.create(data);
   }
-
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
     message: personalInfoId ? "Updated successfully" : "Data save successfully",
-    personalInfoId: personalInfoDoc._id,
-    personalInfo: personalInfoDoc,
+    accessToken: accessToken,
+    refreshToken: refreshToken,
+  });
+});
+
+const getPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  const personalInfo = await PersonalInfo.find({ user: req.user?._id });
+  if (!personalInfo)
+    return res.status(404).json({ message: "No Personal data found" });
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+  return res.status(200).json({
+    message: "Personal info data fetched",
+    personalInfo,
+    accessToken: accessToken,
+    refreshToken: refreshToken,
   });
 });
 
@@ -753,6 +826,7 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
   if (!socialSecurityNumber.trim() || !state.trim() || !drivingLicenseNo.trim())
     return res.status(404).json({ message: "Required fields can't be empty" });
   const data = {
+    user: req.user?._id,
     socialSecurityNumber,
     state,
     drivingLicenseNo,
@@ -764,6 +838,8 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
   };
 
   let driverLicDoc;
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
   // ✅ If driverLicId exists, update
   if (driverLicId && driverLicId !== "null") {
     driverLicDoc = await DriversLicInfo.findByIdAndUpdate(
@@ -781,11 +857,28 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
   else {
     driverLicDoc = await DriversLicInfo.create(data);
   }
-
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
     message: driverLicId ? "Updated successfully" : "Data save successfully",
-    driverLicId: driverLicDoc._id,
-    driverLicInfo: driverLicDoc,
+    accessToken: accessToken,
+    refreshToken: refreshToken,
+  });
+});
+
+const getDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  const driversLicInfo = await DriversLicInfo.find({ user: req.user?._id });
+  if (!driversLicInfo)
+    return res.status(404).json({ message: "No Driver Lic data found" });
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+  return res.status(200).json({
+    message: "Driver Lic info data fetched",
+    driversLicInfo,
+    accessToken: accessToken,
+    refreshToken: refreshToken,
   });
 });
 
@@ -850,6 +943,7 @@ const addPersonalRefrenceInfo = asyncHandler(
       return res.status(400).json({ message: "Invalid phone" });
 
     const data = {
+      user: req.user?._id,
       otherFamilyMemberName_1,
       otherFamilyMemberAddress_1,
       otherFamilyMemberPhoneNo_1,
@@ -865,6 +959,8 @@ const addPersonalRefrenceInfo = asyncHandler(
     };
 
     let personalRefDoc;
+    const user = await User.findById(req.user?._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
     if (personalRefId && personalRefId !== null) {
       personalRefDoc = await personalRefrenceInfo.findByIdAndUpdate(
         personalRefId,
@@ -877,13 +973,38 @@ const addPersonalRefrenceInfo = asyncHandler(
     } else {
       personalRefDoc = await personalRefrenceInfo.create(data);
     }
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
     if (!personalRefDoc)
       return res.status(500).json({ message: "Internal Server error" });
     return res.status(200).json({
       message: personalRefId
         ? "Updated successfully"
         : "Data save successfully",
-      personalRefDoc,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    });
+  }
+);
+
+const getPersonalRefrenceInfo = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = await User.findById(req.user?._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    const personalRefInfo = await personalRefrenceInfo.find({
+      user: req.user?._id,
+    });
+    if (!personalRefInfo)
+      return res
+        .status(404)
+        .json({ message: "No Personal Ref Info Lic data found" });
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+    return res.status(200).json({
+      message: "Personal Ref Info data fetched",
+      personalRefInfo,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
     });
   }
 );
@@ -910,6 +1031,7 @@ const addEmployementStatus = asyncHandler(
     const { employeeId } = req.body;
 
     const data = {
+      user: req.user?._id,
       employementStatus, // if yes then fill further info
       employerName: employementStatus ? employerName : " ",
       employerSupervisorName: employementStatus ? employerSupervisorName : " ",
@@ -922,6 +1044,8 @@ const addEmployementStatus = asyncHandler(
     };
 
     let employeeDoc;
+    const user = await User.findById(req.user?._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
     if (employeeId && employeeId !== null) {
       employeeDoc = await EmployementInfo.findByIdAndUpdate(
         employeeId,
@@ -938,14 +1062,36 @@ const addEmployementStatus = asyncHandler(
     } else {
       employeeDoc = await EmployementInfo.create(data);
     }
-
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
     if (!employeeDoc)
       return res.status(500).json({
         message: "Internal server error occur during submitting data",
       });
     return res.status(200).json({
       message: employeeId ? "Updated successfully" : "Data save successfully",
-      EmployeData: employeeDoc,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    });
+  }
+);
+
+const getEmployementStatus = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = await User.findById(req.user?._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    const employementInfo = await EmployementInfo.find({
+      user: req.user?._id,
+    });
+    if (!employementInfo)
+      return res.status(404).json({ message: "No Employement data found" });
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+    return res.status(200).json({
+      message: "Employement data fetched",
+      employementInfo,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
     });
   }
 );
@@ -967,7 +1113,7 @@ const getCheckInStatus = asyncHandler(async (req: Request, res: Response) => {
       $gte: startOfDay,
       $lte: endOfDay,
     },
-    isActive:true
+    isActive: true,
   }).populate("user", "_id firstName middleName lastName phoneNo emai");
   if (!isCheckInRecordExist)
     return res.status(404).json({
@@ -1153,4 +1299,11 @@ export {
   checkIn,
   updateAddressAndSendPictureAsProof,
   updateLatAndLong,
+  getResidenceInfo,
+  getContactInfo,
+  getLegalInfo,
+  getPersonalInfo,
+  getDriverLicInfo,
+  getPersonalRefrenceInfo,
+  getEmployementStatus,
 };

@@ -4,6 +4,7 @@ import jwt, { SignOptions } from "jsonwebtoken";
 
 //  --------------------- Contact Information --------------------
 interface contactInfo extends Document {
+  user: Schema.Types.ObjectId;
   firstName: string;
   middleName: string;
   lastName: string;
@@ -12,19 +13,16 @@ interface contactInfo extends Document {
 }
 
 //  --------------------- Residence Information --------------------
-export enum ResidenceType {
-  OWN = "own",
-  RENT = "rent",
-}
 interface residenceInfo extends Document {
+  user: Schema.Types.ObjectId;
   yearsAtCurrentAddress: string;
-  residenceType: ResidenceType;
   landlordName: string;
   landlordAddress: string;
 }
 
 //  --------------------- Personal Refrence Information --------------------
 interface personalRefrenceInfo extends Document {
+  user: Schema.Types.ObjectId;
   otherFamilyMemberName_1: string;
   otherFamilyMemberAddress_1: string;
   otherFamilyMemberPhoneNo_1: string;
@@ -73,6 +71,7 @@ export enum HAIR_COLOR {
 }
 
 interface personalInfo extends Document {
+  user: Schema.Types.ObjectId;
   weight: string;
   height: string;
   race: RACE;
@@ -83,7 +82,7 @@ interface personalInfo extends Document {
   hairColor: HAIR_COLOR;
   UScitizen: boolean;
   nickname: string;
-  maritalStatus: boolean;
+  maritalStatus: string;
   spouseName?: string;
   spouseOccupation?: string;
   spouseEmployer?: string; // The name of the company where your husband or wife works.
@@ -98,6 +97,7 @@ interface personalInfo extends Document {
 
 //  --------------------- Legal Information --------------------
 interface legalInfo extends Document {
+  user: Schema.Types.ObjectId;
   attorneyName: string;
   attorneyAddress: string;
   attorneyPhoneNo: string;
@@ -105,6 +105,7 @@ interface legalInfo extends Document {
 
 //  --------------------- Driver Lic.  Information --------------------
 interface driversLicInfo extends Document {
+  user: Schema.Types.ObjectId;
   socialSecurityNumber: string;
   state: string;
   drivingLicenseNo: string;
@@ -117,6 +118,7 @@ interface driversLicInfo extends Document {
 
 //  --------------------- Employement Information --------------------
 interface employementInfo extends Document {
+  user: Schema.Types.ObjectId;
   employementStatus: boolean; // if yes then fill further info
   employerName?: string;
   employerSupervisorName?: string;
@@ -147,7 +149,7 @@ interface signUp extends Document {
   latitude: number;
   longitude: number;
   countryCode: String;
-  reminders: Schema.Types.ObjectId[],
+  reminders: Schema.Types.ObjectId[];
   isCorrectPassword(password: string): Promise<boolean>;
   generateAccessToken(): string;
   generateRefreshToken(): string;
@@ -162,6 +164,7 @@ interface login extends Document {
 
 const contactInfoSchema = new Schema<contactInfo>({
   //  --------------------- Contact Information --------------------
+  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
   firstName: {
     type: String,
     required: true,
@@ -190,17 +193,14 @@ const contactInfoSchema = new Schema<contactInfo>({
 });
 const residenceInfoSchema = new Schema<residenceInfo>({
   //  --------------------- Residence Information --------------------
+  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
   yearsAtCurrentAddress: { type: String, required: true },
-  residenceType: {
-    type: String,
-    enum: Object.values(ResidenceType), // return ["own", "rent"]
-    required: true,
-  },
   landlordName: { type: String, required: true },
   landlordAddress: { type: String, required: true },
 });
 const personalInfoSchema = new Schema<personalInfo>({
   //  --------------------- Personal Refrence Information --------------------
+  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
   weight: {
     type: String,
     required: true,
@@ -250,8 +250,8 @@ const personalInfoSchema = new Schema<personalInfo>({
     trim: true,
   },
   maritalStatus: {
-    type: Boolean,
-    default: false,
+    type: String,
+    trim: true,
   },
   spouseName: {
     type: String,
@@ -282,6 +282,7 @@ const personalInfoSchema = new Schema<personalInfo>({
   }, // only filled if isResponsible is true
 });
 const personalRefrenceInfoSchema = new Schema<personalRefrenceInfo>({
+  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
   otherFamilyMemberName_1: {
     type: String,
     required: true,
@@ -345,6 +346,7 @@ const personalRefrenceInfoSchema = new Schema<personalRefrenceInfo>({
 });
 const legalInfoSchema = new Schema<legalInfo>({
   //  --------------------- Legal Information --------------------
+  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
   attorneyName: {
     type: String,
     required: true,
@@ -363,6 +365,7 @@ const legalInfoSchema = new Schema<legalInfo>({
 });
 const driversLicInfoSchema = new Schema<driversLicInfo>({
   //  --------------------- Driver Lic. Information --------------------
+  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
   socialSecurityNumber: {
     type: String,
     required: true,
@@ -401,6 +404,7 @@ const driversLicInfoSchema = new Schema<driversLicInfo>({
 });
 const employementInfoSchema = new Schema<employementInfo>({
   //  --------------------- Employement Information --------------------
+  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
 
   employementStatus: {
     type: Boolean,
