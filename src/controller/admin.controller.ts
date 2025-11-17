@@ -450,7 +450,8 @@ const getAllUsers = asyncHandler(async (req: Request, res: Response) => {
   if (!isAdmin)
     return res.status(403).json({ message: "only admin can allow this route" });
   const allUsers = await User.find({}).select("-password -refreshToken");
-
+  if (allUsers.length === 0)
+    return res.status(404).json({ message: "No data found" });
   return res.status(200).json({ messag: "All users get", User: allUsers });
 });
 
