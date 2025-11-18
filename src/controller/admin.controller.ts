@@ -436,14 +436,24 @@ const getTotalUsersCount = asyncHandler(async (req: Request, res: Response) => {
     return res.status(403).json({ message: "only admin can allow this route" });
 
   const totalCount = await User.countDocuments();
-  return res.status(200).json({ message: `${totalCount} User found` });
+  return res
+    .status(200)
+    .json({ message: `${totalCount} User found`, count: totalCount });
 });
 
-const verifyToken = asyncHandler(async(req:Request, res:Response)=>{
-  res.status(200).json({ authenticated: true, user: req.user });;
+const verifyToken = asyncHandler(async (req: Request, res: Response) => {
+  res.status(200).json({ authenticated: true, user: req.user });
+});
 
-
-})
+const getAllUsers = asyncHandler(async (req: Request, res: Response) => {
+  const isAdmin = await Admin.findById(req.user?._id);
+  if (!isAdmin)
+    return res.status(403).json({ message: "only admin can allow this route" });
+  const allUsers = await User.find({}).select("-password -refreshToken");
+  if (allUsers.length === 0)
+    return res.status(404).json({ message: "No data found" });
+  return res.status(200).json({ messag: "All users get", User: allUsers });
+});
 
 export {
   adminSignUp,
@@ -461,5 +471,6 @@ export {
   getBondsmanDetails,
   getTotalBondsmanCount,
   getTotalUsersCount,
-  verifyToken
+  verifyToken,
+  getAllUsers,
 };

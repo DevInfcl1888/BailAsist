@@ -352,16 +352,25 @@ const getAllUsersOfBondsman = asyncHandler(
 const updateUserDetailsByBondsman = asyncHandler(
   async (req: Request, res: Response) => {
     const { userId } = req.params;
-    const { firstName, middleName, lastName, email, phoneNo, street, ZipCode } =
-      req.body as {
-        firstName: string;
-        middleName: string;
-        lastName: string;
-        email: string;
-        phoneNo: string;
-        street: string;
-        ZipCode: string;
-      };
+    const {
+      firstName,
+      middleName,
+      lastName,
+      email,
+      phoneNo,
+      street,
+      ZipCode,
+      isActive,
+    } = req.body as {
+      firstName: string;
+      middleName: string;
+      lastName: string;
+      email: string;
+      phoneNo: string;
+      street: string;
+      ZipCode: string;
+      isActive: boolean;
+    };
 
     // Data validation
     if (
@@ -385,7 +394,10 @@ const updateUserDetailsByBondsman = asyncHandler(
       return res
         .status(400)
         .json({ message: "Street or ZIP code is too long" });
-
+    if (isActive !== true && isActive !== false)
+      return res
+        .status(400)
+        .json({ message: "User should be active or inactive" });
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -397,6 +409,7 @@ const updateUserDetailsByBondsman = asyncHandler(
       phoneNo,
       street,
       ZipCode,
+      isActive,
     };
 
     const updatedUserDetails = await User.findByIdAndUpdate(
@@ -410,6 +423,7 @@ const updateUserDetailsByBondsman = asyncHandler(
           phoneNo: data.phoneNo,
           street: data.street,
           ZipCode: data.ZipCode,
+          isActive: data.isActive
         },
       },
       {
@@ -650,5 +664,5 @@ export {
   getCourtReminderDetails,
   cancelReminder,
   getAd,
-  deleteReminder
+  deleteReminder,
 };
