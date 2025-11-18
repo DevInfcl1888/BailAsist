@@ -49,7 +49,7 @@ const router = Router();
 // User Routes
 router.route("/registration").post(registration); // registration
 router.route("/login").post(login); // login
-router.route("/logout").post(logout); // logout
+router.route("/logout").post(authMiddleware, logout); // logout
 router.route("/changePassword").patch(authMiddleware, changePassword); // change password
 router.route("/resetPassword").patch(resetPassword); // reset password
 router.route("/getUserProfile").get(authMiddleware, getUserProfile); // get user profile

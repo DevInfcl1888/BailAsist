@@ -195,35 +195,40 @@ const login = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const logout = asyncHandler(async (req: Request, res: Response) => {
-  // Extract refresh token from request body or authorization header
-  const { refreshToken } = req.body as { refreshToken?: string };
+  const { refreshToken } = (req.body || {}) as { refreshToken?: string };
 
-  // If not in body, try to get from current user's token
+  // If no refreshToken in body, use the logged-in user's token
   let tokenToInvalidate = refreshToken;
 
+  // Access token will give us req.user
   if (!tokenToInvalidate && req.user?._id) {
-    // Get refreshToken from user document
-    const user = await User.findById(req.user._id);
-    if (user && user.refreshToken) {
-      tokenToInvalidate = user.refreshToken;
-    }
+    const user = await User.findById(req.user?._id).select("refreshToken");
+    if (user?.refreshToken) tokenToInvalidate = user.refreshToken;
   }
 
-  if (!tokenToInvalidate)
-    return res.status(404).json({ message: "No refresh token found" });
+  // If still no refresh token → cannot logout
+  if (!tokenToInvalidate) {
+    return res.status(400).json({
+      message: "No refresh token found, cannot logout",
+    });
+  }
 
-  // Step 1: Remove refresh token from DB (by matching token)
+  // Find user by refresh token
   const user = await User.findOne({ refreshToken: tokenToInvalidate });
 
-  if (user) {
-    // Step 2: Clear refreshToken in DB
-    user.refreshToken = "";
-    await user.save({ validateBeforeSave: false });
+  if (!user) {
+    return res.status(400).json({
+      message: "Invalid refresh token",
+    });
   }
 
-  // Step 3: Return response
+  // Clear refreshToken + deviceToken in DB
+  user.refreshToken = "";
+  user.deviceToken = "";
+  await user.save({ validateBeforeSave: false });
+
   return res.status(200).json({
-    message: "User logged out successfully",
+    message: "Logged out successfully",
   });
 });
 
