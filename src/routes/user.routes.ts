@@ -35,6 +35,7 @@ import {
   getDriverLicInfo,
   getPersonalRefrenceInfo,
   getEmployementStatus,
+  status
 } from "../controller/user.controller.js";
 
 // Home Screen Import
@@ -94,5 +95,6 @@ router.route("/updateLatAndLong").post(authMiddleware, updateLatAndLong); // upd
 // Home Screen Routes
 router.route("/createCourt").post(authMiddleware, createCourt); // create court
 router.route("/getCourtDetails/:courtId").get(authMiddleware, getCourtDetails); // get court details by id
+router.route("/status").get(authMiddleware, status); // get court details by id
 
 export default router;

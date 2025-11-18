@@ -13,10 +13,6 @@ import {
   LegalInfo,
   User,
   ContactInfo,
-  RACE,
-  GENDER,
-  EYE_COLOR,
-  HAIR_COLOR,
   PersonalInfo,
   DriversLicInfo,
   personalRefrenceInfo,
@@ -111,7 +107,6 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email: normalizedEmail,
     password,
-    confirmPassword,
     phoneNo,
     countryCode,
     deviceToken: deviceToken ? deviceToken : "",
@@ -483,7 +478,7 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
   let residenceDoc;
-  if (residenceId && residenceId !== null) {
+  if (residenceId) {
     residenceDoc = await ResidenceInfo.findByIdAndUpdate(
       residenceId,
       {
@@ -497,7 +492,11 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
     if (!residenceDoc)
       return res.status(404).json({ message: "Data not found or created" });
   } else {
-    residenceDoc = await ResidenceInfo.create(data);
+    residenceDoc = await ResidenceInfo.findOneAndUpdate(
+      { user: req.user?._id }, // find existing record for user
+      { $set: data },
+      { new: true, upsert: true } // create if not found
+    );
   }
 
   if (!residenceDoc)
@@ -569,7 +568,7 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
     phoneNo,
   };
   let contactInfoDoc;
-  if (contactInfoId && contactInfoId !== null) {
+  if (contactInfoId) {
     contactInfoDoc = await ContactInfo.findByIdAndUpdate(
       contactInfoId,
       {
@@ -583,7 +582,11 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
     if (!contactInfoId)
       return res.status(404).json({ message: "Data not found or created" });
   } else {
-    contactInfoDoc = await ContactInfo.create(data);
+    contactInfoDoc = await ContactInfo.findOneAndUpdate(
+      { user: req.user?._id }, // find existing record for user
+      { $set: data },
+      { new: true, upsert: true } // create if not found
+    );
   }
 
   if (!contactInfoDoc)
@@ -642,7 +645,7 @@ const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
     attorneyAddress,
     attorneyPhoneNo,
   };
-  if (legalInfoId && legalInfoId !== null) {
+  if (legalInfoId) {
     legalInfoDoc = await LegalInfo.findByIdAndUpdate(
       legalInfoId,
       {
@@ -655,7 +658,11 @@ const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
     if (!legalInfoDoc)
       return res.status(404).json({ message: "Data not found or created" });
   } else {
-    legalInfoDoc = await LegalInfo.create(data);
+    legalInfoDoc = await LegalInfo.findOneAndUpdate(
+      { user: req.user?._id }, // find existing record for user
+      { $set: data },
+      { new: true, upsert: true } // create if not found
+    );
   }
 
   if (!legalInfoDoc)
@@ -703,38 +710,19 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
     spouseEmployer,
     child,
     isResponsible,
-    dependents,
+    Description,
   } = req.body;
 
   const { personalInfoId } = req.body;
   console.log("this is personalInfoId", personalInfoId);
 
-  if (
-    !weight?.trim() ||
-    !height?.trim() ||
-    !birthPlace?.trim() ||
-    !birthDate?.trim() ||
-    !nickname?.trim()
-  ) {
-    return res.status(400).json({ message: "Required field missing" });
-  }
-
-  if (!Object.values(RACE).includes(race))
-    return res.status(400).json({ message: `Invalid race` });
-  if (!Object.values(GENDER).includes(gender))
-    return res.status(400).json({ message: `Invalid gender` });
-  if (!Object.values(EYE_COLOR).includes(eyeColor))
-    return res.status(400).json({ message: `Invalid eye color` });
-  if (!Object.values(HAIR_COLOR).includes(hairColor))
-    return res.status(400).json({ message: `Invalid hair color` });
-
-  let dependentContent = "";
-  if (isResponsible && !dependents) {
+  let responsibleDescription = "";
+  if (isResponsible && !Description) {
     return res
       .status(400)
       .json({ message: "Please provide details of dependents" });
   }
-  if (isResponsible) dependentContent = dependents;
+  if (isResponsible) responsibleDescription = Description;
 
   const data = {
     user: req.user?._id,
@@ -754,14 +742,14 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
     spouseEmployer: maritalStatus ? spouseEmployer : "",
     child,
     isResponsible,
-    dependents: dependentContent,
+    responsibleDescription,
   };
   const user = await User.findById(req.user?._id);
   if (!user) return res.status(404).json({ message: "User not found" });
   let personalInfoDoc;
 
   // ✅ If personalInfoId exists, update
-  if (personalInfoId && personalInfoId !== "null") {
+  if (personalInfoId) {
     personalInfoDoc = await PersonalInfo.findByIdAndUpdate(
       personalInfoId,
       { $set: data },
@@ -775,7 +763,11 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
 
   // ✅ If no ID passed, create new document
   else {
-    personalInfoDoc = await PersonalInfo.create(data);
+    personalInfoDoc = await PersonalInfo.findOneAndUpdate(
+      { user: req.user?._id }, // find existing record for user
+      { $set: data },
+      { new: true, upsert: true } // create if not found
+    );
   }
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
@@ -841,7 +833,7 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user?._id);
   if (!user) return res.status(404).json({ message: "User not found" });
   // ✅ If driverLicId exists, update
-  if (driverLicId && driverLicId !== "null") {
+  if (driverLicId) {
     driverLicDoc = await DriversLicInfo.findByIdAndUpdate(
       driverLicId,
       { $set: data },
@@ -851,11 +843,12 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     if (!driverLicDoc) {
       return res.status(404).json({ message: "Driver Lic. info not found" });
     }
-  }
-
-  // ✅ If no ID passed, create new document
-  else {
-    driverLicDoc = await DriversLicInfo.create(data);
+  } else {
+    driverLicDoc = await DriversLicInfo.findOneAndUpdate(
+      { user: req.user?._id }, // find existing record for user
+      { $set: data },
+      { new: true, upsert: true } // create if not found
+    );
   }
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
@@ -961,7 +954,7 @@ const addPersonalRefrenceInfo = asyncHandler(
     let personalRefDoc;
     const user = await User.findById(req.user?._id);
     if (!user) return res.status(404).json({ message: "User not found" });
-    if (personalRefId && personalRefId !== null) {
+    if (personalRefId) {
       personalRefDoc = await personalRefrenceInfo.findByIdAndUpdate(
         personalRefId,
         { $set: data },
@@ -971,7 +964,11 @@ const addPersonalRefrenceInfo = asyncHandler(
       if (!personalRefDoc)
         return res.status(401).json({ message: "Data not found or update" });
     } else {
-      personalRefDoc = await personalRefrenceInfo.create(data);
+      personalRefDoc = await personalRefrenceInfo.findOneAndUpdate(
+        { user: req.user?._id }, // find existing record for user
+        { $set: data },
+        { new: true, upsert: true } // create if not found
+      );
     }
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
@@ -1046,7 +1043,7 @@ const addEmployementStatus = asyncHandler(
     let employeeDoc;
     const user = await User.findById(req.user?._id);
     if (!user) return res.status(404).json({ message: "User not found" });
-    if (employeeId && employeeId !== null) {
+    if (employeeId) {
       employeeDoc = await EmployementInfo.findByIdAndUpdate(
         employeeId,
         {
@@ -1060,7 +1057,11 @@ const addEmployementStatus = asyncHandler(
       if (!employeeDoc)
         return res.status(404).json({ message: "Data not found or update" });
     } else {
-      employeeDoc = await EmployementInfo.create(data);
+      employeeDoc = await EmployementInfo.findOneAndUpdate(
+        { user: req.user?._id }, // find existing record for user
+        { $set: data },
+        { new: true, upsert: true } // create if not found
+      );
     }
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
@@ -1275,6 +1276,9 @@ const updateLatAndLong = asyncHandler(async (req: Request, res: Response) => {
     .json({ message: "Location updated successfully", updatedLocation });
 });
 
+const status = (req: Request, res: Response) => {
+  return res.status(200).json({ message: "success" });
+};
 export {
   registration,
   login,
@@ -1306,4 +1310,5 @@ export {
   getDriverLicInfo,
   getPersonalRefrenceInfo,
   getEmployementStatus,
+  status,
 };
