@@ -164,7 +164,12 @@ interface login extends Document {
 
 const contactInfoSchema = new Schema<contactInfo>({
   //  --------------------- Contact Information --------------------
-  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  user: {
+    type: Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+    unique: true,
+  },
   firstName: {
     type: String,
     required: true,
@@ -193,14 +198,24 @@ const contactInfoSchema = new Schema<contactInfo>({
 });
 const residenceInfoSchema = new Schema<residenceInfo>({
   //  --------------------- Residence Information --------------------
-  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  user: {
+    type: Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+    unique: true,
+  },
   yearsAtCurrentAddress: { type: String, required: true },
   landlordName: { type: String, required: true },
   landlordAddress: { type: String, required: true },
 });
 const personalInfoSchema = new Schema<personalInfo>({
   //  --------------------- Personal Refrence Information --------------------
-  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  user: {
+    type: Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+    unique: true,
+  },
   weight: {
     type: String,
     required: true,
@@ -282,7 +297,12 @@ const personalInfoSchema = new Schema<personalInfo>({
   }, // only filled if isResponsible is true
 });
 const personalRefrenceInfoSchema = new Schema<personalRefrenceInfo>({
-  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  user: {
+    type: Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+    unique: true,
+  },
   otherFamilyMemberName_1: {
     type: String,
     required: true,
@@ -346,7 +366,12 @@ const personalRefrenceInfoSchema = new Schema<personalRefrenceInfo>({
 });
 const legalInfoSchema = new Schema<legalInfo>({
   //  --------------------- Legal Information --------------------
-  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  user: {
+    type: Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+    unique: true,
+  },
   attorneyName: {
     type: String,
     required: true,
@@ -365,7 +390,12 @@ const legalInfoSchema = new Schema<legalInfo>({
 });
 const driversLicInfoSchema = new Schema<driversLicInfo>({
   //  --------------------- Driver Lic. Information --------------------
-  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  user: {
+    type: Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+    unique: true,
+  },
   socialSecurityNumber: {
     type: String,
     required: true,
@@ -404,7 +434,12 @@ const driversLicInfoSchema = new Schema<driversLicInfo>({
 });
 const employementInfoSchema = new Schema<employementInfo>({
   //  --------------------- Employement Information --------------------
-  user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  user: {
+    type: Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+    unique: true,
+  },
 
   employementStatus: {
     type: Boolean,
@@ -465,7 +500,6 @@ const userSchema = new Schema<signUp>(
     },
     confirmPassword: {
       type: String,
-      required: true,
     },
     phoneNo: {
       type: String,

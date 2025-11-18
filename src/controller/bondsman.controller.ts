@@ -220,7 +220,7 @@ const searchByPhoneNumber = asyncHandler(
         },
       ],
     }).select("-password");
-    if (!searchedUser)
+    if (searchedUser.length === 0)
       return res.status(404).json({ message: "No result found" });
     return res.status(200).json({
       message:
@@ -423,7 +423,7 @@ const updateUserDetailsByBondsman = asyncHandler(
           phoneNo: data.phoneNo,
           street: data.street,
           ZipCode: data.ZipCode,
-          isActive: data.isActive
+          isActive: data.isActive,
         },
       },
       {
