@@ -13,10 +13,6 @@ import {
   LegalInfo,
   User,
   ContactInfo,
-  RACE,
-  GENDER,
-  EYE_COLOR,
-  HAIR_COLOR,
   PersonalInfo,
   DriversLicInfo,
   personalRefrenceInfo,
@@ -714,38 +710,19 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
     spouseEmployer,
     child,
     isResponsible,
-    dependents,
+    Description,
   } = req.body;
 
   const { personalInfoId } = req.body;
   console.log("this is personalInfoId", personalInfoId);
 
-  if (
-    !weight?.trim() ||
-    !height?.trim() ||
-    !birthPlace?.trim() ||
-    !birthDate?.trim() ||
-    !nickname?.trim()
-  ) {
-    return res.status(400).json({ message: "Required field missing" });
-  }
-
-  if (!Object.values(RACE).includes(race))
-    return res.status(400).json({ message: `Invalid race` });
-  if (!Object.values(GENDER).includes(gender))
-    return res.status(400).json({ message: `Invalid gender` });
-  if (!Object.values(EYE_COLOR).includes(eyeColor))
-    return res.status(400).json({ message: `Invalid eye color` });
-  if (!Object.values(HAIR_COLOR).includes(hairColor))
-    return res.status(400).json({ message: `Invalid hair color` });
-
-  let dependentContent = "";
-  if (isResponsible && !dependents) {
+  let responsibleDescription = "";
+  if (isResponsible && !Description) {
     return res
       .status(400)
       .json({ message: "Please provide details of dependents" });
   }
-  if (isResponsible) dependentContent = dependents;
+  if (isResponsible) responsibleDescription = Description;
 
   const data = {
     user: req.user?._id,
@@ -765,7 +742,7 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
     spouseEmployer: maritalStatus ? spouseEmployer : "",
     child,
     isResponsible,
-    dependents: dependentContent,
+    responsibleDescription,
   };
   const user = await User.findById(req.user?._id);
   if (!user) return res.status(404).json({ message: "User not found" });
@@ -1333,5 +1310,5 @@ export {
   getDriverLicInfo,
   getPersonalRefrenceInfo,
   getEmployementStatus,
-  status
+  status,
 };

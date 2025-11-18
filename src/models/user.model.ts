@@ -38,49 +38,17 @@ interface personalRefrenceInfo extends Document {
 }
 
 //  --------------------- Personal Information --------------------
-export enum RACE {
-  AMERICAN_INDIAN_OR_ALASKA_NATIVE_ASIAN = "American Indian or Alaska Native Asian",
-  BLACK_OF_AFRICAN_AMERICAN_HISPANIC = "Black of African American Hispanic",
-  NATIVE_HAWAIIAN_OR_PACIFIC_ISLANDER_WHITE = "Native Hawaiian or Pacific Islander White",
-  OTHER = "Other",
-  PREFER_NOT_TO_SAY = "Prefer not to say",
-}
-export enum GENDER {
-  MALE = "Male",
-  FEMALE = "Female",
-}
-export enum EYE_COLOR {
-  AMBER = "Amber",
-  BROWN = "Brown",
-  BLUE = "Blue",
-  GREEN = "Green",
-  RED = "Red",
-  HAZEL = "Hazel",
-  BLACK = "Black",
-  OTHER = "Other",
-}
-export enum HAIR_COLOR {
-  AMBER = "Amber",
-  BROWN = "Brown",
-  BLUE = "Blue",
-  GREEN = "Green",
-  RED = "Red",
-  HAZEL = "Hazel",
-  BLACK = "Black",
-  OTHER = "Other",
-}
-
 interface personalInfo extends Document {
   user: Schema.Types.ObjectId;
   weight: string;
   height: string;
-  race: RACE;
-  gender: GENDER;
-  eyeColor: EYE_COLOR;
+  race: string;
+  gender: string;
+  eyeColor: string;
   birthPlace: string;
   birthDate: string;
-  hairColor: HAIR_COLOR;
-  UScitizen: boolean;
+  hairColor: string;
+  UScitizen: string;
   nickname: string;
   maritalStatus: string;
   spouseName?: string;
@@ -91,8 +59,8 @@ interface personalInfo extends Document {
     childAge: string;
     childSchool: string;
   }[];
-  isResponsible: boolean; // Responsible for anyone else support
-  dependents?: string; // only filled if isResponsible is true
+  isResponsible: string; // Responsible for anyone else support
+  responsibleDescription?: string; // only filled if isResponsible is true
 }
 
 //  --------------------- Legal Information --------------------
@@ -109,7 +77,7 @@ interface driversLicInfo extends Document {
   socialSecurityNumber: string;
   state: string;
   drivingLicenseNo: string;
-  havingYourOwnAutomobile: boolean; //  if yes then fill further info
+  havingYourOwnAutomobile: string; //  if yes then fill further info
   automobikeColor?: string;
   automobikeMake?: string;
   automobikeNumberPlate?: string;
@@ -119,7 +87,7 @@ interface driversLicInfo extends Document {
 //  --------------------- Employement Information --------------------
 interface employementInfo extends Document {
   user: Schema.Types.ObjectId;
-  employementStatus: boolean; // if yes then fill further info
+  employementStatus: string; // if yes then fill further info
   employerName?: string;
   employerSupervisorName?: string;
   employerAddress?: string;
@@ -228,22 +196,18 @@ const personalInfoSchema = new Schema<personalInfo>({
   },
   race: {
     type: String,
-    enum: Object.values(RACE),
     required: true,
   },
   gender: {
     type: String,
-    enum: Object.values(GENDER),
     required: true,
   },
   eyeColor: {
     type: String,
-    enum: Object.values(EYE_COLOR),
     required: true,
   },
   hairColor: {
     type: String,
-    enum: Object.values(HAIR_COLOR),
     required: true,
   },
   birthPlace: {
@@ -256,8 +220,8 @@ const personalInfoSchema = new Schema<personalInfo>({
     required: true,
   },
   UScitizen: {
-    type: Boolean,
-    default: false,
+    type: String,
+    trim: true,
   },
   nickname: {
     type: String,
@@ -288,10 +252,10 @@ const personalInfoSchema = new Schema<personalInfo>({
     },
   ],
   isResponsible: {
-    type: Boolean,
-    default: false,
+    type: String,
+    required: true,
   }, // Responsible for anyone else support
-  dependents: {
+  responsibleDescription: {
     type: String,
     trim: true,
   }, // only filled if isResponsible is true
@@ -412,8 +376,8 @@ const driversLicInfoSchema = new Schema<driversLicInfo>({
     trim: true,
   },
   havingYourOwnAutomobile: {
-    type: Boolean,
-    default: false,
+    type: String,
+    trim: true,
   }, //  if yes then fill further info
   automobikeColor: {
     type: String,
@@ -442,8 +406,8 @@ const employementInfoSchema = new Schema<employementInfo>({
   },
 
   employementStatus: {
-    type: Boolean,
-    default: false,
+    type: String,
+    trim: true,
   }, // if yes then fill further info
   employerName: {
     type: String,
