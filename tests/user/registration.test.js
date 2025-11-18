@@ -1,5 +1,5 @@
 const request = require("supertest")
-const app = require('../../src/app.ts')
+const app = require("../../src/index")
 // const User = require("../../src/models/user.model");
 
 describe("User Signup API", () => {
