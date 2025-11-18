@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node src/index.ts",
     "build": "tsc",
-    "dev": "nodemon --exec node --loader ts-node/esm src/index.ts"
+    "dev": "nodemon --exec node --loader ts-node/esm src/index.ts",
+    "test": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand"
   },
   "keywords": [],
   "author": "",
@@ -47,8 +48,10 @@
     "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^7.0.2",
     "@types/streamifier": "^0.1.2",
+    "@types/supertest": "^6.0.3",
     "@types/twilio": "^3.19.2",
     "@types/uuid": "^10.0.0",
+    "cross-env": "^10.1.0",
     "jest": "^30.2.0",
     "mongodb-memory-server": "^10.3.0",
     "nodemon": "^3.1.10",
