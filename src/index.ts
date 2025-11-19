@@ -12,7 +12,7 @@ import "./jobs/tokenCheckJob.js";
 dotenv.config();
 
 const PORT = process.env.PORT || 8000;
-export const app = express();
+const app = express();
 
 // Middleware
 app.use(
@@ -54,6 +54,5 @@ const startServer = async () => {
 };
 
 // sever start
-if (process.env.NODE_ENV !== "test") {
-  startServer();
-}
+
+startServer();

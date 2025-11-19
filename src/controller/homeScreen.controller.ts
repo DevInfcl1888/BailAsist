@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import { Court } from "../models/bondsman.model.js"; // Models
 import { asyncHandler } from "../utils/asyncHandler.js"; // to handle async errors
-import { Status } from "../models/bondsman.model.js"; // enums
 import {
   isValidEmail,
   isValidPhone,

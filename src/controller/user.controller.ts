@@ -71,16 +71,15 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     return res.status(400).json({ message: "All credentials are required" });
   }
   if (!isValidEmail(email)) {
-    console.log("k", isValidEmail(email));
-    return res.status(404).json({ message: "Invalid email" });
+    return res.status(400).json({ message: "Invalid email" });
   }
   if (!isValidPassword(password) || !isValidPassword(confirmPassword))
-    return res.status(401).json({
+    return res.status(400).json({
       message:
         "Password must contain at least 1 uppercase, lowercase, number, and special character, and password should be upto 8 characters long",
     });
   if (!isValidPhone(phoneNo)) {
-    return res.status(404).json({ message: "Invalid phone no." });
+    return res.status(400).json({ message: "Invalid phone no." });
   }
   if (homeAddress.length < 10 || homeAddress.length > 100)
     return res.status(400).json({
@@ -145,13 +144,13 @@ const login = asyncHandler(async (req: Request, res: Response) => {
   };
   // Data validation
   if (!email || !password)
-    return res.status(401).json({ message: "Credentials are missing" });
+    return res.status(400).json({ message: "Credentials are missing" });
 
   if (!isValidEmail(email))
-    return res.status(404).json({ message: "Invalid email" });
+    return res.status(400).json({ message: "Invalid email" });
 
   if (!isValidPassword(password))
-    return res.status(401).json({ message: "Invalid password" });
+    return res.status(400).json({ message: "Invalid password" });
 
   const normalizedEmail = email.toLowerCase();
   // check user existence
@@ -525,7 +524,7 @@ const getResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
     message: "Residence data fetched",
-    residenceInfo,
+    residenceInfo: residenceInfo[0],
     accessToken: accessToken,
     refreshToken: refreshToken,
   });
@@ -615,7 +614,7 @@ const getContactInfo = asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
     message: "Contact info data fetched",
-    contactInfo,
+    contactInfo: contactInfo[0],
     accessToken: accessToken,
     refreshToken: refreshToken,
   });
@@ -691,7 +690,7 @@ const getLegalInfo = asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
     message: "Legal info data fetched",
-    legalInfo,
+    legalInfo: legalInfo[0],
     accessToken: accessToken,
     refreshToken: refreshToken,
   });
@@ -793,7 +792,7 @@ const getPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
     message: "Personal info data fetched",
-    personalInfo,
+    personalInfo: personalInfo[0],
     accessToken: accessToken,
     refreshToken: refreshToken,
   });
@@ -874,7 +873,7 @@ const getDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
     message: "Driver Lic info data fetched",
-    driversLicInfo,
+    driversLicInfo: driversLicInfo[0],
     accessToken: accessToken,
     refreshToken: refreshToken,
   });
@@ -1004,7 +1003,7 @@ const getPersonalRefrenceInfo = asyncHandler(
     const refreshToken = user.generateRefreshToken();
     return res.status(200).json({
       message: "Personal Ref Info data fetched",
-      personalRefInfo,
+      personalRefInfo: personalRefInfo[0],
       accessToken: accessToken,
       refreshToken: refreshToken,
     });
@@ -1095,7 +1094,7 @@ const getEmployementStatus = asyncHandler(
     const refreshToken = user.generateRefreshToken();
     return res.status(200).json({
       message: "Employement data fetched",
-      employementInfo,
+      employementInfo: employementInfo[0],
       accessToken: accessToken,
       refreshToken: refreshToken,
     });
@@ -1281,9 +1280,6 @@ const updateLatAndLong = asyncHandler(async (req: Request, res: Response) => {
     .json({ message: "Location updated successfully", updatedLocation });
 });
 
-const status = (req: Request, res: Response) => {
-  return res.status(200).json({ message: "success" });
-};
 export {
   registration,
   login,
@@ -1315,5 +1311,4 @@ export {
   getDriverLicInfo,
   getPersonalRefrenceInfo,
   getEmployementStatus,
-  status,
 };

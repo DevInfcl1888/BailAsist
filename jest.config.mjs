@@ -1,6 +1,14 @@
 export default {
+  preset: "ts-jest/presets/default-esm",
   testEnvironment: "node",
-  transform: {}, // disable babel transforms
   extensionsToTreatAsEsm: [".ts"],
-  moduleFileExtensions: ["js", "ts", "mjs"],
+  transform: {
+    "^.+\\.tsx?$": [
+      "ts-jest",
+      {
+        useESM: true
+      }
+    ]
+  },
+  moduleFileExtensions: ["ts", "js"],
 };
