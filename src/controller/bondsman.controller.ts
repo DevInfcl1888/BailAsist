@@ -1,20 +1,12 @@
 import { Request, Response } from "express";
-import {
-  Bondsman,
-  CheckIn,
-  Court,
-  Reminder,
-  Status,
-} from "../models/bondsman.model.js";
+import { Bondsman, Court, Reminder, Status } from "../models/bondsman.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {
-  isDateValid,
   isValidEmail,
   isValidPassword,
   isValidPhone,
 } from "../utils/dataValidators.js";
-import { User } from "../models/user.model.js";
-import { getCheckInStatus } from "./user.controller.js";
+import { User, CheckIn } from "../models/user.model.js";
 import { Admin } from "../models/admin.model.js";
 
 const signUpAsBondsman = asyncHandler(async (req: Request, res: Response) => {
@@ -133,70 +125,6 @@ const logoutAsBondsman = asyncHandler(async (req: Request, res: Response) => {
     .clearCookie("accessToken", { httpOnly: true, secure: true })
     .clearCookie("refreshToken")
     .json({ message: "Bondsman logout successfully" });
-});
-
-const creatCheckIn = asyncHandler(async (req: Request, res: Response) => {
-  const { day } = req.body as { day: number };
-  const { userId } = req.params;
-  if (!day)
-    return res.status(400).json({
-      message: "Please set next check-in day interval (e.g. 7 (in days))",
-    });
-
-  let user = await User.findOne({ _id: userId });
-  // console.log("user", user);
-  if (!user) return res.status(404).json({ message: "User not found" });
-
-  const checkInRecord = await CheckIn.create({
-    user: user?._id,
-    lastCheckedInAt: {
-      date: new Date(),
-      status: Status.Pending,
-    },
-    nextCheckInDate: {
-      date: new Date(Date.now() + day * 24 * 60 * 60 * 1000),
-      status: Status.Pending,
-    },
-  });
-  if (!checkInRecord)
-    return res.status(403).json({ message: "Error during create check-in" });
-
-  const formattedLastCheckIn = new Date(
-    checkInRecord.lastCheckedInAt.date!
-  ).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-  const formattedNextCheckIn = new Date(
-    checkInRecord.nextCheckInDate.date!
-  ).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-  // console.log("cheackIn", checkInRecord);
-
-  return res.status(200).json({
-    message: "Check-in successful",
-    lastCheckIn: {
-      date: formattedLastCheckIn,
-      status: checkInRecord.lastCheckedInAt.status,
-    },
-    nextCheckIn: {
-      date: formattedNextCheckIn,
-      status: checkInRecord.nextCheckInDate.status,
-    },
-    isActive: checkInRecord.isActive,
-  });
 });
 
 const searchByPhoneNumber = asyncHandler(
@@ -443,43 +371,6 @@ const updateUserDetailsByBondsman = asyncHandler(
   }
 );
 
-const getUserCheckInStatus = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { userId } = req.params;
-    const getUserCheckIn = await CheckIn.find({ user: userId }).populate(
-      "user",
-      "_id firstName middleName lastName phoneNo email"
-    );
-    if (!getUserCheckIn)
-      return res.status(404).json({
-        message: "User not found or maybe check-in is not created yet",
-      });
-    console.log("getCheckIn", getUserCheckIn);
-    return res.status(200).json({
-      message:
-        getUserCheckIn.length === 0
-          ? "No check-in found"
-          : `${getUserCheckIn.length} Check-in found`,
-      getUserCheckIn,
-    });
-  }
-);
-
-const userCheckInHistory = asyncHandler(async (req: Request, res: Response) => {
-  const { userId } = req.params;
-  if (!userId) return res.status(404).json({ message: "User id missing" });
-  const isUserExist = await User.findById(userId).select("-password");
-  if (!isUserExist) return res.status(404).json({ message: "User not found" });
-  // const history = await CheckIn.find({ user: userId });
-  const history = await CheckIn.find({ user: userId })
-    .populate("user", "_id firstName lastName phoneNo email")
-    .sort({ createdAt: -1 });
-  console.log("user", isUserExist);
-  console.log("history", history);
-  if (!history || history.length === 0)
-    return res.status(404).json({ message: "No check-in history found" });
-  return res.status(200).json({ message: "History found", history });
-});
 
 const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
   const { caseNumber, reminderDate, reminderNote } = req.body as {
@@ -649,7 +540,6 @@ const getAd = asyncHandler(async (req: Request, res: Response) => {
 
 export {
   signUpAsBondsman,
-  creatCheckIn,
   loginAsBondsman,
   logoutAsBondsman,
   searchByPhoneNumber,
@@ -658,8 +548,7 @@ export {
   deleteUser,
   getAllUsersOfBondsman,
   updateUserDetailsByBondsman,
-  getUserCheckInStatus,
-  userCheckInHistory,
+  // userCheckInHistory,
   setCourtReminders,
   getCourtReminderDetails,
   cancelReminder,

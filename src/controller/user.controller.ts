@@ -17,8 +17,10 @@ import {
   DriversLicInfo,
   personalRefrenceInfo,
   EmployementInfo,
+  CheckIn,
+  CheckOut,
 } from "../models/user.model.js";
-import { Bondsman, CheckIn, Court } from "../models/bondsman.model.js";
+import { Bondsman, Court } from "../models/bondsman.model.js";
 import { generateOTP, sendOTPfun, otpStore } from "../utils/OTPsender.js";
 import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
@@ -1101,35 +1103,6 @@ const getEmployementStatus = asyncHandler(
   }
 );
 
-// you can filter your upcoming check-in dates and missed check-in dates and their status
-const getCheckInStatus = asyncHandler(async (req: Request, res: Response) => {
-  const { date } = req.body;
-  if (!date || !isDateValid(date))
-    return res
-      .status(400)
-      .json({ message: "Date should be in YYYY-MM-DD formate" });
-  const checkInDate = new Date(date);
-  const startOfDay = new Date(checkInDate.setHours(0, 0, 0, 0));
-  const endOfDay = new Date(checkInDate.setHours(23, 59, 59, 999));
-
-  const isCheckInRecordExist = await CheckIn.findOne({
-    user: req.user?._id,
-    "nextCheckInDate.date": {
-      $gte: startOfDay,
-      $lte: endOfDay,
-    },
-    isActive: true,
-  }).populate("user", "_id firstName middleName lastName phoneNo emai");
-  if (!isCheckInRecordExist)
-    return res.status(404).json({
-      message: "No Record found on this date.",
-    });
-  return res.status(200).json({
-    message: "Check-in found",
-    isCheckInRecordExist,
-  });
-});
-
 const getUserBondsmanInfo = asyncHandler(
   async (req: Request, res: Response) => {
     const { userId } = req.params;
@@ -1144,70 +1117,121 @@ const getUserBondsmanInfo = asyncHandler(
   }
 );
 
-// User Check-In Here
-const checkIn = asyncHandler(async (req: Request, res: Response) => {
-  const { checkIn_Id } = req.params;
-  const { message, location } = req.body as {
-    message?: string;
-    location?: string;
-  };
-  if (!checkIn_Id)
-    return res.status(404).json({ message: "Check-in Id not found" });
+const createOrUpdateCheckIn = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = req.user?._id;
+    const { lat, long } = req.body;
 
-  let isCheckInExist = await CheckIn.findOne({
-    _id: checkIn_Id,
-    isActive: true,
-  });
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+    
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({
+        message: "Please upload an image",
+      });
+    }
+    // Check if user already has a check-in
+    let checkIn = await CheckIn.findOne({
+      user: userId,
+      createdAt: { $gte: startOfToday, $lte: endOfToday },
+    });
+    const imgUpload = await uploadToCloudinary(req.file?.buffer);
+    console.log({ imgUpload });
+    if (!imgUpload)
+      return res.status(400).json({ message: "Image upload fail" });
 
-  if (!isCheckInExist)
-    return res.status(404).json({ message: "No check-In found" });
+    if (checkIn) {
+      // Update existing check-in
+      (checkIn.photoUrl = imgUpload.secure_url),
+        (checkIn.location.lat = lat),
+        (checkIn.location.long = long);
+      await checkIn.save();
+    } else {
+      // Create new check-in
+      checkIn = await CheckIn.create({
+        user: userId,
+        photoUrl: imgUpload.secure_url,
+        "location.lat": lat,
+        "location.long": long,
+      });
+    }
 
-  const date = new Date();
-  const nextCheckInDate = new Date(isCheckInExist.lastCheckedInAt.date);
-  if (nextCheckInDate > date)
-    return res.status(401).json({ message: "Today is not your check-in date" });
-
-  if (
-    nextCheckInDate.toDateString() !== date.toDateString() &&
-    nextCheckInDate < date
-  ) {
-    return res.status(401).json({
-      message: "You missed your check-in date.",
-      nextCheckInDate,
+    return res.status(200).json({
+      message: "Check-in recorded",
+      checkIn: {
+        createdAt: checkIn.createdAt,
+        updatedAt: checkIn.updatedAt,
+        cameraImage: imgUpload.secure_url,
+        location: checkIn.location,
+      },
     });
   }
-  if (!location)
-    return res.status(404).json({ message: "Location is invalid or missing" });
-  const uploads = await uploadToCloudinary(req.file?.buffer!);
-  if (!uploads)
-    return res.status(401).json({ message: "error during upload img" });
-  const checkInRecord = await CheckIn.findByIdAndUpdate(
-    checkIn_Id,
-    {
-      $set: {
-        "lastCheckedInAt.status": Status.Done,
-        "checkInProof.photoUrl": uploads.secure_url,
-        "checkInProof.userId": req.user?._id,
-        "checkInProof.message": message || "",
-        "checkInProof.location": location,
-      },
-    },
-    {
-      new: true,
-    }
-  ).populate("user", "_id firstName middleName lastName phoneNo");
-  // console.log("checkInRecord", checkInRecord);
-  // const checkInProof= await CheckInProof.findByIdAndUpdate()
-  if (!checkInRecord)
-    return res
-      .status(403)
-      .json({ message: "Check-in couldn't complete! try again..." });
+);
 
-  // let data = checkInRecord.checkInProof;
+const getUserCheckInStatus = asyncHandler(
+  async (req: Request, res: Response) => {
+    const getUserCheckIn = await CheckIn.find({ user: req.user?._id });
+    if (getUserCheckIn.length === 0)
+      return res.status(404).json({
+        message: "No CheckIn found",
+      });
+    return res.status(200).json({
+      message:
+        getUserCheckIn.length === 0
+          ? "No check-in found"
+          : `${getUserCheckIn.length} Check-in found`,
+      getUserCheckIn: getUserCheckIn[0],
+    });
+  }
+);
+
+const checkOut = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?._id;
+  const { lat, long } = req.body;
+
+  // Check if user already has a check-in
+  let checkOut = await CheckOut.findOne({ user: userId });
+  const imgUpload = await uploadToCloudinary(req.file?.buffer);
+  if (!imgUpload) return res.status(400).json({ message: "Image upload fail" });
+  if (checkOut) {
+    // Update existing check-in
+    (checkOut.photoUrl = imgUpload.secure_url),
+      (checkOut.location.lat = lat),
+      (checkOut.location.long = long);
+    await checkOut.save();
+  } else {
+    // Create new check-in
+    checkOut = await CheckOut.create({
+      user: userId,
+      photoUrl: imgUpload.secure_url,
+      "location.lat": lat,
+      "location.long": long,
+    });
+  }
+
   return res.status(200).json({
-    message: "Check-in successful",
-    checkInRecord,
+    message: "Check-in recorded",
+    checkOut: {
+      createdAt: checkOut.createdAt,
+      updatedAt: checkOut.updatedAt,
+      cameraImage: imgUpload.secure_url,
+      location: checkOut.location,
+    },
   });
+});
+
+const userCheckInHistory = asyncHandler(async (req: Request, res: Response) => {
+  const isUserExist = await CheckIn.find({ user: req.user?._id }).sort({
+    createdAt: -1,
+  });
+  if (!isUserExist) return res.status(404).json({ message: "User not found" });
+  // const history = await CheckIn.find({ user: userId });
+  console.log("user", isUserExist);
+  if (!isUserExist || isUserExist.length === 0)
+    return res.status(404).json({ message: "No check-in history found" });
+  return res.status(200).json({ message: "History found", isUserExist });
 });
 
 // User update their home address and send a picture to their bondsman as proof
@@ -1299,9 +1323,8 @@ export {
   addDriverLicInfo,
   addPersonalRefrenceInfo,
   addEmployementStatus,
-  getCheckInStatus,
   getUserBondsmanInfo,
-  checkIn,
+  createOrUpdateCheckIn,
   updateAddressAndSendPictureAsProof,
   updateLatAndLong,
   getResidenceInfo,
@@ -1311,4 +1334,7 @@ export {
   getDriverLicInfo,
   getPersonalRefrenceInfo,
   getEmployementStatus,
+  getUserCheckInStatus,
+  checkOut,
+  userCheckInHistory,
 };
