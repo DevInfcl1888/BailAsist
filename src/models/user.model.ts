@@ -130,6 +130,54 @@ interface login extends Document {
   isRemember?: boolean;
 }
 
+//  --------------------- CheckIn Information --------------------
+interface ICheckIn extends Document {
+  user: Schema.Types.ObjectId;
+  photoUrl: string;
+  message: string;
+  location: { lat: number; long: number };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+//  --------------------- CheckOut Information --------------------
+interface ICheckOut extends Document {
+  user: Schema.Types.ObjectId;
+  photoUrl: string;
+  location?: { lat: number; long: number };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+//  --------------------- CheckIn Information --------------------
+const CheckInSchema = new Schema<ICheckIn>(
+  {
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    photoUrl: { type: String }, // cloudinary url
+    message: { type: String, trim: true },
+    location: {
+      lat: { type: Number, required: true },
+      long: { type: Number, required: true },
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+//  --------------------- CheckOut Information --------------------
+const CheckOutSchema = new Schema<ICheckOut>(
+  {
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    photoUrl: { type: String }, // cloudinary url
+    location: {
+      lat: { type: Number, required: false },
+      long: { type: Number, required: false },
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
 const contactInfoSchema = new Schema<contactInfo>({
   //  --------------------- Contact Information --------------------
   user: {
@@ -600,3 +648,5 @@ export const personalRefrenceInfo = model(
 export const LegalInfo = model("LegalInfo", legalInfoSchema);
 export const DriversLicInfo = model("DriversLicInfo", driversLicInfoSchema);
 export const EmployementInfo = model("EmployementInfo", employementInfoSchema);
+export const CheckIn = model("CheckIn", CheckInSchema);
+export const CheckOut = model("CheckOut", CheckOutSchema);

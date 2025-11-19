@@ -2,15 +2,15 @@ import {
   signUpAsBondsman,
   loginAsBondsman,
   logoutAsBondsman,
-  creatCheckIn,
+  // creatCheckIn,
   searchByPhoneNumber,
   deleteCheckIn,
   addUser,
   deleteUser,
   getAllUsersOfBondsman,
   updateUserDetailsByBondsman,
-  getUserCheckInStatus,
-  userCheckInHistory,
+  // getUserCheckInStatus,
+  // userCheckInHistory,
   setCourtReminders,
   getCourtReminderDetails,
   cancelReminder,
@@ -26,7 +26,7 @@ const router = Router();
 router.route("/signUpAsBondsman").post(signUpAsBondsman); // sign Up
 router.route("/loginAsBondsman").post(loginAsBondsman); // login
 router.route("/logoutAsBondsman").post(authMiddlewareForWeb, logoutAsBondsman); // logout
-router.route("/creatCheckIn/:userId").post(authMiddlewareForWeb, creatCheckIn); // create check in
+// router.route("/creatCheckIn/:userId").post(authMiddlewareForWeb, creatCheckIn); // create check in
 router
   .route("/searchByPhoneNumber")
   .get(authMiddlewareForWeb, searchByPhoneNumber); // search by phone no
@@ -42,12 +42,6 @@ router
   .route("/updateUserDetailsByBondsman/:userId")
   .post(authMiddlewareForWeb, updateUserDetailsByBondsman); // update user details by bondsman
 router
-  .route("/getUserCheckInStatus/:userId")
-  .get(authMiddlewareForWeb, getUserCheckInStatus); // get user check-in status
-router
-  .route("/userCheckInHistory/:userId")
-  .get(authMiddlewareForWeb, userCheckInHistory); // get user check-in status
-router
   .route("/setCourtReminders/:userId/:courtId")
   .post(authMiddlewareForWeb, setCourtReminders);
 router
@@ -57,6 +51,8 @@ router
   .route("/cancelReminder/:reminderId")
   .post(authMiddlewareForWeb, cancelReminder);
 router.route("/getAd").get(authMiddlewareForWeb, getAd);
-router.route("/deleteReminder/:reminderId").post(authMiddlewareForWeb, deleteReminder);
+router
+  .route("/deleteReminder/:reminderId")
+  .post(authMiddlewareForWeb, deleteReminder);
 
 export default router;

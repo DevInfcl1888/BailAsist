@@ -22,27 +22,6 @@ export enum Status {
   Done = "Done",
   Pending = "Pending",
 }
-interface ICheckIn extends Document {
-  user: Schema.Types.ObjectId;
-  lastCheckedInAt: {
-    date: Date;
-    status: Status;
-  };
-  nextCheckInDate: {
-    date: Date;
-    status: Status;
-  };
-  isActive: {
-    type: boolean;
-    default: true;
-  };
-  checkInProof: {
-    userId: Schema.Types.ObjectId;
-    photoUrl: string;
-    message: string;
-    location: string;
-  };
-}
 
 interface ICourt extends Document {
   courtName: string;
@@ -53,7 +32,7 @@ interface ICourt extends Document {
   zipCode: string;
   courtContactNo: string;
   courtEmail: string;
-  reminders: Schema.Types.ObjectId[]
+  reminders: Schema.Types.ObjectId[];
 }
 
 export enum ReminderStatus {
@@ -88,41 +67,6 @@ const BondsmanSchema = new Schema<IBondsman>(
     ],
     refreshToken: {
       type: String,
-    },
-  },
-  {
-    timestamps: true,
-  }
-);
-
-const CheckInSchema = new Schema<ICheckIn>(
-  {
-    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    lastCheckedInAt: {
-      date: { type: Date, required: true },
-      status: {
-        type: String,
-        enum: Object.values(Status),
-        default: Status.Done,
-      },
-    },
-    nextCheckInDate: {
-      date: { type: Date, required: true },
-      status: {
-        type: String,
-        enum: Object.values(Status),
-        default: Status.Pending,
-      },
-    },
-    checkInProof: {
-      userId: { type: Schema.Types.ObjectId, ref: "User" },
-      photoUrl: { type: String }, // cloudinary url
-      message: { type: String, trim: true },
-      location: { type: String },
-    },
-    isActive: {
-      type: Boolean,
-      default: true,
     },
   },
   {
@@ -247,6 +191,5 @@ BondsmanSchema.methods.generateRefreshToken = function (): string {
 };
 
 export const Bondsman = model("Bondsman", BondsmanSchema);
-export const CheckIn = model("CheckIn", CheckInSchema);
 export const Court = model("Court", CourtSchema);
 export const Reminder = model("Reminder", ReminderSchema);

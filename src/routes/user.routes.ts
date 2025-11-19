@@ -1,5 +1,8 @@
 import { Router } from "express";
-import { authMiddleware } from "../middlewares/auth.middlewares.js";
+import {
+  authMiddleware,
+  authMiddlewareForWeb,
+} from "../middlewares/auth.middlewares.js";
 import { upload } from "../middlewares/multer.middlewares.js";
 import { otpLimiter } from "../utils/rateLimiter.js";
 
@@ -23,9 +26,8 @@ import {
   addDriverLicInfo,
   addPersonalRefrenceInfo,
   addEmployementStatus,
-  getCheckInStatus,
   getUserBondsmanInfo,
-  checkIn,
+  createOrUpdateCheckIn,
   updateAddressAndSendPictureAsProof,
   updateLatAndLong,
   getResidenceInfo,
@@ -35,6 +37,9 @@ import {
   getDriverLicInfo,
   getPersonalRefrenceInfo,
   getEmployementStatus,
+  getUserCheckInStatus,
+  checkOut,
+  userCheckInHistory,
 } from "../controller/user.controller.js";
 
 // Home Screen Import
@@ -67,11 +72,17 @@ router.route("/addPersonalInfo").post(authMiddleware, addPersonalInfo); // add p
 router.route("/getPersonalInfo").get(authMiddleware, getPersonalInfo); // get personal info
 router.route("/addDriverLicInfo").post(authMiddleware, addDriverLicInfo); // add driver license info
 router.route("/getDriverLicInfo").get(authMiddleware, getDriverLicInfo); // get driver license info
-router.route("/getCheckInStatus").get(authMiddleware, getCheckInStatus); // get check-in status
 router.route("/bondsman/:userId").get(authMiddleware, getUserBondsmanInfo); // get user's bondsman info
 router
-  .route("/checkIn/:checkIn_Id")
-  .post(authMiddleware, upload.single("image"), checkIn); // check-in with image upload
+  .route("/createOrUpdateCheckIn")
+  .post(authMiddleware, upload.single("photoUrl"), createOrUpdateCheckIn); // check-in with image upload
+
+router
+  .route("/checkOut")
+  .post(authMiddleware, upload.single("photoUrl"), checkOut); // check-out with image upload
+
+router.route("/getUserCheckInStatus").get(authMiddleware, getUserCheckInStatus); // check-in with image upload
+
 router
   .route("/addPersonalRefrenceInfo")
   .post(authMiddleware, addPersonalRefrenceInfo); // add personal reference info
@@ -90,6 +101,8 @@ router
     updateAddressAndSendPictureAsProof
   ); // update address and send picture as proof
 router.route("/updateLatAndLong").post(authMiddleware, updateLatAndLong); // update latitude and longitude
+
+router.route("/userCheckInHistory").get(authMiddleware, userCheckInHistory);
 
 // Home Screen Routes
 router.route("/createCourt").post(authMiddleware, createCourt); // create court
