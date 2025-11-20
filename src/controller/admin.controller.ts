@@ -119,12 +119,13 @@ const adminLogout = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const createNewBondsman = asyncHandler(async (req: Request, res: Response) => {
-  const { name, phoneNo, password, email, countryCode } = req.body as {
+  const { name, phoneNo, password, email, countryCode, address } = req.body as {
     name: string;
     phoneNo: string;
     password: string;
     email: string;
     countryCode: string;
+    address: string;
   };
   const isAdmin = await Admin.findById(req.user?._id);
   if (!isAdmin)
@@ -161,6 +162,7 @@ const createNewBondsman = asyncHandler(async (req: Request, res: Response) => {
     password: password,
     email: email.toLowerCase(),
     countryCode: countryCode,
+    address,
   });
   const isCreateBondsman = await Bondsman.findById(createBondsman?._id).select(
     "-password"

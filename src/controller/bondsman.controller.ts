@@ -10,15 +10,14 @@ import { User, CheckIn } from "../models/user.model.js";
 import { Admin } from "../models/admin.model.js";
 
 const signUpAsBondsman = asyncHandler(async (req: Request, res: Response) => {
-  const { BondsmanName, phoneNo, password, email, countryCode } = req.body as {
+  const { BondsmanName, phoneNo, password, email, countryCode, address } = req.body as {
     BondsmanName: string;
     phoneNo: string;
     password: string;
     email: string;
     countryCode: string;
+    address: string;
   };
-  if (!BondsmanName.trim() || !phoneNo.trim() || !password.trim())
-    return res.status(400).json({ message: "All fields are required" });
   if (!isValidPhone(phoneNo))
     return res.status(400).json({ message: "Invalid phone number" });
   if (!isValidEmail(email))
@@ -43,6 +42,7 @@ const signUpAsBondsman = asyncHandler(async (req: Request, res: Response) => {
     password,
     email,
     countryCode,
+    address
   });
   const accessToken = createBondsman.generateAccessToken();
 

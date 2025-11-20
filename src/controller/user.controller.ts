@@ -418,7 +418,7 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findOne({ email: email });
 
   if (!user)
-    return res.status(404).json({ message: "User not found or maybe logout" });
+    return res.status(404).json({ message: "User not found" });
   if (!isValidPassword(newPassword))
     return res.status(401).json({ message: "Invalid password" });
   if (newPassword !== confirmPassword)

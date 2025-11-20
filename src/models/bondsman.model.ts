@@ -6,6 +6,7 @@ import jwt, { SignOptions } from "jsonwebtoken";
 interface IBondsman extends Document {
   name: string;
   phoneNo: string;
+  address: string;
   email: string;
   password: string;
   countryCode: string;
@@ -55,6 +56,7 @@ const BondsmanSchema = new Schema<IBondsman>(
   {
     name: { type: String, required: true, trim: true },
     phoneNo: { type: String, required: true, trim: true },
+    address: { type: String, required: true, trim: true },
     password: { type: String, required: true, trim: true },
     email: { type: String, required: true, trim: true },
     countryCode: { type: String, trim: true },
