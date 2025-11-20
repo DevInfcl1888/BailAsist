@@ -716,19 +716,10 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
     spouseEmployer,
     child,
     isResponsible,
-    Description,
+    responsibleDescription,
   } = req.body;
 
   const { personalInfoId } = req.body;
-  console.log("this is personalInfoId", personalInfoId);
-
-  let responsibleDescription = "";
-  if (isResponsible && !Description) {
-    return res
-      .status(400)
-      .json({ message: "Please provide details of dependents" });
-  }
-  if (isResponsible) responsibleDescription = Description;
 
   const data = {
     user: req.user?._id,
