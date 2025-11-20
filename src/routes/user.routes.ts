@@ -75,8 +75,8 @@ router.route("/getDriverLicInfo").get(authMiddleware, getDriverLicInfo); // get 
 router.route("/bondsman").get(authMiddleware, getUserBondsmanInfo); // get user's bondsman info
 router
   .route("/createOrUpdateCheckIn")
-  .post(authMiddleware, upload.single("photoUrl"), createOrUpdateCheckIn); // check-in with image upload
-
+  .post(authMiddleware, upload.single("photoUrl"), createOrUpdateCheckIn);
+  
 router
   .route("/checkOut")
   .post(authMiddleware, upload.single("photoUrl"), checkOut); // check-out with image upload

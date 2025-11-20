@@ -1113,42 +1113,66 @@ const getUserBondsmanInfo = asyncHandler(
 
 const createOrUpdateCheckIn = asyncHandler(
   async (req: Request, res: Response) => {
+    console.log("API_HIT", req.body);
+
     const userId = req.user?._id;
     const { lat, long } = req.body;
 
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
+
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
 
-    if (!req.file || !req.file.buffer) {
-      return res.status(400).json({
-        message: "Please upload an image",
-      });
+    let uploadedImageUrl = null;
+
+    // Optional image upload
+    if (req.file && req.file.buffer) {
+      const imgUpload = await uploadToCloudinary(req.file.buffer);
+      if (!imgUpload)
+        return res.status(400).json({ message: "Image upload failed" });
+
+      uploadedImageUrl = imgUpload.secure_url;
     }
-    // Check if user already has a check-in
+
+    // Check existing check-in
     let checkIn = await CheckIn.findOne({
       user: userId,
       createdAt: { $gte: startOfToday, $lte: endOfToday },
     });
-    const imgUpload = await uploadToCloudinary(req.file?.buffer);
-    console.log({ imgUpload });
-    if (!imgUpload)
-      return res.status(400).json({ message: "Image upload fail" });
+
+    const now = new Date();
 
     if (checkIn) {
-      // Update existing check-in
-      (checkIn.photoUrl = imgUpload.secure_url),
-        (checkIn.location.lat = lat),
-        (checkIn.location.long = long);
+      // Compare existing values
+      const sameLat = Number(checkIn.location.lat) === Number(lat);
+      const sameLong = Number(checkIn.location.long) === Number(long);
+      const samePhoto =
+        !uploadedImageUrl || uploadedImageUrl === checkIn.photoUrl;
+
+      const isSameData = sameLat && sameLong && samePhoto;
+
+      if (isSameData) {
+        checkIn.set("createdAt", now);
+        checkIn.set("updatedAt", now);
+      } else {
+        checkIn.location.lat = lat;
+        checkIn.location.long = long;
+
+        if (uploadedImageUrl) {
+          checkIn.photoUrl = uploadedImageUrl;
+        }
+
+        checkIn.set("updatedAt", now);
+      }
+
       await checkIn.save();
     } else {
-      // Create new check-in
+      // Create new document
       checkIn = await CheckIn.create({
         user: userId,
-        photoUrl: imgUpload.secure_url,
-        "location.lat": lat,
-        "location.long": long,
+        photoUrl: uploadedImageUrl || null,
+        location: { lat, long },
       });
     }
 
@@ -1157,7 +1181,7 @@ const createOrUpdateCheckIn = asyncHandler(
       checkIn: {
         createdAt: checkIn.createdAt,
         updatedAt: checkIn.updatedAt,
-        cameraImage: imgUpload.secure_url,
+        photoUrl: checkIn.photoUrl || null,
         location: checkIn.location,
       },
     });
