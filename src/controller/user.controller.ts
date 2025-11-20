@@ -24,6 +24,7 @@ import { Bondsman, Court } from "../models/bondsman.model.js";
 import { generateOTP, sendOTPfun, otpStore } from "../utils/OTPsender.js";
 import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
+import jwt from "jsonwebtoken";
 
 const registration = asyncHandler(async (req: Request, res: Response) => {
   const {
@@ -400,7 +401,14 @@ const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
 
   // success
   otpStore.delete(email);
-  return res.status(200).json({ message: "OTP verified successfully ✅" });
+
+  // create short lived token (10 min)
+  const resetToken = jwt.sign({ email }, process.env.RESET_TOKEN_SECRET!, {
+    expiresIn: "10m",
+  });
+  return res
+    .status(200)
+    .json({ message: "OTP verified successfully ✅", resetToken });
 });
 
 const getdata = async (req: Request, res: Response) => {
@@ -410,15 +418,26 @@ const getdata = async (req: Request, res: Response) => {
 }; // This is only for checking that user still logged in or not
 
 const resetPassword = asyncHandler(async (req: Request, res: Response) => {
-  const { email, newPassword, confirmPassword } = req.body as {
-    email: string;
+  const { token, newPassword, confirmPassword } = req.body as {
+    token: string;
     newPassword: string;
     confirmPassword: string;
   };
+
+  if (!token) return res.status(400).json({ message: "Reset token missing" });
+
+  // decode token
+  let payload;
+  try {
+    payload = jwt.verify(token, process.env.RESET_TOKEN_SECRET!);
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid or expired reset token" });
+  }
+
+  const email = payload.email;
   const user = await User.findOne({ email: email });
 
-  if (!user)
-    return res.status(404).json({ message: "User not found" });
+  if (!user) return res.status(404).json({ message: "User not found" });
   if (!isValidPassword(newPassword))
     return res.status(401).json({ message: "Invalid password" });
   if (newPassword !== confirmPassword)
@@ -1205,83 +1224,81 @@ const getUserCheckInStatus = asyncHandler(
   }
 );
 
-const checkOut = asyncHandler(
-  async (req: Request, res: Response) => {
-    const userId = req.user?._id;
-    const { lat, long } = req.body;
+const checkOut = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?._id;
+  const { lat, long } = req.body;
 
-    // Define today's date range
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+  // Define today's date range
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
 
-    const endOfToday = new Date();
-    endOfToday.setHours(23, 59, 59, 999);
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
 
-    let uploadedImageUrl = null;
+  let uploadedImageUrl = null;
 
-    // Optional image upload
-    if (req.file && req.file.buffer) {
-      const imgUpload = await uploadToCloudinary(req.file.buffer);
+  // Optional image upload
+  if (req.file && req.file.buffer) {
+    const imgUpload = await uploadToCloudinary(req.file.buffer);
 
-      if (!imgUpload)
-        return res.status(400).json({ message: "Image upload failed" });
+    if (!imgUpload)
+      return res.status(400).json({ message: "Image upload failed" });
 
-      uploadedImageUrl = imgUpload.secure_url;
-    }
+    uploadedImageUrl = imgUpload.secure_url;
+  }
 
-    // Check if today's checkout already exists
-    let checkOut = await CheckOut.findOne({
-      user: userId,
-      createdAt: { $gte: startOfToday, $lte: endOfToday },
-    });
+  // Check if today's checkout already exists
+  let checkOut = await CheckOut.findOne({
+    user: userId,
+    createdAt: { $gte: startOfToday, $lte: endOfToday },
+  });
 
-    const now = new Date();
+  const now = new Date();
 
-    if (checkOut) {
-      // Compare existing data
-      const sameLat = Number(checkOut.location.lat) === Number(lat);
-      const sameLong = Number(checkOut.location.long) === Number(long);
-      const samePhoto =
-        !uploadedImageUrl || uploadedImageUrl === checkOut.photoUrl;
+  if (checkOut) {
+    // Compare existing data
+    const sameLat = Number(checkOut.location.lat) === Number(lat);
+    const sameLong = Number(checkOut.location.long) === Number(long);
+    const samePhoto =
+      !uploadedImageUrl || uploadedImageUrl === checkOut.photoUrl;
 
-      const isSameData = sameLat && sameLong && samePhoto;
+    const isSameData = sameLat && sameLong && samePhoto;
 
-      if (isSameData) {
-        // Refresh timestamps only
-        checkOut.set("updatedAt", now);
-      } else {
-        // Update changed fields
-        checkOut.location.lat = lat;
-        checkOut.location.long = long;
+    if (isSameData) {
+      // Refresh timestamps only
+      checkOut.set("updatedAt", now);
+    } else {
+      // Update changed fields
+      checkOut.location.lat = lat;
+      checkOut.location.long = long;
 
-        if (uploadedImageUrl) {
-          checkOut.photoUrl = uploadedImageUrl;
-        }
-
-        checkOut.set("updatedAt", now);
+      if (uploadedImageUrl) {
+        checkOut.photoUrl = uploadedImageUrl;
       }
 
-      await checkOut.save();
-    } else {
-      // Create a new checkout record
-      checkOut = await CheckOut.create({
-        user: userId,
-        photoUrl: uploadedImageUrl || null,
-        location: { lat, long },
-      });
+      checkOut.set("updatedAt", now);
     }
 
-    return res.status(200).json({
-      message: "Checkout recorded",
-      checkOut: {
-        createdAt: checkOut.createdAt,
-        updatedAt: checkOut.updatedAt,
-        photoUrl: checkOut.photoUrl || null,
-        location: checkOut.location,
-      },
+    await checkOut.save();
+  } else {
+    // Create a new checkout record
+    checkOut = await CheckOut.create({
+      user: userId,
+      photoUrl: uploadedImageUrl || null,
+      location: { lat, long },
     });
   }
-);
+
+  return res.status(200).json({
+    message: "Checkout recorded",
+    checkOut: {
+      createdAt: checkOut.createdAt,
+      updatedAt: checkOut.updatedAt,
+      photoUrl: checkOut.photoUrl || null,
+      location: checkOut.location,
+    },
+  });
+});
 
 const userCheckInHistory = asyncHandler(async (req: Request, res: Response) => {
   const isUserExist = await CheckIn.find({ user: req.user?._id }).sort({
