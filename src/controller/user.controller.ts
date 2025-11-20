@@ -1205,40 +1205,83 @@ const getUserCheckInStatus = asyncHandler(
   }
 );
 
-const checkOut = asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.user?._id;
-  const { lat, long } = req.body;
+const checkOut = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = req.user?._id;
+    const { lat, long } = req.body;
 
-  // Check if user already has a check-in
-  let checkOut = await CheckOut.findOne({ user: userId });
-  const imgUpload = await uploadToCloudinary(req.file?.buffer);
-  if (!imgUpload) return res.status(400).json({ message: "Image upload fail" });
-  if (checkOut) {
-    // Update existing check-in
-    (checkOut.photoUrl = imgUpload.secure_url),
-      (checkOut.location.lat = lat),
-      (checkOut.location.long = long);
-    await checkOut.save();
-  } else {
-    // Create new check-in
-    checkOut = await CheckOut.create({
+    // Define today's date range
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    let uploadedImageUrl = null;
+
+    // Optional image upload
+    if (req.file && req.file.buffer) {
+      const imgUpload = await uploadToCloudinary(req.file.buffer);
+
+      if (!imgUpload)
+        return res.status(400).json({ message: "Image upload failed" });
+
+      uploadedImageUrl = imgUpload.secure_url;
+    }
+
+    // Check if today's checkout already exists
+    let checkOut = await CheckOut.findOne({
       user: userId,
-      photoUrl: imgUpload.secure_url,
-      "location.lat": lat,
-      "location.long": long,
+      createdAt: { $gte: startOfToday, $lte: endOfToday },
+    });
+
+    const now = new Date();
+
+    if (checkOut) {
+      // Compare existing data
+      const sameLat = Number(checkOut.location.lat) === Number(lat);
+      const sameLong = Number(checkOut.location.long) === Number(long);
+      const samePhoto =
+        !uploadedImageUrl || uploadedImageUrl === checkOut.photoUrl;
+
+      const isSameData = sameLat && sameLong && samePhoto;
+
+      if (isSameData) {
+        // Refresh timestamps only
+        checkOut.set("updatedAt", now);
+      } else {
+        // Update changed fields
+        checkOut.location.lat = lat;
+        checkOut.location.long = long;
+
+        if (uploadedImageUrl) {
+          checkOut.photoUrl = uploadedImageUrl;
+        }
+
+        checkOut.set("updatedAt", now);
+      }
+
+      await checkOut.save();
+    } else {
+      // Create a new checkout record
+      checkOut = await CheckOut.create({
+        user: userId,
+        photoUrl: uploadedImageUrl || null,
+        location: { lat, long },
+      });
+    }
+
+    return res.status(200).json({
+      message: "Checkout recorded",
+      checkOut: {
+        createdAt: checkOut.createdAt,
+        updatedAt: checkOut.updatedAt,
+        photoUrl: checkOut.photoUrl || null,
+        location: checkOut.location,
+      },
     });
   }
-
-  return res.status(200).json({
-    message: "Check-in recorded",
-    checkOut: {
-      createdAt: checkOut.createdAt,
-      updatedAt: checkOut.updatedAt,
-      cameraImage: imgUpload.secure_url,
-      location: checkOut.location,
-    },
-  });
-});
+);
 
 const userCheckInHistory = asyncHandler(async (req: Request, res: Response) => {
   const isUserExist = await CheckIn.find({ user: req.user?._id }).sort({
