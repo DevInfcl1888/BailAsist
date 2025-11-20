@@ -72,7 +72,7 @@ router.route("/addPersonalInfo").post(authMiddleware, addPersonalInfo); // add p
 router.route("/getPersonalInfo").get(authMiddleware, getPersonalInfo); // get personal info
 router.route("/addDriverLicInfo").post(authMiddleware, addDriverLicInfo); // add driver license info
 router.route("/getDriverLicInfo").get(authMiddleware, getDriverLicInfo); // get driver license info
-router.route("/bondsman/:userId").get(authMiddleware, getUserBondsmanInfo); // get user's bondsman info
+router.route("/bondsman").get(authMiddleware, getUserBondsmanInfo); // get user's bondsman info
 router
   .route("/createOrUpdateCheckIn")
   .post(authMiddleware, upload.single("photoUrl"), createOrUpdateCheckIn); // check-in with image upload

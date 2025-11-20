@@ -1096,15 +1096,18 @@ const getEmployementStatus = asyncHandler(
 
 const getUserBondsmanInfo = asyncHandler(
   async (req: Request, res: Response) => {
-    const { userId } = req.params;
-    const isBondsmanExist = await User.findById(userId)
-      .populate("bondsman", "name phoneNo email")
-      .select("-password -refreshToken");
+    const isBondsmanExist = await User.findById(req.user?._id);
     if (!isBondsmanExist)
       return res.status(404).json({ message: "User not found" });
-    return res
-      .status(200)
-      .json({ message: "Bondsman Information", isBondsmanExist });
+    const accessToken = isBondsmanExist.generateAccessToken();
+    const refreshToken = isBondsmanExist.generateRefreshToken();
+
+    return res.status(200).json({
+      message: "Bondsman Information",
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      isBondsmanExist,
+    });
   }
 );
 
@@ -1117,7 +1120,7 @@ const createOrUpdateCheckIn = asyncHandler(
     startOfToday.setHours(0, 0, 0, 0);
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
-    
+
     if (!req.file || !req.file.buffer) {
       return res.status(400).json({
         message: "Please upload an image",
