@@ -24,6 +24,7 @@ import { Bondsman, Court } from "../models/bondsman.model.js";
 import { generateOTP, sendOTPfun, otpStore } from "../utils/OTPsender.js";
 import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
+import jwt from "jsonwebtoken";
 
 const registration = asyncHandler(async (req: Request, res: Response) => {
   const {
@@ -400,7 +401,14 @@ const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
 
   // success
   otpStore.delete(email);
-  return res.status(200).json({ message: "OTP verified successfully ✅" });
+
+  // create short lived token (10 min)
+  const resetToken = jwt.sign({ email }, process.env.RESET_TOKEN_SECRET!, {
+    expiresIn: "10m",
+  });
+  return res
+    .status(200)
+    .json({ message: "OTP verified successfully ✅", resetToken });
 });
 
 const getdata = async (req: Request, res: Response) => {
@@ -410,15 +418,26 @@ const getdata = async (req: Request, res: Response) => {
 }; // This is only for checking that user still logged in or not
 
 const resetPassword = asyncHandler(async (req: Request, res: Response) => {
-  const { email, newPassword, confirmPassword } = req.body as {
-    email: string;
+  const { token, newPassword, confirmPassword } = req.body as {
+    token: string;
     newPassword: string;
     confirmPassword: string;
   };
+
+  if (!token) return res.status(400).json({ message: "Reset token missing" });
+
+  // decode token
+  let payload;
+  try {
+    payload = jwt.verify(token, process.env.RESET_TOKEN_SECRET!);
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid or expired reset token" });
+  }
+
+  const email = payload.email;
   const user = await User.findOne({ email: email });
 
-  if (!user)
-    return res.status(404).json({ message: "User not found or maybe logout" });
+  if (!user) return res.status(404).json({ message: "User not found" });
   if (!isValidPassword(newPassword))
     return res.status(401).json({ message: "Invalid password" });
   if (newPassword !== confirmPassword)
@@ -1113,42 +1132,66 @@ const getUserBondsmanInfo = asyncHandler(
 
 const createOrUpdateCheckIn = asyncHandler(
   async (req: Request, res: Response) => {
+    console.log("API_HIT", req.body);
+
     const userId = req.user?._id;
     const { lat, long } = req.body;
 
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
+
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
 
-    if (!req.file || !req.file.buffer) {
-      return res.status(400).json({
-        message: "Please upload an image",
-      });
+    let uploadedImageUrl = null;
+
+    // Optional image upload
+    if (req.file && req.file.buffer) {
+      const imgUpload = await uploadToCloudinary(req.file.buffer);
+      if (!imgUpload)
+        return res.status(400).json({ message: "Image upload failed" });
+
+      uploadedImageUrl = imgUpload.secure_url;
     }
-    // Check if user already has a check-in
+
+    // Check existing check-in
     let checkIn = await CheckIn.findOne({
       user: userId,
       createdAt: { $gte: startOfToday, $lte: endOfToday },
     });
-    const imgUpload = await uploadToCloudinary(req.file?.buffer);
-    console.log({ imgUpload });
-    if (!imgUpload)
-      return res.status(400).json({ message: "Image upload fail" });
+
+    const now = new Date();
 
     if (checkIn) {
-      // Update existing check-in
-      (checkIn.photoUrl = imgUpload.secure_url),
-        (checkIn.location.lat = lat),
-        (checkIn.location.long = long);
+      // Compare existing values
+      const sameLat = Number(checkIn.location.lat) === Number(lat);
+      const sameLong = Number(checkIn.location.long) === Number(long);
+      const samePhoto =
+        !uploadedImageUrl || uploadedImageUrl === checkIn.photoUrl;
+
+      const isSameData = sameLat && sameLong && samePhoto;
+
+      if (isSameData) {
+        checkIn.set("createdAt", now);
+        checkIn.set("updatedAt", now);
+      } else {
+        checkIn.location.lat = lat;
+        checkIn.location.long = long;
+
+        if (uploadedImageUrl) {
+          checkIn.photoUrl = uploadedImageUrl;
+        }
+
+        checkIn.set("updatedAt", now);
+      }
+
       await checkIn.save();
     } else {
-      // Create new check-in
+      // Create new document
       checkIn = await CheckIn.create({
         user: userId,
-        photoUrl: imgUpload.secure_url,
-        "location.lat": lat,
-        "location.long": long,
+        photoUrl: uploadedImageUrl || null,
+        location: { lat, long },
       });
     }
 
@@ -1157,7 +1200,7 @@ const createOrUpdateCheckIn = asyncHandler(
       checkIn: {
         createdAt: checkIn.createdAt,
         updatedAt: checkIn.updatedAt,
-        cameraImage: imgUpload.secure_url,
+        photoUrl: checkIn.photoUrl || null,
         location: checkIn.location,
       },
     });
@@ -1185,32 +1228,73 @@ const checkOut = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?._id;
   const { lat, long } = req.body;
 
-  // Check if user already has a check-in
-  let checkOut = await CheckOut.findOne({ user: userId });
-  const imgUpload = await uploadToCloudinary(req.file?.buffer);
-  if (!imgUpload) return res.status(400).json({ message: "Image upload fail" });
+  // Define today's date range
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+
+  let uploadedImageUrl = null;
+
+  // Optional image upload
+  if (req.file && req.file.buffer) {
+    const imgUpload = await uploadToCloudinary(req.file.buffer);
+
+    if (!imgUpload)
+      return res.status(400).json({ message: "Image upload failed" });
+
+    uploadedImageUrl = imgUpload.secure_url;
+  }
+
+  // Check if today's checkout already exists
+  let checkOut = await CheckOut.findOne({
+    user: userId,
+    createdAt: { $gte: startOfToday, $lte: endOfToday },
+  });
+
+  const now = new Date();
+
   if (checkOut) {
-    // Update existing check-in
-    (checkOut.photoUrl = imgUpload.secure_url),
-      (checkOut.location.lat = lat),
-      (checkOut.location.long = long);
+    // Compare existing data
+    const sameLat = Number(checkOut.location.lat) === Number(lat);
+    const sameLong = Number(checkOut.location.long) === Number(long);
+    const samePhoto =
+      !uploadedImageUrl || uploadedImageUrl === checkOut.photoUrl;
+
+    const isSameData = sameLat && sameLong && samePhoto;
+
+    if (isSameData) {
+      // Refresh timestamps only
+      checkOut.set("updatedAt", now);
+    } else {
+      // Update changed fields
+      checkOut.location.lat = lat;
+      checkOut.location.long = long;
+
+      if (uploadedImageUrl) {
+        checkOut.photoUrl = uploadedImageUrl;
+      }
+
+      checkOut.set("updatedAt", now);
+    }
+
     await checkOut.save();
   } else {
-    // Create new check-in
+    // Create a new checkout record
     checkOut = await CheckOut.create({
       user: userId,
-      photoUrl: imgUpload.secure_url,
-      "location.lat": lat,
-      "location.long": long,
+      photoUrl: uploadedImageUrl || null,
+      location: { lat, long },
     });
   }
 
   return res.status(200).json({
-    message: "Check-in recorded",
+    message: "Checkout recorded",
     checkOut: {
       createdAt: checkOut.createdAt,
       updatedAt: checkOut.updatedAt,
-      cameraImage: imgUpload.secure_url,
+      photoUrl: checkOut.photoUrl || null,
       location: checkOut.location,
     },
   });
