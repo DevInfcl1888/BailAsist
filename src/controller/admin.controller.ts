@@ -453,7 +453,7 @@ const getAllUsers = asyncHandler(async (req: Request, res: Response) => {
     return res.status(403).json({ message: "only admin can allow this route" });
   const allUsers = await User.find({}).select("-password -refreshToken");
   if (allUsers.length === 0)
-    return res.status(404).json({ message: "No data found" });
+    return res.status(200).json({ message: "No data found" });
   return res.status(200).json({ messag: "All users get", User: allUsers });
 });
 
@@ -472,6 +472,29 @@ const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
     .status(200)
     .json({ message: "User profile deleted", deletedUserInfo });
 });
+
+const deleteBondsmanProfile = asyncHandler(
+  async (req: Request, res: Response) => {
+    const isAdmin = await Admin.findById(req.user?._id);
+    if (!isAdmin)
+      return res
+        .status(403)
+        .json({ message: "only admin can allow this route" });
+    const { id } = req.params;
+    const BondsmanUserInfo = await Bondsman.deleteOne({ _id: id });
+
+    if (BondsmanUserInfo.deletedCount !== 1)
+      return res
+        .status(401)
+        .json({
+          message: "Bondsman profile can't be deleted",
+          BondsmanUserInfo,
+        });
+    return res
+      .status(200)
+      .json({ message: "Bondsman profile deleted", BondsmanUserInfo });
+  }
+);
 export {
   adminSignUp,
   adminLogin,
@@ -491,4 +514,5 @@ export {
   verifyToken,
   getAllUsers,
   deleteUserProfile,
+  deleteBondsmanProfile
 };

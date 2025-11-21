@@ -422,7 +422,8 @@ const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
     },
     { new: true }
   );
-  const isReminderCreated = await Reminder.findById(createReminder?._id
+  const isReminderCreated = await Reminder.findById(
+    createReminder?._id
   ).populate([
     {
       path: "user",
@@ -540,6 +541,27 @@ const getAd = asyncHandler(async (req: Request, res: Response) => {
     .json({ message: `${fetchedAd[0].adImg.length} ad found`, fetchedAd });
 });
 
+const deleteBondsmanProfile = asyncHandler(
+  async (req: Request, res: Response) => {
+    const isAdmin = await Admin.findById(req.user?._id);
+    if (!isAdmin)
+      return res
+        .status(403)
+        .json({ message: "only admin can allow this route" });
+    const { id } = req.params;
+    const BondsmanUserInfo = await Bondsman.deleteOne({ _id: id });
+
+    if (BondsmanUserInfo.deletedCount !== 1)
+      return res.status(401).json({
+        message: "Bondsman profile can't be deleted",
+        BondsmanUserInfo,
+      });
+    return res
+      .status(200)
+      .json({ message: "Bondsman profile deleted", BondsmanUserInfo });
+  }
+);
+
 export {
   signUpAsBondsman,
   loginAsBondsman,
@@ -550,7 +572,7 @@ export {
   deleteUser,
   getAllUsersOfBondsman,
   updateUserDetailsByBondsman,
-  // userCheckInHistory,
+  deleteBondsmanProfile,
   setCourtReminders,
   getCourtReminderDetails,
   cancelReminder,
