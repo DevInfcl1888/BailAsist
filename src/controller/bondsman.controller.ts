@@ -1,34 +1,39 @@
 import { Request, Response } from "express";
 import { Bondsman, Court, Reminder, Status } from "../models/bondsman.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import {
-  isValidEmail,
-  isValidPassword,
-  isValidPhone,
-} from "../utils/dataValidators.js";
+import { isValidEmail, isValidPassword } from "../utils/dataValidators.js";
 import { User, CheckIn } from "../models/user.model.js";
 import { Admin } from "../models/admin.model.js";
 
 const signUpAsBondsman = asyncHandler(async (req: Request, res: Response) => {
-  const { BondsmanName, phoneNo, password, email, countryCode, address } =
-    req.body as {
-      BondsmanName: string;
-      phoneNo: string;
-      password: string;
-      email: string;
-      countryCode: string;
-      address: string;
-    };
-  if (!isValidPhone(phoneNo))
-    return res.status(400).json({ message: "Invalid phone number" });
+  const {
+    BondsmanName,
+    phoneNo,
+    password,
+    confirmPassword,
+    email,
+    countryCode,
+    address,
+  } = req.body as {
+    BondsmanName: string;
+    phoneNo: string;
+    password: string;
+    confirmPassword: string;
+    email: string;
+    countryCode: string;
+    address: string;
+  };
   if (!isValidEmail(email))
     return res.status(400).json({ message: "Invalid email" });
-  if (!isValidPassword(password))
-    return res.status(401).json({
+  if (!isValidPassword(password) || !isValidPassword(confirmPassword))
+    return res.status(400).json({
       message:
         "Password must contain at least 1 uppercase, lowercase, number, and special character, and password should be upto 8 characters long",
     });
-
+  if (password !== confirmPassword)
+    return res
+      .status(400)
+      .json({ message: "Confirm password should be same as password" });
   const isBondsmanExist = await Bondsman.findOne({
     email: { $regex: new RegExp(`^${email}$`, "i") },
   });
@@ -66,8 +71,6 @@ const loginAsBondsman = asyncHandler(async (req: Request, res: Response) => {
   };
   if (!phone || !password)
     return res.status(404).json("Login can't complete without creadentials");
-  if (!isValidPhone(phone))
-    return res.status(400).json({ message: "Invalid Phone no." });
   const isExistBondsman = await Bondsman.findOne({ phoneNo: phone }).populate(
     "user",
     "_id firstName middleName lastName phone"
@@ -316,9 +319,7 @@ const updateUserDetailsByBondsman = asyncHandler(
     if (!isValidEmail(email)) {
       return res.status(404).json({ message: "Invalid email" });
     }
-    if (!isValidPhone(phoneNo)) {
-      return res.status(404).json({ message: "Invalid phone no." });
-    }
+
     if (street.length > 100 || ZipCode.length > 11)
       return res
         .status(400)

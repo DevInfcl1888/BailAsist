@@ -5,7 +5,6 @@ import {
   isValidData,
   isValidEmail,
   isValidPassword,
-  isValidPhone,
 } from "../utils/dataValidators.js";
 import {
   ResidenceInfo,
@@ -80,9 +79,6 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
       message:
         "Password must contain at least 1 uppercase, lowercase, number, and special character, and password should be upto 8 characters long",
     });
-  if (!isValidPhone(phoneNo)) {
-    return res.status(400).json({ message: "Invalid phone no." });
-  }
   if (homeAddress.length < 10 || homeAddress.length > 100)
     return res.status(400).json({
       message: "Home address must be between 10 and 100 characters long.",
@@ -296,9 +292,6 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
   }
   if (!isValidEmail(email)) {
     return res.status(404).json({ message: "Invalid email" });
-  }
-  if (!isValidPhone(phoneNo)) {
-    return res.status(404).json({ message: "Invalid phone no." });
   }
   if (street.length > 100 || ZipCode.length > 11)
     return res.status(400).json({ message: "Street or ZIP code is too long" });
@@ -579,8 +572,6 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
     });
   if (!isValidEmail(email))
     return res.status(400).json({ message: "Invalid email" });
-  if (!isValidPhone(phoneNo))
-    return res.status(400).json({ message: "Invalid phone" });
   const user = await User.findById(req.user?._id);
   if (!user) return res.status(404).json({ message: "User not found" });
   const data = {
@@ -658,8 +649,6 @@ const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
       message:
         "Invalid attorney name. please use only alphabets and it should be more then 3 charater",
     });
-  if (!isValidPhone(attorneyPhoneNo))
-    return res.status(400).json({ message: "Phone no is Invalid" });
   const user = await User.findById(req.user?._id);
   if (!user) return res.status(404).json({ message: "User not found" });
   let legalInfoDoc;
@@ -890,98 +879,6 @@ const getDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
-// const addPersonalRefrenceInfo = asyncHandler(
-//   async (req: Request, res: Response) => {
-//     const {
-//       otherFamilyMemberName_1,
-//       otherFamilyMemberAddress_1,
-//       otherFamilyMemberPhoneNo_1,
-//       knownDuration_1,
-//       otherFamilyMemberName_2,
-//       otherFamilyMemberAddress_2,
-//       otherFamilyMemberPhoneNo_2,
-//       knownDuration_2,
-//       otherFamilyMemberName_3,
-//       otherFamilyMemberAddress_3,
-//       otherFamilyMemberPhoneNo_3,
-//       knownDuration_3,
-//     } = req.body as {
-//       otherFamilyMemberName_1: string;
-//       otherFamilyMemberAddress_1: string;
-//       otherFamilyMemberPhoneNo_1: string;
-//       knownDuration_1: string;
-//       otherFamilyMemberName_2: string;
-//       otherFamilyMemberAddress_2: string;
-//       otherFamilyMemberPhoneNo_2: string;
-//       knownDuration_2: string;
-//       otherFamilyMemberName_3: string;
-//       otherFamilyMemberAddress_3: string;
-//       otherFamilyMemberPhoneNo_3: string;
-//       knownDuration_3: string;
-//     };
-//     const { personalRefId } = req.body;
-//     if (
-//       !isValidData(otherFamilyMemberName_1) ||
-//       !isValidData(otherFamilyMemberName_2) ||
-//       !isValidData(otherFamilyMemberName_3)
-//     )
-//       return res.status(400).json({ message: "Invalid name" });
-//     if (
-//       !isValidPhone(otherFamilyMemberPhoneNo_1) ||
-//       !isValidPhone(otherFamilyMemberPhoneNo_2) ||
-//       !isValidPhone(otherFamilyMemberPhoneNo_3)
-//     )
-//       return res.status(400).json({ message: "Invalid phone" });
-
-//     const data = {
-//       user: req.user?._id,
-//       otherFamilyMemberName_1,
-//       otherFamilyMemberAddress_1,
-//       otherFamilyMemberPhoneNo_1,
-//       knownDuration_1: `${knownDuration_1} Yr`,
-//       otherFamilyMemberName_2,
-//       otherFamilyMemberAddress_2,
-//       otherFamilyMemberPhoneNo_2,
-//       knownDuration_2: `${knownDuration_2} Yr`,
-//       otherFamilyMemberName_3,
-//       otherFamilyMemberAddress_3,
-//       otherFamilyMemberPhoneNo_3,
-//       knownDuration_3: `${knownDuration_3} Yr`,
-//     };
-
-//     let personalRefDoc;
-//     const user = await User.findById(req.user?._id);
-//     if (!user) return res.status(404).json({ message: "User not found" });
-//     if (personalRefId) {
-//       personalRefDoc = await personalRefrenceInfo.findByIdAndUpdate(
-//         personalRefId,
-//         { $set: data },
-//         { new: true }
-//       );
-
-//       if (!personalRefDoc)
-//         return res.status(401).json({ message: "Data not found or update" });
-//     } else {
-//       personalRefDoc = await personalRefrenceInfo.findOneAndUpdate(
-//         { user: req.user?._id }, // find existing record for user
-//         { $set: data },
-//         { new: true, upsert: true } // create if not found
-//       );
-//     }
-//     const accessToken = user.generateAccessToken();
-//     const refreshToken = user.generateRefreshToken();
-//     if (!personalRefDoc)
-//       return res.status(500).json({ message: "Internal Server error" });
-//     return res.status(200).json({
-//       message: personalRefId
-//         ? "Updated successfully"
-//         : "Data save successfully",
-//       accessToken: accessToken,
-//       refreshToken: refreshToken,
-//     });
-//   }
-// );
-
 const addPersonalRefrenceInfo = asyncHandler(
   async (req: Request, res: Response) => {
     const { familyMembers, personalRefId } = req.body;
@@ -995,11 +892,6 @@ const addPersonalRefrenceInfo = asyncHandler(
     for (const m of familyMembers) {
       if (!isValidData(m.name)) {
         return res.status(400).json({ message: `${m.name} is Invalid name` });
-      }
-      if (!isValidPhone(m.phoneNo)) {
-        return res
-          .status(400)
-          .json({ message: `${m.phoneNo} Invalid phone number` });
       }
     }
 
@@ -1163,7 +1055,9 @@ const getEmployementStatus = asyncHandler(
 
 const getUserBondsmanInfo = asyncHandler(
   async (req: Request, res: Response) => {
-    const isBondsmanExist = await User.findById(req.user?._id).populate("reminders");
+    const isBondsmanExist = await User.findById(req.user?._id).populate(
+      "reminders"
+    );
     if (!isBondsmanExist)
       return res.status(404).json({ message: "User not found" });
     const accessToken = isBondsmanExist.generateAccessToken();
@@ -1191,7 +1085,7 @@ const createOrUpdateCheckIn = asyncHandler(
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
 
-    let uploadedImageUrl = null;
+    let uploadedImageUrl: string;
 
     // Optional image upload
     if (req.file && req.file.buffer) {

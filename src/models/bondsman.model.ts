@@ -9,6 +9,7 @@ interface IBondsman extends Document {
   address: string;
   email: string;
   password: string;
+  confirmPassword: string;
   countryCode: string;
   deviceToken?: string;
   user: Types.ObjectId[];
@@ -53,6 +54,7 @@ const BondsmanSchema = new Schema<IBondsman>(
     phoneNo: { type: String, required: true, trim: true },
     address: { type: String, required: true, trim: true },
     password: { type: String, required: true, trim: true },
+    confirmPassword: { type: String, required: true, trim: true },
     email: { type: String, required: true, trim: true },
     countryCode: { type: String, trim: true },
     isActive: { type: Boolean, default: true },

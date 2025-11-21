@@ -5,7 +5,6 @@ import {
   isValidData,
   isValidEmail,
   isValidPassword,
-  isValidPhone,
 } from "../utils/dataValidators.js";
 import { Bondsman } from "../models/bondsman.model.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
@@ -29,8 +28,6 @@ const adminSignUp = asyncHandler(async (req: Request, res: Response) => {
     return res.status(401).json({ message: "Invalid username." });
   if (!isValidEmail(email))
     return res.status(401).json({ message: "Invalid email" });
-  if (!isValidPhone(phoneNo))
-    return res.status(401).json({ message: "Invalid phone" });
   if (!isValidPassword(password))
     return res.status(401).json({
       message:
@@ -142,8 +139,6 @@ const createNewBondsman = asyncHandler(async (req: Request, res: Response) => {
     return res.status(404).json({ message: "Bondsman already exist" });
   if (!isValidData(name))
     return res.status(401).json({ message: "Invalid name" });
-  if (!isValidPhone(phoneNo))
-    return res.status(401).json({ message: "Invalid phone" });
   if (!isValidPassword(password))
     return res.status(401).json({
       message:
@@ -412,7 +407,7 @@ const getBondsmanDetails = asyncHandler(async (req: Request, res: Response) => {
     .populate("user", "_id firstName middleName lastName email phoneNo");
 
   if (isBondsmanAllExist.length === 0)
-    return res.status(404).json({ message: "No bondsman found" });
+    return res.status(200).json({ message: "No bondsman found" });
   return res.status(200).json({
     message: `${isBondsmanAllExist.length} Bondsman found`,
     isBondsmanAllExist,
@@ -484,12 +479,10 @@ const deleteBondsmanProfile = asyncHandler(
     const BondsmanUserInfo = await Bondsman.deleteOne({ _id: id });
 
     if (BondsmanUserInfo.deletedCount !== 1)
-      return res
-        .status(401)
-        .json({
-          message: "Bondsman profile can't be deleted",
-          BondsmanUserInfo,
-        });
+      return res.status(401).json({
+        message: "Bondsman profile can't be deleted",
+        BondsmanUserInfo,
+      });
     return res
       .status(200)
       .json({ message: "Bondsman profile deleted", BondsmanUserInfo });
@@ -514,5 +507,5 @@ export {
   verifyToken,
   getAllUsers,
   deleteUserProfile,
-  deleteBondsmanProfile
+  deleteBondsmanProfile,
 };

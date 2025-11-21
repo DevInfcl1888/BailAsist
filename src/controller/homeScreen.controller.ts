@@ -1,11 +1,7 @@
 import { Request, Response } from "express";
 import { Court } from "../models/bondsman.model.js"; // Models
 import { asyncHandler } from "../utils/asyncHandler.js"; // to handle async errors
-import {
-  isValidEmail,
-  isValidPhone,
-  isValidData,
-} from "../utils/dataValidators.js"; // data validators
+import { isValidEmail, isValidData } from "../utils/dataValidators.js"; // data validators
 
 // Create court details
 const createCourt = asyncHandler(async (req: Request, res: Response) => {
@@ -54,8 +50,6 @@ const createCourt = asyncHandler(async (req: Request, res: Response) => {
 
   if (!isValidEmail(courtEmail))
     return res.status(400).json({ message: "Invalid email" });
-  if (!isValidPhone(courtContactNo))
-    return res.status(400).json({ message: "Invalid Phone no" });
 
   const court = await Court.create({
     courtName,
