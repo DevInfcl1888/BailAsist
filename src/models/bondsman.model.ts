@@ -36,19 +36,14 @@ interface ICourt extends Document {
   reminders: Schema.Types.ObjectId[];
 }
 
-export enum ReminderStatus {
-  Active = "Active",
-  Cancelled = "Cancelled",
-  Completed = "Completed",
-}
 
 interface ICourtReminder extends Document {
   user: Schema.Types.ObjectId;
   court: Schema.Types.ObjectId;
-  caseNumber: string;
+  roomNumber: string;
   reminderDate: Date;
   reminderNote?: string;
-  status: ReminderStatus;
+  status: string;
   isActive: boolean;
 }
 // ------- Schemas -------
@@ -130,13 +125,12 @@ const ReminderSchema = new Schema<ICourtReminder>(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     court: { type: Schema.Types.ObjectId, ref: "Court", required: true },
-    caseNumber: { type: String, required: true },
+    roomNumber: { type: String, required: true },
     reminderDate: { type: Date, required: true },
     reminderNote: { type: String },
     status: {
       type: String,
-      enum: Object.values(ReminderStatus),
-      default: ReminderStatus.Active,
+      required: true
     },
     isActive: { type: Boolean, default: true },
   },

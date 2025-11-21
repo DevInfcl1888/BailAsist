@@ -10,14 +10,15 @@ import { User, CheckIn } from "../models/user.model.js";
 import { Admin } from "../models/admin.model.js";
 
 const signUpAsBondsman = asyncHandler(async (req: Request, res: Response) => {
-  const { BondsmanName, phoneNo, password, email, countryCode, address } = req.body as {
-    BondsmanName: string;
-    phoneNo: string;
-    password: string;
-    email: string;
-    countryCode: string;
-    address: string;
-  };
+  const { BondsmanName, phoneNo, password, email, countryCode, address } =
+    req.body as {
+      BondsmanName: string;
+      phoneNo: string;
+      password: string;
+      email: string;
+      countryCode: string;
+      address: string;
+    };
   if (!isValidPhone(phoneNo))
     return res.status(400).json({ message: "Invalid phone number" });
   if (!isValidEmail(email))
@@ -42,7 +43,7 @@ const signUpAsBondsman = asyncHandler(async (req: Request, res: Response) => {
     password,
     email,
     countryCode,
-    address
+    address,
   });
   const accessToken = createBondsman.generateAccessToken();
 
@@ -371,12 +372,12 @@ const updateUserDetailsByBondsman = asyncHandler(
   }
 );
 
-
 const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
-  const { caseNumber, reminderDate, reminderNote } = req.body as {
-    caseNumber: string;
+  const { roomNumber, reminderDate, reminderNote, status } = req.body as {
+    roomNumber: string;
     reminderDate: Date;
     reminderNote?: string;
+    status: string;
   };
   const { userId, courtId } = req.params;
   const isUserExist = await User.findById(userId).select("-password");
@@ -384,7 +385,8 @@ const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
   if (!isUserExist) return res.status(404).json({ message: "User not found" });
   if (!isCourtExist)
     return res.status(404).json({ message: "Court not found" });
-  if (!caseNumber.trim() || !reminderDate)
+  if (!status) return res.status(400).json({ message: "Status is empty" });
+  if (!roomNumber.trim() || !reminderDate)
     return res
       .status(401)
       .json({ message: "Case number, Reminder date cannot be empty" });
@@ -397,9 +399,10 @@ const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
   const createReminder = await Reminder.create({
     user: userId,
     court: courtId,
-    caseNumber,
+    roomNumber,
     reminderDate,
     reminderNote,
+    status,
   });
   await User.findByIdAndUpdate(
     userId,
@@ -419,8 +422,7 @@ const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
     },
     { new: true }
   );
-  const isReminderCreated = await Reminder.findById(
-    createReminder?._id
+  const isReminderCreated = await Reminder.findById(createReminder?._id
   ).populate([
     {
       path: "user",
