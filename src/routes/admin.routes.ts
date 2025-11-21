@@ -17,6 +17,7 @@ import {
   verifyToken,
   getAllUsers,
   deleteUserProfile,
+  deleteBondsmanProfile
 } from "../controller/admin.controller.js";
 import { Router } from "express";
 import { authMiddlewareForWeb } from "../middlewares/auth.middlewares.js";
@@ -63,6 +64,9 @@ router
 router
   .route("/deleteUserProfile/:id")
   .delete(authMiddlewareForWeb, deleteUserProfile); // delete user profile
+router
+  .route("/deleteBondsmanProfile/:id")
+  .delete(authMiddlewareForWeb, deleteBondsmanProfile); // delete user profile
 
 // router.get("/verifyToken", authMiddlewareForWeb,
 router.route("/verifyToken").get(authMiddlewareForWeb, verifyToken);

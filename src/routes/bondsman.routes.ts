@@ -2,15 +2,13 @@ import {
   signUpAsBondsman,
   loginAsBondsman,
   logoutAsBondsman,
-  // creatCheckIn,
   searchByPhoneNumber,
   deleteCheckIn,
   addUser,
   deleteUser,
   getAllUsersOfBondsman,
   updateUserDetailsByBondsman,
-  // getUserCheckInStatus,
-  // userCheckInHistory,
+  deleteBondsmanProfile,
   setCourtReminders,
   getCourtReminderDetails,
   cancelReminder,
@@ -54,5 +52,8 @@ router.route("/getAd").get(authMiddlewareForWeb, getAd);
 router
   .route("/deleteReminder/:reminderId")
   .post(authMiddlewareForWeb, deleteReminder);
+router
+  .route("/deleteBondsmanProfile/:id")
+  .delete(authMiddlewareForWeb, deleteBondsmanProfile);
 
 export default router;
