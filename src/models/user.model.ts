@@ -23,18 +23,12 @@ interface residenceInfo extends Document {
 //  --------------------- Personal Refrence Information --------------------
 interface personalRefrenceInfo extends Document {
   user: Schema.Types.ObjectId;
-  otherFamilyMemberName_1: string;
-  otherFamilyMemberAddress_1: string;
-  otherFamilyMemberPhoneNo_1: string;
-  knownDuration_1: string;
-  otherFamilyMemberName_2: string;
-  otherFamilyMemberAddress_2: string;
-  otherFamilyMemberPhoneNo_2: string;
-  knownDuration_2: string;
-  otherFamilyMemberName_3: string;
-  otherFamilyMemberAddress_3: string;
-  otherFamilyMemberPhoneNo_3: string;
-  knownDuration_3: string;
+  familyMembers: {
+    name: string;
+    address: string;
+    phoneNo: string;
+    knownDuration: string;
+  }[];
 }
 
 //  --------------------- Personal Information --------------------
@@ -315,66 +309,16 @@ const personalRefrenceInfoSchema = new Schema<personalRefrenceInfo>({
     required: true,
     unique: true,
   },
-  otherFamilyMemberName_1: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  otherFamilyMemberAddress_1: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  otherFamilyMemberPhoneNo_1: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  knownDuration_1: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  otherFamilyMemberName_2: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  otherFamilyMemberAddress_2: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  otherFamilyMemberPhoneNo_2: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  knownDuration_2: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  otherFamilyMemberName_3: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  otherFamilyMemberAddress_3: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  otherFamilyMemberPhoneNo_3: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  knownDuration_3: {
-    type: String,
-    required: true,
-    trim: true,
-  },
+
+  // <-- ARRAY OF OBJECTS
+  familyMembers: [
+    {
+      name: { type: String, required: true, trim: true },
+      address: { type: String, required: true, trim: true },
+      phoneNo: { type: String, required: true, trim: true },
+      knownDuration: { type: String, required: true, trim: true }, // e.g. "2 Yr"
+    },
+  ],
 });
 const legalInfoSchema = new Schema<legalInfo>({
   //  --------------------- Legal Information --------------------
