@@ -16,6 +16,7 @@ import {
   getTotalUsersCount,
   verifyToken,
   getAllUsers,
+  deleteUserProfile,
 } from "../controller/admin.controller.js";
 import { Router } from "express";
 import { authMiddlewareForWeb } from "../middlewares/auth.middlewares.js";
@@ -59,6 +60,9 @@ router
 router
   .route("/getTotalUsersCount")
   .get(authMiddlewareForWeb, getTotalUsersCount); // get All User count bondsman
+router
+  .route("/deleteUserProfile/:id")
+  .delete(authMiddlewareForWeb, deleteUserProfile); // delete user profile
 
 // router.get("/verifyToken", authMiddlewareForWeb,
 router.route("/verifyToken").get(authMiddlewareForWeb, verifyToken);

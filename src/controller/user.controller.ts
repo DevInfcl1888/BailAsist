@@ -1,6 +1,5 @@
 import express, { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { Status } from "../models/bondsman.model.js"; // enums
 import {
   isDateValid,
   isValidData,
@@ -998,7 +997,9 @@ const addPersonalRefrenceInfo = asyncHandler(
         return res.status(400).json({ message: `${m.name} is Invalid name` });
       }
       if (!isValidPhone(m.phoneNo)) {
-        return res.status(400).json({ message: `${m.phoneNo} Invalid phone number` });
+        return res
+          .status(400)
+          .json({ message: `${m.phoneNo} Invalid phone number` });
       }
     }
 
@@ -1162,7 +1163,7 @@ const getEmployementStatus = asyncHandler(
 
 const getUserBondsmanInfo = asyncHandler(
   async (req: Request, res: Response) => {
-    const isBondsmanExist = await User.findById(req.user?._id);
+    const isBondsmanExist = await User.findById(req.user?._id).populate("reminders");
     if (!isBondsmanExist)
       return res.status(404).json({ message: "User not found" });
     const accessToken = isBondsmanExist.generateAccessToken();

@@ -457,6 +457,21 @@ const getAllUsers = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).json({ messag: "All users get", User: allUsers });
 });
 
+const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
+  const isAdmin = await Admin.findById(req.user?._id);
+  if (!isAdmin)
+    return res.status(403).json({ message: "only admin can allow this route" });
+  const { id } = req.params;
+  const deletedUserInfo = await User.deleteOne({ _id: id });
+
+  if (deletedUserInfo.deletedCount !== 1)
+    return res
+      .status(401)
+      .json({ message: "User profile can't be deleted", deletedUserInfo });
+  return res
+    .status(200)
+    .json({ message: "User profile deleted", deletedUserInfo });
+});
 export {
   adminSignUp,
   adminLogin,
@@ -475,4 +490,5 @@ export {
   getTotalUsersCount,
   verifyToken,
   getAllUsers,
+  deleteUserProfile,
 };
