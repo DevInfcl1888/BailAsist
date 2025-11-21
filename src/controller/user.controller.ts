@@ -1060,6 +1060,8 @@ const getUserBondsmanInfo = asyncHandler(
     );
     if (!isBondsmanExist)
       return res.status(404).json({ message: "User not found" });
+    const getChekInData = await CheckIn.find({ user: req.user?._id });
+    console.log("getChekInData", getChekInData);
     const accessToken = isBondsmanExist.generateAccessToken();
     const refreshToken = isBondsmanExist.generateRefreshToken();
 
@@ -1068,6 +1070,7 @@ const getUserBondsmanInfo = asyncHandler(
       accessToken: accessToken,
       refreshToken: refreshToken,
       isBondsmanExist,
+      getChekInData,
     });
   }
 );
