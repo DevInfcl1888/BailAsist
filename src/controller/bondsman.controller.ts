@@ -377,7 +377,7 @@ const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
     roomNumber: string;
     reminderDate: Date;
     reminderNote?: string;
-    status: Date;
+    status: string;
   };
   const { userId, courtId } = req.params;
   const isUserExist = await User.findById(userId).select("-password");
