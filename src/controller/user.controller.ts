@@ -891,111 +891,158 @@ const getDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+// const addPersonalRefrenceInfo = asyncHandler(
+//   async (req: Request, res: Response) => {
+//     const {
+//       otherFamilyMemberName_1,
+//       otherFamilyMemberAddress_1,
+//       otherFamilyMemberPhoneNo_1,
+//       knownDuration_1,
+//       otherFamilyMemberName_2,
+//       otherFamilyMemberAddress_2,
+//       otherFamilyMemberPhoneNo_2,
+//       knownDuration_2,
+//       otherFamilyMemberName_3,
+//       otherFamilyMemberAddress_3,
+//       otherFamilyMemberPhoneNo_3,
+//       knownDuration_3,
+//     } = req.body as {
+//       otherFamilyMemberName_1: string;
+//       otherFamilyMemberAddress_1: string;
+//       otherFamilyMemberPhoneNo_1: string;
+//       knownDuration_1: string;
+//       otherFamilyMemberName_2: string;
+//       otherFamilyMemberAddress_2: string;
+//       otherFamilyMemberPhoneNo_2: string;
+//       knownDuration_2: string;
+//       otherFamilyMemberName_3: string;
+//       otherFamilyMemberAddress_3: string;
+//       otherFamilyMemberPhoneNo_3: string;
+//       knownDuration_3: string;
+//     };
+//     const { personalRefId } = req.body;
+//     if (
+//       !isValidData(otherFamilyMemberName_1) ||
+//       !isValidData(otherFamilyMemberName_2) ||
+//       !isValidData(otherFamilyMemberName_3)
+//     )
+//       return res.status(400).json({ message: "Invalid name" });
+//     if (
+//       !isValidPhone(otherFamilyMemberPhoneNo_1) ||
+//       !isValidPhone(otherFamilyMemberPhoneNo_2) ||
+//       !isValidPhone(otherFamilyMemberPhoneNo_3)
+//     )
+//       return res.status(400).json({ message: "Invalid phone" });
+
+//     const data = {
+//       user: req.user?._id,
+//       otherFamilyMemberName_1,
+//       otherFamilyMemberAddress_1,
+//       otherFamilyMemberPhoneNo_1,
+//       knownDuration_1: `${knownDuration_1} Yr`,
+//       otherFamilyMemberName_2,
+//       otherFamilyMemberAddress_2,
+//       otherFamilyMemberPhoneNo_2,
+//       knownDuration_2: `${knownDuration_2} Yr`,
+//       otherFamilyMemberName_3,
+//       otherFamilyMemberAddress_3,
+//       otherFamilyMemberPhoneNo_3,
+//       knownDuration_3: `${knownDuration_3} Yr`,
+//     };
+
+//     let personalRefDoc;
+//     const user = await User.findById(req.user?._id);
+//     if (!user) return res.status(404).json({ message: "User not found" });
+//     if (personalRefId) {
+//       personalRefDoc = await personalRefrenceInfo.findByIdAndUpdate(
+//         personalRefId,
+//         { $set: data },
+//         { new: true }
+//       );
+
+//       if (!personalRefDoc)
+//         return res.status(401).json({ message: "Data not found or update" });
+//     } else {
+//       personalRefDoc = await personalRefrenceInfo.findOneAndUpdate(
+//         { user: req.user?._id }, // find existing record for user
+//         { $set: data },
+//         { new: true, upsert: true } // create if not found
+//       );
+//     }
+//     const accessToken = user.generateAccessToken();
+//     const refreshToken = user.generateRefreshToken();
+//     if (!personalRefDoc)
+//       return res.status(500).json({ message: "Internal Server error" });
+//     return res.status(200).json({
+//       message: personalRefId
+//         ? "Updated successfully"
+//         : "Data save successfully",
+//       accessToken: accessToken,
+//       refreshToken: refreshToken,
+//     });
+//   }
+// );
+
 const addPersonalRefrenceInfo = asyncHandler(
   async (req: Request, res: Response) => {
-    const {
-      otherFamilyMemberName_1,
-      otherFamilyMemberAddress_1,
-      otherFamilyMemberPhoneNo_1,
-      knownDuration_1,
-      otherFamilyMemberName_2,
-      otherFamilyMemberAddress_2,
-      otherFamilyMemberPhoneNo_2,
-      knownDuration_2,
-      otherFamilyMemberName_3,
-      otherFamilyMemberAddress_3,
-      otherFamilyMemberPhoneNo_3,
-      knownDuration_3,
-    } = req.body as {
-      otherFamilyMemberName_1: string;
-      otherFamilyMemberAddress_1: string;
-      otherFamilyMemberPhoneNo_1: string;
-      knownDuration_1: string;
-      otherFamilyMemberName_2: string;
-      otherFamilyMemberAddress_2: string;
-      otherFamilyMemberPhoneNo_2: string;
-      knownDuration_2: string;
-      otherFamilyMemberName_3: string;
-      otherFamilyMemberAddress_3: string;
-      otherFamilyMemberPhoneNo_3: string;
-      knownDuration_3: string;
-    };
-    const { personalRefId } = req.body;
-    if (
-      !otherFamilyMemberName_1.trim() ||
-      !otherFamilyMemberAddress_1.trim() ||
-      !otherFamilyMemberPhoneNo_1.trim() ||
-      !knownDuration_1.trim() ||
-      !otherFamilyMemberName_2.trim() ||
-      !otherFamilyMemberAddress_2.trim() ||
-      !otherFamilyMemberPhoneNo_2.trim() ||
-      !knownDuration_2.trim() ||
-      !otherFamilyMemberName_3.trim() ||
-      !otherFamilyMemberAddress_3.trim() ||
-      !otherFamilyMemberPhoneNo_3.trim() ||
-      !knownDuration_3.trim()
-    )
-      return res
-        .status(404)
-        .json({ message: "Required fields can't be empty" });
-    if (
-      !isValidData(otherFamilyMemberName_1) ||
-      !isValidData(otherFamilyMemberName_2) ||
-      !isValidData(otherFamilyMemberName_3)
-    )
-      return res.status(400).json({ message: "Invalid name" });
-    if (
-      !isValidPhone(otherFamilyMemberPhoneNo_1) ||
-      !isValidPhone(otherFamilyMemberPhoneNo_2) ||
-      !isValidPhone(otherFamilyMemberPhoneNo_3)
-    )
-      return res.status(400).json({ message: "Invalid phone" });
+    const { familyMembers, personalRefId } = req.body;
+    console.log("familyMembers", familyMembers);
+    // Validate array
+    if (!Array.isArray(familyMembers) || familyMembers.length === 0) {
+      return res.status(400).json({ message: "Family members required" });
+    }
 
-    const data = {
-      user: req.user?._id,
-      otherFamilyMemberName_1,
-      otherFamilyMemberAddress_1,
-      otherFamilyMemberPhoneNo_1,
-      knownDuration_1: `${knownDuration_1} Yr`,
-      otherFamilyMemberName_2,
-      otherFamilyMemberAddress_2,
-      otherFamilyMemberPhoneNo_2,
-      knownDuration_2: `${knownDuration_2} Yr`,
-      otherFamilyMemberName_3,
-      otherFamilyMemberAddress_3,
-      otherFamilyMemberPhoneNo_3,
-      knownDuration_3: `${knownDuration_3} Yr`,
-    };
+    // Validate each member
+    for (const m of familyMembers) {
+      if (!isValidData(m.name)) {
+        return res.status(400).json({ message: `${m.name} is Invalid name` });
+      }
+      if (!isValidPhone(m.phoneNo)) {
+        return res.status(400).json({ message: `${m.phoneNo} Invalid phone number` });
+      }
+    }
 
-    let personalRefDoc;
+    // Format knownDuration → add "Yr"
+    const formattedMembers = familyMembers.map((m) => ({
+      name: m.name,
+      address: m.address,
+      phoneNo: m.phoneNo,
+      knownDuration: `${m.knownDuration} Yr`,
+    }));
+    console.log("formattedMembers", formattedMembers);
     const user = await User.findById(req.user?._id);
     if (!user) return res.status(404).json({ message: "User not found" });
+    console.log("user", user);
+    let personalRefDoc;
+
+    // Update
     if (personalRefId) {
       personalRefDoc = await personalRefrenceInfo.findByIdAndUpdate(
         personalRefId,
-        { $set: data },
+        { $set: { user: req.user._id, familyMembers: formattedMembers } },
         { new: true }
       );
-
-      if (!personalRefDoc)
-        return res.status(401).json({ message: "Data not found or update" });
-    } else {
+    }
+    // Create / upsert
+    else {
       personalRefDoc = await personalRefrenceInfo.findOneAndUpdate(
-        { user: req.user?._id }, // find existing record for user
-        { $set: data },
-        { new: true, upsert: true } // create if not found
+        { user: req.user._id },
+        { $set: { familyMembers: formattedMembers } },
+        { new: true, upsert: true }
       );
     }
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
     if (!personalRefDoc)
-      return res.status(500).json({ message: "Internal Server error" });
+      return res.status(500).json({ message: "Internal server error" });
+
     return res.status(200).json({
       message: personalRefId
         ? "Updated successfully"
-        : "Data save successfully",
+        : "Data saved successfully",
       accessToken: accessToken,
       refreshToken: refreshToken,
+      personalRefDoc: personalRefDoc,
     });
   }
 );
@@ -1015,7 +1062,7 @@ const getPersonalRefrenceInfo = asyncHandler(
     const refreshToken = user.generateRefreshToken();
     return res.status(200).json({
       message: "Personal Ref Info data fetched",
-      personalRefInfo: personalRefInfo[0],
+      personalRefInfo: personalRefInfo,
       accessToken: accessToken,
       refreshToken: refreshToken,
     });
