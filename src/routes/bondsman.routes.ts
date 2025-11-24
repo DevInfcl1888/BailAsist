@@ -38,7 +38,7 @@ router
 router.route("/addUser/:userId").post(authMiddleware, addUser); // add user to bondsman
 router
   .route("/updateUserDetailsByBondsman/:userId")
-  .post(authMiddleware, updateUserDetailsByBondsman); // update user details by bondsman
+  .put(authMiddleware, updateUserDetailsByBondsman); // update user details by bondsman
 router
   .route("/setCourtReminders/:userId/:courtId")
   .post(authMiddleware, setCourtReminders);
