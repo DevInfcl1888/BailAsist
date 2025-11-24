@@ -86,25 +86,14 @@ const loginAsBondsman = asyncHandler(async (req: Request, res: Response) => {
   const accessToken = isExistBondsman.generateAccessToken();
   const refreshToken = isExistBondsman.generateRefreshToken();
 
-  return res
-    .status(200)
-    .cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: true,
-      maxAge: 15 * 60 * 1000,
-    })
-    .cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      maxAge: 15 * 24 * 60 * 60 * 1000,
-    })
-    .json({
-      message: "Bondsman login successfully",
-      data: {
-        isExistBondsman: isExistBondsman,
-        accessToken: `${accessToken}`,
-      },
-    });
+  return res.status(200).json({
+    message: "Bondsman login successfully",
+    data: {
+      isExistBondsman: isExistBondsman,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    },
+  });
 });
 
 const logoutAsBondsman = asyncHandler(async (req: Request, res: Response) => {

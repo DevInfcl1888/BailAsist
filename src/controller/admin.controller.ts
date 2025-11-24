@@ -68,25 +68,11 @@ const adminLogin = asyncHandler(async (req: Request, res: Response) => {
   const accessToken = isAdminExist[0].generateAccessToken();
   const refreshToken = isAdminExist[0].generateRefreshToken();
 
-  return res
-    .status(200)
-    .cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      maxAge: 15 * 60 * 1000,
-    })
-    .cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      maxAge: 15 * 24 * 60 * 60 * 1000,
-    })
-    .json({
-      message: "Admin logged-in",
-      accessToken: accessToken,
-      refreshToken: refreshToken,
-    });
+  return res.status(200).json({
+    message: "Admin logged-in",
+    accessToken: accessToken,
+    refreshToken: refreshToken,
+  });
 });
 
 const adminLogout = asyncHandler(async (req: Request, res: Response) => {
@@ -104,15 +90,7 @@ const adminLogout = asyncHandler(async (req: Request, res: Response) => {
   console.log(isAdminLogin);
   if (!isAdminLogin)
     return res.status(400).json({ message: "somthing went wrong" });
-  const opt = {
-    httpOnly: true,
-    secure: true,
-  };
-  return res
-    .status(200)
-    .clearCookie("accessToken", opt)
-    .clearCookie("refreshToken", opt)
-    .json({ message: "Admin is log out" });
+  return res.status(200).json({ message: "Admin is log out" });
 });
 
 const createNewBondsman = asyncHandler(async (req: Request, res: Response) => {
@@ -184,23 +162,11 @@ const adminLoginAsBondsman = asyncHandler(
     const refreshToken = isBondsmanExist.generateRefreshToken();
     isBondsmanExist.refreshToken = refreshToken;
     await isBondsmanExist.save({ validateBeforeSave: false });
-    return res
-      .status(200)
-      .cookie("accessToken", accessToken, {
-        httpOnly: true,
-        secure: true,
-        maxAge: 15 * 60 * 1000,
-      })
-      .cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: true,
-        maxAge: 15 * 24 * 60 * 60 * 1000,
-      })
-      .json({
-        message: "Admin is logged in as bondsman",
-        accessToken: accessToken,
-        refreshToken: refreshToken,
-      });
+    return res.status(200).json({
+      message: "Admin is logged in as bondsman",
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    });
   }
 );
 
@@ -217,15 +183,7 @@ const adminLogoutAsBondsman = asyncHandler(
         new: true,
       }
     );
-    const opt = {
-      httpOnly: true,
-      secure: true,
-    };
-    return res
-      .status(200)
-      .clearCookie("accessToken", opt)
-      .clearCookie("refreshToken", opt)
-      .json({ message: "Admin is logged out as bondsman" });
+    return res.status(200).json({ message: "Admin is logged out as bondsman" });
   }
 );
 

@@ -16,44 +16,44 @@ import {
   deleteReminder,
 } from "../controller/bondsman.controller.js";
 import { Router } from "express";
-import { authMiddlewareForWeb } from "../middlewares/auth.middlewares.js";
+import { authMiddleware } from "../middlewares/auth.middlewares.js";
 
 const router = Router();
 
 // Bondsman screen
 router.route("/signUpAsBondsman").post(signUpAsBondsman); // sign Up
 router.route("/loginAsBondsman").post(loginAsBondsman); // login
-router.route("/logoutAsBondsman").post(authMiddlewareForWeb, logoutAsBondsman); // logout
-// router.route("/creatCheckIn/:userId").post(authMiddlewareForWeb, creatCheckIn); // create check in
+router.route("/logoutAsBondsman").post(authMiddleware, logoutAsBondsman); // logout
+// router.route("/creatCheckIn/:userId").post(authMiddleware, creatCheckIn); // create check in
 router
   .route("/searchByPhoneNumber")
-  .get(authMiddlewareForWeb, searchByPhoneNumber); // search by phone no
+  .get(authMiddleware, searchByPhoneNumber); // search by phone no
 router
   .route("/deleteCheckIn/:checkIn_Id")
-  .post(authMiddlewareForWeb, deleteCheckIn); // delete check in
-router.route("/deleteUser/:userId").delete(authMiddlewareForWeb, deleteUser); // delete user from bondsman
+  .post(authMiddleware, deleteCheckIn); // delete check in
+router.route("/deleteUser/:userId").delete(authMiddleware, deleteUser); // delete user from bondsman
 router
   .route("/getAllUsersOfBondsman")
-  .get(authMiddlewareForWeb, getAllUsersOfBondsman); // get all users of bondsman
-router.route("/addUser/:userId").post(authMiddlewareForWeb, addUser); // add user to bondsman
+  .get(authMiddleware, getAllUsersOfBondsman); // get all users of bondsman
+router.route("/addUser/:userId").post(authMiddleware, addUser); // add user to bondsman
 router
   .route("/updateUserDetailsByBondsman/:userId")
-  .post(authMiddlewareForWeb, updateUserDetailsByBondsman); // update user details by bondsman
+  .post(authMiddleware, updateUserDetailsByBondsman); // update user details by bondsman
 router
   .route("/setCourtReminders/:userId/:courtId")
-  .post(authMiddlewareForWeb, setCourtReminders);
+  .post(authMiddleware, setCourtReminders);
 router
   .route("/getCourtReminderDetails/:reminderId")
-  .get(authMiddlewareForWeb, getCourtReminderDetails);
+  .get(authMiddleware, getCourtReminderDetails);
 router
   .route("/cancelReminder/:reminderId")
-  .post(authMiddlewareForWeb, cancelReminder);
-router.route("/getAd").get(authMiddlewareForWeb, getAd);
+  .post(authMiddleware, cancelReminder);
+router.route("/getAd").get(authMiddleware, getAd);
 router
   .route("/deleteReminder/:reminderId")
-  .post(authMiddlewareForWeb, deleteReminder);
+  .post(authMiddleware, deleteReminder);
 router
   .route("/deleteBondsmanProfile/:id")
-  .delete(authMiddlewareForWeb, deleteBondsmanProfile);
+  .delete(authMiddleware, deleteBondsmanProfile);
 
 export default router;
