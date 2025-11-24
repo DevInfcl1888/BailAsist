@@ -439,7 +439,10 @@ const getTotalUsersCount = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const verifyToken = asyncHandler(async (req: Request, res: Response) => {
-  res.status(200).json({ authenticated: true, user: req.user });
+  if (req.user?._id) {
+    return res.status(200).json({ authenticated: true, user: req.user });
+  }
+  return res.status(200).json({ authenticated: false });
 });
 
 const getAllUsers = asyncHandler(async (req: Request, res: Response) => {
