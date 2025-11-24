@@ -1,7 +1,7 @@
 import { Router } from "express";
 import {
   authMiddleware,
-  authMiddlewareForWeb,
+  // authMiddleware,
 } from "../middlewares/auth.middlewares.js";
 import { upload } from "../middlewares/multer.middlewares.js";
 import { otpLimiter } from "../utils/rateLimiter.js";

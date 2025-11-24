@@ -53,29 +53,29 @@ export const authMiddleware = asyncHandler(
     }
   }
 );
-export const authMiddlewareForWeb = asyncHandler(
-  async (req: Request, res: Response, next: NextFunction) => {
-    console.log(req.cookies);
-    // console.log(res.cookies);
+// export const authMiddleware = asyncHandler(
+//   async (req: Request, res: Response, next: NextFunction) => {
+//     console.log(req.cookies);
+//     // console.log(res.cookies);
     
-    if (!req.cookies?.accessToken)
-      return res.status(401).json({ message: "Token is missing" });
-    let token = req.cookies?.accessToken;
-    try {
-      // verify token
-      const decode = jwt.verify(
-        token,
-        process.env.ACCESS_TOKEN_KEY!
-      ) as DecodeToken;
+//     if (!req.cookies?.accessToken)
+//       return res.status(401).json({ message: "Token is missing" });
+//     let token = req.cookies?.accessToken;
+//     try {
+//       // verify token
+//       const decode = jwt.verify(
+//         token,
+//         process.env.ACCESS_TOKEN_KEY!
+//       ) as DecodeToken;
 
-      if (!decode._id) {
-        return res.status(403).json({ message: "Invalid token type" });
-      }
+//       if (!decode._id) {
+//         return res.status(403).json({ message: "Invalid token type" });
+//       }
 
-      req.user = decode;
-      next();
-    } catch (error) {
-      return res.status(401).json({ message: "Invalid or expired token" });
-    }
-  }
-);
+//       req.user = decode;
+//       next();
+//     } catch (error) {
+//       return res.status(401).json({ message: "Invalid or expired token" });
+//     }
+//   }
+// );
