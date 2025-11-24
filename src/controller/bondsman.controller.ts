@@ -252,7 +252,7 @@ const getAllUsersOfBondsman = asyncHandler(
   async (req: Request, res: Response) => {
     const isBondsmanExist = await Bondsman.findById(req.user?._id).populate(
       "user",
-      "_id firstName middleName lastName phoneNo email"
+      "_id firstName middleName lastName phoneNo email ZipCode street"
     );
     if (!isBondsmanExist)
       return res

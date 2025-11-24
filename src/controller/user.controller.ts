@@ -812,7 +812,7 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     socialSecurityNumber: String;
     state: String;
     drivingLicenseNo: String;
-    havingYourOwnAutomobile: boolean; //  if yes then fill further info
+    havingYourOwnAutomobile: String; //  if yes then fill further info
     automobikeColor: String;
     automobikeMake: String;
     bikeNumberPlate: String;
@@ -827,10 +827,10 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     state,
     drivingLicenseNo,
     havingYourOwnAutomobile, //  if yes then fill further info
-    automobikeColor: havingYourOwnAutomobile ? automobikeColor : " ",
-    automobikeMake: havingYourOwnAutomobile ? automobikeMake : " ",
-    bikeNumberPlate: havingYourOwnAutomobile ? bikeNumberPlate : " ",
-    automobikeModel: havingYourOwnAutomobile ? automobikeModel : " ",
+    automobikeColor,
+    automobikeMake,
+    bikeNumberPlate,
+    automobikeModel,
   };
 
   let driverLicDoc;
