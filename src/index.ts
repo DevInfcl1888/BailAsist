@@ -17,12 +17,15 @@ const app = express();
 // Middleware
 app.use(
   cors({
-    origin: [
-      // "https://assistt.duckdns.org",
-      // "http://localhost:5172",
-      // "http://localhost:5173",
-      "*",
-    ],
+    // origin: [
+    //   // "https://assistt.duckdns.org",
+    //   // "http://localhost:5172",
+    //   // "http://localhost:5173",
+    //   "*",
+    // ],
+    origin: (origin, callback) => {
+      callback(null, true); // allow all origins (proper way)
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   })
