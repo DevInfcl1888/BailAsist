@@ -104,7 +104,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email: normalizedEmail,
     password,
-    phoneNo,
+    phoneNo: `${countryCode}${phoneNo}`,
     countryCode,
     deviceToken: deviceToken ? deviceToken : "",
     homeAddress,
@@ -319,8 +319,8 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
         firstName: data.firstName,
         middleName: data.middleName,
         lastName: data.lastName,
-        email: data.email,
-        phoneNo: data.phoneNo,
+        email: data.email.toLowerCase(),
+        phoneNo: `${user.countryCode}${data.phoneNo}`,
         street: data.street,
         ZipCode: data.ZipCode,
       },
@@ -362,7 +362,7 @@ const sendOTP = asyncHandler(async (req: Request, res: Response) => {
   // email existence check
   if (!email || !isValidEmail(email))
     return res.status(401).json({ message: "Inavlid email" });
-  const user = await User.find({ email: email });
+  const user = await User.find({ email: email.toLowerCase() });
   console.log("user", user);
   if (user.length === 0)
     return res
@@ -370,11 +370,9 @@ const sendOTP = asyncHandler(async (req: Request, res: Response) => {
       .json({ message: "OTP send only to registered mail" });
   // generate OTP
   const generate_OTP: string = await generateOTP(email);
-
   const send_OTP: string = await sendOTPfun(email, generate_OTP);
-
   return res.status(200).json({
-    message: `OTP send successfully to your registered email : ${email}`,
+    message: `OTP send successfully to your registered email : ${email.toLowerCase()}`,
   });
 });
 
@@ -383,14 +381,14 @@ const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
 
   if (!email || !otp)
     return res.status(400).json({ message: "Missing fields" });
-
-  const stored = otpStore.get(email);
+  const normalizedEmail = email.toLowerCase();
+  const stored = otpStore.get(normalizedEmail);
   if (!stored)
     return res.status(400).json({ message: "OTP not found or expired" });
   // console.log("stored", stored);
 
   if (Date.now() > stored.expiresAt) {
-    otpStore.delete(email);
+    otpStore.delete(normalizedEmail);
     return res.status(400).json({ message: "OTP expired" });
   }
 
@@ -398,12 +396,16 @@ const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
   if (!isMatch) return res.status(400).json({ message: "Invalid OTP" });
 
   // success
-  otpStore.delete(email);
+  otpStore.delete(normalizedEmail);
 
   // create short lived token (10 min)
-  const resetToken = jwt.sign({ email }, process.env.RESET_TOKEN_SECRET!, {
-    expiresIn: "10m",
-  });
+  const resetToken = jwt.sign(
+    { normalizedEmail },
+    process.env.RESET_TOKEN_SECRET!,
+    {
+      expiresIn: "10m",
+    }
+  );
   return res
     .status(200)
     .json({ message: "OTP verified successfully ✅", resetToken });
@@ -432,7 +434,8 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
     return res.status(401).json({ message: "Invalid or expired reset token" });
   }
 
-  const email = payload.email;
+  const email = payload.normalizedEmail;
+  console.log({ email });
   const user = await User.findOne({ email: email });
 
   if (!user) return res.status(404).json({ message: "User not found" });
@@ -586,7 +589,7 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
     middleName,
     lastName,
     email,
-    phoneNo,
+    phoneNo: `${user.countryCode}${phoneNo}`,
   };
   let contactInfoDoc;
   if (contactInfoId) {
@@ -1067,7 +1070,7 @@ const getUserBondsmanInfo = asyncHandler(
     if (!isBondsmanExist)
       return res.status(404).json({ message: "User not found" });
     const getChekInData = await CheckIn.find({ user: req.user?._id });
-    console.log("getChekInData", getChekInData);
+    const getCheckOutData = await CheckOut.find({ user: req.user?._id });
     const accessToken = isBondsmanExist.generateAccessToken();
     const refreshToken = isBondsmanExist.generateRefreshToken();
 
@@ -1077,6 +1080,7 @@ const getUserBondsmanInfo = asyncHandler(
       refreshToken: refreshToken,
       isBondsmanExist,
       getChekInData,
+      getCheckOutData,
     });
   }
 );
@@ -1186,7 +1190,7 @@ const checkOut = asyncHandler(async (req: Request, res: Response) => {
   const endOfToday = new Date();
   endOfToday.setHours(23, 59, 59, 999);
 
-  let uploadedImageUrl = null;
+  let uploadedImageUrl: "";
 
   // Optional image upload
   if (req.file && req.file.buffer) {
