@@ -37,14 +37,15 @@ interface ICourt extends Document {
   reminders: Schema.Types.ObjectId[];
 }
 
-
 interface ICourtReminder extends Document {
   user: Schema.Types.ObjectId;
   court: Schema.Types.ObjectId;
   roomNumber: string;
-  reminderDate: Date;
+  reminderDate: string;
+  reminderTime: string;
   reminderNote?: string;
   status: string;
+  interval: string;
   isActive: boolean;
 }
 // ------- Schemas -------
@@ -127,12 +128,15 @@ const ReminderSchema = new Schema<ICourtReminder>(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     court: { type: Schema.Types.ObjectId, ref: "Court", required: true },
-    roomNumber: { type: String, required: true },
-    reminderDate: { type: Date, required: true },
+    roomNumber: { type: String },
+    reminderDate: { type: String, required: true }, // YYYY-MM-DD
+    reminderTime: { type: String, required: true }, // HH:mm
     reminderNote: { type: String },
     status: {
       type: String,
-      required: true
+    },
+    interval: {
+      type: String,
     },
     isActive: { type: Boolean, default: true },
   },

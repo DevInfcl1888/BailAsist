@@ -18,9 +18,10 @@ const app = express();
 app.use(
   cors({
     origin: [
-      "https://assistt.duckdns.org",
-      "http://localhost:5172",
-      "http://localhost:5173",
+      // "https://assistt.duckdns.org",
+      // "http://localhost:5172",
+      // "http://localhost:5173",
+      "*",
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],

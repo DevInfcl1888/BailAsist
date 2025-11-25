@@ -363,11 +363,20 @@ const updateUserDetailsByBondsman = asyncHandler(
 );
 
 const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
-  const { roomNumber, reminderDate, reminderNote, status } = req.body as {
+  const {
+    roomNumber,
+    reminderDate,
+    reminderTime,
+    reminderNote,
+    status,
+    interval,
+  } = req.body as {
     roomNumber: string;
-    reminderDate: Date;
+    reminderDate: string; // YYYY-MM-DD
+    reminderTime: string;
     reminderNote?: string;
     status: string;
+    interval: string;
   };
   const { userId, courtId } = req.params;
   const isUserExist = await User.findById(userId).select("-password");
@@ -375,24 +384,28 @@ const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
   if (!isUserExist) return res.status(404).json({ message: "User not found" });
   if (!isCourtExist)
     return res.status(404).json({ message: "Court not found" });
-  if (!status) return res.status(400).json({ message: "Status is empty" });
-  if (!roomNumber.trim() || !reminderDate)
-    return res
-      .status(401)
-      .json({ message: "Case number, Reminder date cannot be empty" });
 
-  if (reminderNote && reminderNote.length < 10)
+  if (!reminderDate || !reminderTime)
     return res
       .status(400)
-      .json({ message: "Reminder message should be 10 charcters long" });
-
+      .json({ message: "Reminder date and time are missing" });
+  if (!status)
+    return res
+      .status(400)
+      .json({ message: "Status should be Complete, Pending Cancel" });
+  if (!interval)
+    return res
+      .status(400)
+      .json({ message: "Reminder interval couldn't be empty" });
   const createReminder = await Reminder.create({
     user: userId,
     court: courtId,
-    roomNumber,
+    roomNumber: roomNumber ? roomNumber : " ",
     reminderDate,
-    reminderNote,
+    reminderTime,
+    reminderNote: reminderNote ? reminderNote : " ",
     status,
+    interval,
   });
   await User.findByIdAndUpdate(
     userId,
@@ -428,7 +441,8 @@ const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
       select: "courtName addressLine state city country reminders",
       populate: {
         path: "reminders",
-        select: "caseNumber reminderDate reminderNote ",
+        select:
+          "user court roomNumber reminderDate reminderTime reminderNote status interval",
       },
     },
   ]);
