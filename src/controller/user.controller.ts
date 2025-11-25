@@ -362,6 +362,12 @@ const sendOTP = asyncHandler(async (req: Request, res: Response) => {
   // email existence check
   if (!email || !isValidEmail(email))
     return res.status(401).json({ message: "Inavlid email" });
+  const user = await User.find({ email: email });
+  console.log("user", user);
+  if (user.length === 0)
+    return res
+      .status(404)
+      .json({ message: "OTP send only to registered mail" });
   // generate OTP
   const generate_OTP: string = await generateOTP(email);
 
