@@ -1067,7 +1067,9 @@ const getUserBondsmanInfo = asyncHandler(
     if (!isBondsmanExist)
       return res.status(404).json({ message: "User not found" });
     const getChekInData = await CheckIn.find({ user: req.user?._id });
+    const getCheckOutData = await CheckOut.find({ user: req.user?._id });
     console.log("getChekInData", getChekInData);
+    console.log("getCheckOutData", getCheckOutData);
     const accessToken = isBondsmanExist.generateAccessToken();
     const refreshToken = isBondsmanExist.generateRefreshToken();
 
@@ -1077,6 +1079,7 @@ const getUserBondsmanInfo = asyncHandler(
       refreshToken: refreshToken,
       isBondsmanExist,
       getChekInData,
+      getCheckOutData
     });
   }
 );
@@ -1186,7 +1189,7 @@ const checkOut = asyncHandler(async (req: Request, res: Response) => {
   const endOfToday = new Date();
   endOfToday.setHours(23, 59, 59, 999);
 
-  let uploadedImageUrl = null;
+  let uploadedImageUrl: "";
 
   // Optional image upload
   if (req.file && req.file.buffer) {
