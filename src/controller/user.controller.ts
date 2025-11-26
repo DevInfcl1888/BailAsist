@@ -475,7 +475,12 @@ const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
-  const { yearsAtCurrentAddress, landlordName, landlordAddress,homeOwnership } = req.body as {
+  const {
+    yearsAtCurrentAddress,
+    landlordName,
+    landlordAddress,
+    homeOwnership,
+  } = req.body as {
     yearsAtCurrentAddress: string;
     landlordName: string;
     landlordAddress: string;
@@ -1101,6 +1106,24 @@ const createOrUpdateCheckIn = asyncHandler(
     const endOfToday = new Date();
     endOfToday.setHours(23, 59, 59, 999);
 
+    const isCheckOutAlready = await CheckOut.find({
+      user: userId,
+      createdAt: {
+        $gte: startOfToday,
+        $lte: endOfToday,
+      },
+    });
+
+    if (isCheckOutAlready) {
+      return res.status(400).json({
+        message: "You already checked out today. You cannot check in again.",
+      });
+    }
+
+    let checkIn = await CheckIn.findOne({
+      user: userId,
+      createdAt: { $gte: startOfToday, $lte: endOfToday },
+    });
     let uploadedImageUrl: string;
 
     // Optional image upload
@@ -1111,12 +1134,6 @@ const createOrUpdateCheckIn = asyncHandler(
 
       uploadedImageUrl = imgUpload.secure_url;
     }
-
-    // Check existing check-in
-    let checkIn = await CheckIn.findOne({
-      user: userId,
-      createdAt: { $gte: startOfToday, $lte: endOfToday },
-    });
 
     const now = new Date();
 
@@ -1148,7 +1165,7 @@ const createOrUpdateCheckIn = asyncHandler(
       // Create new document
       checkIn = await CheckIn.create({
         user: userId,
-        photoUrl: uploadedImageUrl || null,
+        photoUrl: uploadedImageUrl ?? " ",
         location: { lat, long },
       });
     }
@@ -1158,7 +1175,7 @@ const createOrUpdateCheckIn = asyncHandler(
       checkIn: {
         createdAt: checkIn.createdAt,
         updatedAt: checkIn.updatedAt,
-        photoUrl: checkIn.photoUrl || null,
+        photoUrl: checkIn.photoUrl ?? " ",
         location: checkIn.location,
       },
     });
