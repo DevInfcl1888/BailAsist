@@ -17,6 +17,7 @@ interface residenceInfo extends Document {
   user: Schema.Types.ObjectId;
   yearsAtCurrentAddress: string;
   landlordName: string;
+  homeOwnership: string;
   landlordAddress: string;
 }
 
@@ -215,6 +216,7 @@ const residenceInfoSchema = new Schema<residenceInfo>({
     unique: true,
   },
   yearsAtCurrentAddress: { type: String, required: true },
+  homeOwnership: { type: String, required: true },
   landlordName: { type: String, required: true },
   landlordAddress: { type: String, required: true },
 });
@@ -396,7 +398,6 @@ const employementInfoSchema = new Schema<employementInfo>({
     required: true,
     unique: true,
   },
-
   employementStatus: {
     type: String,
     trim: true,
@@ -424,7 +425,7 @@ const employementInfoSchema = new Schema<employementInfo>({
   previousEmployer: {
     type: String,
     trim: true,
-  },
+  }
 });
 const userSchema = new Schema<signUp>(
   {
