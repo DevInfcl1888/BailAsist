@@ -449,6 +449,51 @@ const deleteBondsmanProfile = asyncHandler(
       .json({ message: "Bondsman profile deleted", BondsmanUserInfo });
   }
 );
+
+const updateBondsmanDetails = asyncHandler(
+  async (req: Request, res: Response) => {
+    const isAdmin = await Admin.findById(req.user?._id);
+    if (!isAdmin)
+      return res
+        .status(403)
+        .json({ message: "only admin can allow this route" });
+    const { bondsmanId } = req.params;
+    if (!bondsmanId)
+      return res.status(400).json({ message: "Bondsman Id is empty" });
+    const { name, email, phoneNo } = req.body as {
+      name: string;
+      email: string;
+      phoneNo: string;
+    };
+    if (!name.trim() || !email.trim() || !phoneNo.trim())
+      return res.status(400).json({ message: "Fields can't be empty" });
+
+    if (!isValidData(name))
+      return res.status(400).json({ message: "Invalid name" });
+    if (!isValidEmail(email))
+      return res.status(400).json({ message: "Invalid email" });
+
+    const updatedBondsman = await Bondsman.findByIdAndUpdate(
+      bondsmanId,
+      {
+        $set: {
+          name,
+          email,
+          phoneNo,
+        },
+      },
+      {
+        new: true,
+      }
+    );
+
+    if (!updatedBondsman)
+      return res.status(500).json({ message: "Data couldn't update" });
+    return res
+      .status(200)
+      .json({ message: "Bondsman data updated", updatedBondsman });
+  }
+);
 export {
   adminSignUp,
   adminLogin,
@@ -469,4 +514,5 @@ export {
   getAllUsers,
   deleteUserProfile,
   deleteBondsmanProfile,
+  updateBondsmanDetails,
 };

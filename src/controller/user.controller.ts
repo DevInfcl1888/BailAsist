@@ -104,7 +104,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email: normalizedEmail,
     password,
-    phoneNo: `${countryCode}${phoneNo}`,
+    phoneNo,
     countryCode,
     deviceToken: deviceToken ? deviceToken : "",
     homeAddress,
@@ -320,7 +320,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
         middleName: data.middleName,
         lastName: data.lastName,
         email: data.email.toLowerCase(),
-        phoneNo: `${user.countryCode}${data.phoneNo}`,
+        phoneNo: data.phoneNo,
         street: data.street,
         ZipCode: data.ZipCode,
       },
@@ -597,7 +597,7 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
     middleName,
     lastName,
     email,
-    phoneNo: `${user.countryCode}${phoneNo}`,
+    phoneNo,
   };
   let contactInfoDoc;
   if (contactInfoId) {
