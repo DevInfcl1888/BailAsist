@@ -548,7 +548,7 @@ const getResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user?._id);
   if (!user) return res.status(404).json({ message: "User not found" });
   const residenceInfo = await ResidenceInfo.find({ user: req.user?._id });
-  if (!residenceInfo)
+  if (residenceInfo.length === 0)
     return res.status(404).json({ message: "No residence data found" });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
@@ -636,7 +636,7 @@ const getContactInfo = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user?._id);
   if (!user) return res.status(404).json({ message: "User not found" });
   const contactInfo = await ContactInfo.find({ user: req.user?._id });
-  if (!contactInfo)
+  if (contactInfo.length === 0)
     return res.status(404).json({ message: "No Contact data found" });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
@@ -710,7 +710,7 @@ const getLegalInfo = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user?._id);
   if (!user) return res.status(404).json({ message: "User not found" });
   const legalInfo = await LegalInfo.find({ user: req.user?._id });
-  if (!legalInfo)
+  if (legalInfo.length === 0)
     return res.status(404).json({ message: "No Legal data found" });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
@@ -803,7 +803,7 @@ const getPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user?._id);
   if (!user) return res.status(404).json({ message: "User not found" });
   const personalInfo = await PersonalInfo.find({ user: req.user?._id });
-  if (!personalInfo)
+  if (personalInfo.length === 0)
     return res.status(404).json({ message: "No Personal data found" });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
@@ -821,19 +821,19 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     state,
     drivingLicenseNo,
     havingYourOwnAutomobile, //  if yes then fill further info
-    automobikeColor,
-    automobikeMake,
-    automobikeNumberPlate,
-    automobikeModel,
+    automobileColor,
+    automobileMake,
+    automobileNumberPlate,
+    automobileModel,
   } = req.body as {
     socialSecurityNumber: String;
     state: String;
     drivingLicenseNo: String;
     havingYourOwnAutomobile: String; //  if yes then fill further info
-    automobikeColor: String;
-    automobikeMake: String;
-    automobikeNumberPlate: String;
-    automobikeModel: String;
+    automobileColor: String;
+    automobileMake: String;
+    automobileNumberPlate: String;
+    automobileModel: String;
   };
   let { driverLicId } = req.body;
   if (!socialSecurityNumber.trim() || !state.trim() || !drivingLicenseNo.trim())
@@ -844,10 +844,10 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     state,
     drivingLicenseNo,
     havingYourOwnAutomobile, //  if yes then fill further info
-    automobikeColor: automobikeColor ?? "",
-    automobikeMake: automobikeMake ?? "",
-    automobikeNumberPlate: automobikeNumberPlate ?? "",
-    automobikeModel: automobikeModel ?? "",
+    automobileColor: automobileColor ?? "",
+    automobileMake: automobileMake ?? "",
+    automobileNumberPlate: automobileNumberPlate ?? "",
+    automobileModel: automobileModel ?? "",
   };
 
   let driverLicDoc;
@@ -884,13 +884,13 @@ const getDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user?._id);
   if (!user) return res.status(404).json({ message: "User not found" });
   const driversLicInfo = await DriversLicInfo.find({ user: req.user?._id });
-  if (!driversLicInfo)
+  if (driversLicInfo.length === 0)
     return res.status(404).json({ message: "No Driver Lic data found" });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
     message: "Driver Lic info data fetched",
-    driversLicInfo: driversLicInfo,
+    driversLicInfo: driversLicInfo[0],
     accessToken: accessToken,
     refreshToken: refreshToken,
   });
@@ -964,7 +964,7 @@ const getPersonalRefrenceInfo = asyncHandler(
     const personalRefInfo = await personalRefrenceInfo.find({
       user: req.user?._id,
     });
-    if (!personalRefInfo)
+    if (personalRefInfo.length === 0)
       return res
         .status(404)
         .json({ message: "No Personal Ref Info Lic data found" });
@@ -1057,7 +1057,7 @@ const getEmployementStatus = asyncHandler(
     const employementInfo = await EmployementInfo.find({
       user: req.user?._id,
     });
-    if (!employementInfo)
+    if (employementInfo.length === 0)
       return res.status(404).json({ message: "No Employement data found" });
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
