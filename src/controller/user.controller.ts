@@ -475,14 +475,16 @@ const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
-  const { yearsAtCurrentAddress, landlordName, landlordAddress } = req.body as {
+  const { yearsAtCurrentAddress, landlordName, landlordAddress,homeOwnership } = req.body as {
     yearsAtCurrentAddress: string;
     landlordName: string;
     landlordAddress: string;
+    homeOwnership: string;
   };
   const { residenceId } = req.body;
   if (
     !yearsAtCurrentAddress.trim() ||
+    !homeOwnership.trim() ||
     !landlordName.trim() ||
     !landlordAddress.trim()
   ) {
@@ -499,6 +501,7 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
     user: req.user?._id,
     yearsAtCurrentAddress: `${yearsAtCurrentAddress} Yr`,
     landlordName,
+    homeOwnership,
     landlordAddress,
   };
   const accessToken = user.generateAccessToken();
@@ -815,7 +818,7 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     havingYourOwnAutomobile, //  if yes then fill further info
     automobikeColor,
     automobikeMake,
-    bikeNumberPlate,
+    automobikeNumberPlate,
     automobikeModel,
   } = req.body as {
     socialSecurityNumber: String;
@@ -824,10 +827,10 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     havingYourOwnAutomobile: String; //  if yes then fill further info
     automobikeColor: String;
     automobikeMake: String;
-    bikeNumberPlate: String;
+    automobikeNumberPlate: String;
     automobikeModel: String;
   };
-  const { driverLicId } = req.body;
+  let { driverLicId } = req.body;
   if (!socialSecurityNumber.trim() || !state.trim() || !drivingLicenseNo.trim())
     return res.status(404).json({ message: "Required fields can't be empty" });
   const data = {
@@ -836,10 +839,10 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     state,
     drivingLicenseNo,
     havingYourOwnAutomobile, //  if yes then fill further info
-    automobikeColor,
-    automobikeMake,
-    bikeNumberPlate,
-    automobikeModel,
+    automobikeColor: automobikeColor ?? "",
+    automobikeMake: automobikeMake ?? "",
+    automobikeNumberPlate: automobikeNumberPlate ?? "",
+    automobikeModel: automobikeModel ?? "",
   };
 
   let driverLicDoc;
@@ -882,7 +885,7 @@ const getDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
     message: "Driver Lic info data fetched",
-    driversLicInfo: driversLicInfo[0],
+    driversLicInfo: driversLicInfo,
     accessToken: accessToken,
     refreshToken: refreshToken,
   });
@@ -982,7 +985,7 @@ const addEmployementStatus = asyncHandler(
       automobileColor,
       previousEmployer,
     } = req.body as {
-      employementStatus: boolean; // if yes then fill further info
+      employementStatus: string; // if yes then fill further info
       employerName: string;
       employerSupervisorName: string;
       employerAddress: string;
@@ -995,14 +998,14 @@ const addEmployementStatus = asyncHandler(
     const data = {
       user: req.user?._id,
       employementStatus, // if yes then fill further info
-      employerName: employementStatus ? employerName : " ",
-      employerSupervisorName: employementStatus ? employerSupervisorName : " ",
-      employerAddress: employementStatus ? employerAddress : " ",
-      employerWorkingPeriod: employementStatus
+      employerName: employerName ?? " ",
+      employerSupervisorName: employerSupervisorName ?? " ",
+      employerAddress: employerAddress ?? " ",
+      employerWorkingPeriod: employerWorkingPeriod
         ? `${employerWorkingPeriod} Yr`
         : " ",
-      automobileColor: employementStatus ? automobileColor : " ",
-      previousEmployer: employementStatus ? previousEmployer : " ",
+      automobileColor: automobileColor ?? " ",
+      previousEmployer: previousEmployer ?? " ",
     };
 
     let employeeDoc;
