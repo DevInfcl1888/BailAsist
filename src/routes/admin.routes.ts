@@ -17,7 +17,8 @@ import {
   verifyToken,
   getAllUsers,
   deleteUserProfile,
-  deleteBondsmanProfile
+  deleteBondsmanProfile,
+  updateBondsmanDetails,
 } from "../controller/admin.controller.js";
 import { Router } from "express";
 import { authMiddleware } from "../middlewares/auth.middlewares.js";
@@ -29,9 +30,7 @@ const router = Router();
 router.route("/adminSignUp").post(adminSignUp); // Admin Sign Up
 router.route("/adminLogin").post(adminLogin); // Admin Login
 router.route("/adminLogout").post(authMiddleware, adminLogout); // Admin Logout
-router
-  .route("/createNewBondsman")
-  .post(authMiddleware, createNewBondsman); // signup Bondsman via admin
+router.route("/createNewBondsman").post(authMiddleware, createNewBondsman); // signup Bondsman via admin
 router
   .route("/adminLoginAsBondsman/:bondsmanId")
   .post(authMiddleware, adminLoginAsBondsman); // admin Login As Bondsman Login
@@ -50,17 +49,16 @@ router
   .route("/addNewBondsman/:bondsmanId")
   .post(authMiddleware, addNewBondsman); // add bondsman
 router
+  .route("/updateBondsmanDetails/:bondsmanId")
+  .post(authMiddleware, updateBondsmanDetails); // add bondsman
+router
   .route("/listAllActiveBondsman")
   .get(authMiddleware, listAllActiveBondsman); // list all active bondsman
-router
-  .route("/getBondsmanDetails")
-  .get(authMiddleware, getBondsmanDetails); // get All Bondsman bondsman
+router.route("/getBondsmanDetails").get(authMiddleware, getBondsmanDetails); // get All Bondsman bondsman
 router
   .route("/getTotalBondsmanCount")
   .get(authMiddleware, getTotalBondsmanCount); // get All Bondsman count bondsman
-router
-  .route("/getTotalUsersCount")
-  .get(authMiddleware, getTotalUsersCount); // get All User count bondsman
+router.route("/getTotalUsersCount").get(authMiddleware, getTotalUsersCount); // get All User count bondsman
 router
   .route("/deleteUserProfile/:id")
   .delete(authMiddleware, deleteUserProfile); // delete user profile

@@ -104,7 +104,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email: normalizedEmail,
     password,
-    phoneNo: `${countryCode}${phoneNo}`,
+    phoneNo,
     countryCode,
     deviceToken: deviceToken ? deviceToken : "",
     homeAddress,
@@ -320,7 +320,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
         middleName: data.middleName,
         lastName: data.lastName,
         email: data.email.toLowerCase(),
-        phoneNo: `${user.countryCode}${data.phoneNo}`,
+        phoneNo: data.phoneNo,
         street: data.street,
         ZipCode: data.ZipCode,
       },
@@ -597,7 +597,7 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
     middleName,
     lastName,
     email,
-    phoneNo: `${user.countryCode}${phoneNo}`,
+    phoneNo,
   };
   let contactInfoDoc;
   if (contactInfoId) {
@@ -709,7 +709,12 @@ const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
 const getLegalInfo = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user?._id);
   if (!user) return res.status(404).json({ message: "User not found" });
-  const legalInfo = await LegalInfo.find({ user: req.user?._id });
+  if (!user.bondsman)
+    return res.status(404).json({ message: "No bondsman assign yet" });
+  const legalInfo = await User.find({
+    _id: user._id,
+    bondsman: user?.bondsman,
+  }).populate([{ path: "bondsman" }]);
   if (legalInfo.length === 0)
     return res.status(404).json({ message: "No Legal data found" });
   const accessToken = user.generateAccessToken();
@@ -1072,9 +1077,10 @@ const getEmployementStatus = asyncHandler(
 
 const getUserBondsmanInfo = asyncHandler(
   async (req: Request, res: Response) => {
-    const isBondsmanExist = await User.findById(req.user?._id).populate(
-      "reminders"
-    );
+    const isBondsmanExist = await User.findById(req.user?._id).populate([
+      { path: "reminders" },
+      { path: "bondsman" },
+    ]);
     if (!isBondsmanExist)
       return res.status(404).json({ message: "User not found" });
     const getChekInData = await CheckIn.find({ user: req.user?._id });
@@ -1101,29 +1107,22 @@ const createOrUpdateCheckIn = asyncHandler(
     const { lat, long } = req.body;
 
     const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    startOfToday.setHours(0, 0, 0, 0); // 12.00 AM
 
     const endOfToday = new Date();
-    endOfToday.setHours(23, 59, 59, 999);
+    endOfToday.setHours(23, 59, 59, 999); // 11.59 PM
 
-    const isCheckOutAlready = await CheckOut.find({
-      user: userId,
-      createdAt: {
-        $gte: startOfToday,
-        $lte: endOfToday,
-      },
-    });
-
-    if (isCheckOutAlready) {
-      return res.status(400).json({
-        message: "You already checked out today. You cannot check in again.",
-      });
-    }
-
-    let checkIn = await CheckIn.findOne({
+    const alreadyCheckOut = await CheckOut.findOne({
       user: userId,
       createdAt: { $gte: startOfToday, $lte: endOfToday },
     });
+
+    if (alreadyCheckOut) {
+      return res.status(400).json({
+        message: "You already checked out today. Come back tomorrow.",
+      });
+    }
+
     let uploadedImageUrl: string;
 
     // Optional image upload
@@ -1134,7 +1133,17 @@ const createOrUpdateCheckIn = asyncHandler(
 
       uploadedImageUrl = imgUpload.secure_url;
     }
-
+    let checkIn = await CheckIn.findOne({
+      user: userId,
+      createdAt: { $gte: startOfToday, $lte: endOfToday },
+    });
+    // const isCheckOutAlready = await CheckOut.find({
+    //   user: userId,
+    //   createdAt: {
+    //     $gte: startOfToday,
+    //     $lte: endOfToday,
+    //   },
+    // });
     const now = new Date();
 
     if (checkIn) {
@@ -1169,6 +1178,11 @@ const createOrUpdateCheckIn = asyncHandler(
         location: { lat, long },
       });
     }
+
+    // let checkIn = await CheckIn.findOne({
+    //   user: userId,
+    //   createdAt: { $gte: startOfToday, $lte: endOfToday },
+    // });
 
     return res.status(200).json({
       message: "Check-in recorded",
@@ -1209,7 +1223,25 @@ const checkOut = asyncHandler(async (req: Request, res: Response) => {
 
   const endOfToday = new Date();
   endOfToday.setHours(23, 59, 59, 999);
+  let checkOut = await CheckOut.findOne({
+    user: userId,
+    createdAt: { $gte: startOfToday, $lte: endOfToday },
+  });
+  if (checkOut) {
+    return res.status(400).json({
+      message: "You already checked out today.",
+    });
+  }
+  const checkInToday = await CheckIn.findOne({
+    user: userId,
+    createdAt: { $gte: startOfToday, $lte: endOfToday },
+  });
 
+  if (!checkInToday) {
+    return res.status(400).json({
+      message: "You cannot check out without checking in.",
+    });
+  }
   let uploadedImageUrl: "";
 
   // Optional image upload
@@ -1222,47 +1254,49 @@ const checkOut = asyncHandler(async (req: Request, res: Response) => {
     uploadedImageUrl = imgUpload.secure_url;
   }
 
+  // const checkIn = await CheckIn.findById(req.user?._id);
+  // if(checkIn) return res.status(401).json({message:"You can't check out without check in"})
   // Check if today's checkout already exists
-  let checkOut = await CheckOut.findOne({
+  // let checkOut = await CheckOut.findOne({
+  //   user: userId,
+  //   createdAt: { $gte: startOfToday, $lte: endOfToday },
+  // });
+
+  // const now = new Date();
+
+  // if (checkOut) {
+  //   // Compare existing data
+  //   const sameLat = Number(checkOut.location.lat) === Number(lat);
+  //   const sameLong = Number(checkOut.location.long) === Number(long);
+  //   const samePhoto =
+  //     !uploadedImageUrl || uploadedImageUrl === checkOut.photoUrl;
+
+  //   const isSameData = sameLat && sameLong && samePhoto;
+
+  //   if (isSameData) {
+  //     // Refresh timestamps only
+  //     checkOut.set("updatedAt", now);
+  //   } else {
+  //     // Update changed fields
+  //     checkOut.location.lat = lat;
+  //     checkOut.location.long = long;
+
+  //     if (uploadedImageUrl) {
+  //       checkOut.photoUrl = uploadedImageUrl;
+  //     }
+
+  //     checkOut.set("updatedAt", now);
+  //   }
+
+  //   await checkOut.save();
+  // } else {
+  // Create a new checkout record
+  checkOut = await CheckOut.create({
     user: userId,
-    createdAt: { $gte: startOfToday, $lte: endOfToday },
+    photoUrl: uploadedImageUrl || null,
+    location: { lat, long },
   });
-
-  const now = new Date();
-
-  if (checkOut) {
-    // Compare existing data
-    const sameLat = Number(checkOut.location.lat) === Number(lat);
-    const sameLong = Number(checkOut.location.long) === Number(long);
-    const samePhoto =
-      !uploadedImageUrl || uploadedImageUrl === checkOut.photoUrl;
-
-    const isSameData = sameLat && sameLong && samePhoto;
-
-    if (isSameData) {
-      // Refresh timestamps only
-      checkOut.set("updatedAt", now);
-    } else {
-      // Update changed fields
-      checkOut.location.lat = lat;
-      checkOut.location.long = long;
-
-      if (uploadedImageUrl) {
-        checkOut.photoUrl = uploadedImageUrl;
-      }
-
-      checkOut.set("updatedAt", now);
-    }
-
-    await checkOut.save();
-  } else {
-    // Create a new checkout record
-    checkOut = await CheckOut.create({
-      user: userId,
-      photoUrl: uploadedImageUrl || null,
-      location: { lat, long },
-    });
-  }
+  // }
 
   return res.status(200).json({
     message: "Checkout recorded",
