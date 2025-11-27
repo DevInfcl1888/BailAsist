@@ -1093,8 +1093,12 @@ const getUserBondsmanInfo = asyncHandler(
       accessToken: accessToken,
       refreshToken: refreshToken,
       isBondsmanExist,
-      getChekInData,
-      getCheckOutData,
+      getChekInData:
+        getChekInData.length === 0 ? "No Check-in data found" : getChekInData,
+      getCheckOutData:
+        getCheckOutData.length === 0
+          ? "No Check-out data found"
+          : getCheckOutData,
     });
   }
 );
@@ -1293,7 +1297,7 @@ const checkOut = asyncHandler(async (req: Request, res: Response) => {
   // Create a new checkout record
   checkOut = await CheckOut.create({
     user: userId,
-    photoUrl: uploadedImageUrl || null,
+    photoUrl: uploadedImageUrl ?? " ",
     location: { lat, long },
   });
   // }
@@ -1303,7 +1307,7 @@ const checkOut = asyncHandler(async (req: Request, res: Response) => {
     checkOut: {
       createdAt: checkOut.createdAt,
       updatedAt: checkOut.updatedAt,
-      photoUrl: checkOut.photoUrl || null,
+      photoUrl: checkOut.photoUrl ?? " ",
       location: checkOut.location,
     },
   });
