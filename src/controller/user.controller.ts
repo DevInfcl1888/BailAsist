@@ -569,7 +569,13 @@ const getResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
   if (!user) return res.status(404).json({ message: "User not found" });
   const residenceInfo = await ResidenceInfo.find({ user: req.user?._id });
   if (residenceInfo.length === 0)
-    return res.status(404).json({ message: "No residence data found" });
+    return res.status(200).json({ residenceInfo: {
+  user:" ",
+    yearsAtCurrentAddress:" ",
+    homeOwnership: " ",
+    landlordName: " ",
+    landlordAddress: { type: String, required: true },
+    } });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
@@ -735,7 +741,7 @@ const getLegalInfo = asyncHandler(async (req: Request, res: Response) => {
     _id: user._id,
     bondsman: user?.bondsman,
   })
-    .populate([{ path: "bondsman", select: "name address phoneNo" }])
+    .populate([{ path: "bondsman", select: "name address phoneNo countryCode" }])
     .select("bondsman");
   if (legalInfo.length === 0)
     return res.status(404).json({ message: "No Legal data found" });
