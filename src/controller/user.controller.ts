@@ -1097,7 +1097,13 @@ const getEmployementStatus = asyncHandler(
 const getUserBondsmanInfo = asyncHandler(
   async (req: Request, res: Response) => {
     const isBondsmanExist = await User.findById(req.user?._id).populate([
-      { path: "reminders" },
+      {
+        path: "reminders",
+        populate: {
+          path: "court",
+          select: "courtName addressLine city state country reminder",
+        }, // <-- Nested populate
+      },
       { path: "bondsman" },
     ]);
     if (!isBondsmanExist)
