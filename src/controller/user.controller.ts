@@ -730,7 +730,7 @@ const getLegalInfo = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user?._id);
   if (!user) return res.status(404).json({ message: "User not found" });
   if (!user.bondsman)
-    return res.status(404).json({ message: "No bondsman assign yet" });
+    return res.status(200).json({ message: "No bondsman assign yet" });
   const legalInfo = await User.find({
     _id: user._id,
     bondsman: user?.bondsman,

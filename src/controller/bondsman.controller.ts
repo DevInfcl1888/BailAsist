@@ -403,7 +403,7 @@ const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
   });
   if (!isUserConnectedWithBondsman)
     return res
-      .status(400)
+      .status(200)
       .json({ message: "This user has not assign any bondsman yet" });
   const createReminder = await Reminder.create({
     user: userId,
