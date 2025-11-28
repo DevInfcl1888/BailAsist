@@ -734,7 +734,9 @@ const getLegalInfo = asyncHandler(async (req: Request, res: Response) => {
   const legalInfo = await User.find({
     _id: user._id,
     bondsman: user?.bondsman,
-  }).populate([{ path: "bondsman" }]);
+  })
+    .populate([{ path: "bondsman", select: "name address phoneNo" }])
+    .select("bondsman");
   if (legalInfo.length === 0)
     return res.status(404).json({ message: "No Legal data found" });
   const accessToken = user.generateAccessToken();
