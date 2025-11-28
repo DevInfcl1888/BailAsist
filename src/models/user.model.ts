@@ -75,7 +75,6 @@ interface driversLicInfo extends Document {
   havingYourOwnAutomobile: string; //  if yes then fill further info
   automobileColor?: string;
   automobileMake?: string;
-  automobileNumberPlate?: string;
   automobileModel?: string;
 }
 
@@ -109,6 +108,7 @@ interface signUp extends Document {
   image: string;
   isAgreed: boolean;
   bondsman: Schema.Types.ObjectId;
+  court: Schema.Types.ObjectId;
   latitude: number;
   longitude: number;
   countryCode: String;
@@ -381,10 +381,6 @@ const driversLicInfoSchema = new Schema<driversLicInfo>({
     type: String,
     trim: true,
   },
-  automobileNumberPlate: {
-    type: String,
-    trim: true,
-  },
   automobileModel: {
     type: String,
     trim: true,
@@ -425,7 +421,7 @@ const employementInfoSchema = new Schema<employementInfo>({
   previousEmployer: {
     type: String,
     trim: true,
-  }
+  },
 });
 const userSchema = new Schema<signUp>(
   {
@@ -504,6 +500,10 @@ const userSchema = new Schema<signUp>(
     reminders: [{ type: Schema.Types.ObjectId, ref: "Reminder" }],
     latitude: { type: Number },
     longitude: { type: Number },
+    court: {
+      type: Schema.Types.ObjectId,
+      ref: "Court",
+    },
   },
   {
     timestamps: true,

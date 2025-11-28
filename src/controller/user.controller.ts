@@ -18,7 +18,7 @@ import {
   CheckIn,
   CheckOut,
 } from "../models/user.model.js";
-import { Bondsman, Court } from "../models/bondsman.model.js";
+import { Bondsman, Court, Reminder } from "../models/bondsman.model.js";
 import { generateOTP, sendOTPfun, otpStore } from "../utils/OTPsender.js";
 import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
@@ -463,12 +463,32 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
-  const deletedUserInfo = await User.deleteOne({ _id: req.user?._id });
+  const userId = req.user?._id;
+  const deletedUserInfo = await User.deleteOne({ _id: userId });
 
   if (deletedUserInfo.deletedCount !== 1)
     return res
       .status(401)
       .json({ message: "User profile can't be deleted", deletedUserInfo });
+
+  await Promise.all([
+    ContactInfo.deleteOne({ user: userId }),
+    EmployementInfo.deleteOne({ user: userId }),
+    ResidenceInfo.deleteOne({ user: userId }),
+    DriversLicInfo.deleteOne({ user: userId }),
+    LegalInfo.deleteOne({ user: userId }),
+    PersonalInfo.deleteMany({ user: userId }),
+    personalRefrenceInfo.deleteOne({ user: userId }),
+    Reminder.deleteOne({ user: userId }),
+    Bondsman.updateOne(
+      {},
+      {
+        $pull: {
+          user: userId,
+        },
+      }
+    ),
+  ]);
   return res
     .status(200)
     .json({ message: "User profile deleted", deletedUserInfo });
@@ -828,7 +848,6 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     havingYourOwnAutomobile, //  if yes then fill further info
     automobileColor,
     automobileMake,
-    automobileNumberPlate,
     automobileModel,
   } = req.body as {
     socialSecurityNumber: String;
@@ -837,7 +856,6 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     havingYourOwnAutomobile: String; //  if yes then fill further info
     automobileColor: String;
     automobileMake: String;
-    automobileNumberPlate: String;
     automobileModel: String;
   };
   let { driverLicId } = req.body;
@@ -851,7 +869,6 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     havingYourOwnAutomobile, //  if yes then fill further info
     automobileColor: automobileColor ?? "",
     automobileMake: automobileMake ?? "",
-    automobileNumberPlate: automobileNumberPlate ?? "",
     automobileModel: automobileModel ?? "",
   };
 

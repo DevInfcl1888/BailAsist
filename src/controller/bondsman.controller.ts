@@ -397,6 +397,14 @@ const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
     return res
       .status(400)
       .json({ message: "Reminder interval couldn't be empty" });
+
+  const isUserConnectedWithBondsman = await User.find({
+    bondsman: isUserExist.bondsman,
+  });
+  if (!isUserConnectedWithBondsman)
+    return res
+      .status(400)
+      .json({ message: "This user has not assign any bondsman yet" });
   const createReminder = await Reminder.create({
     user: userId,
     court: courtId,
@@ -410,6 +418,9 @@ const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
   await User.findByIdAndUpdate(
     userId,
     {
+      $set: {
+        court: courtId,
+      },
       $push: {
         reminders: createReminder?._id,
       },
