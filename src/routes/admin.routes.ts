@@ -19,6 +19,7 @@ import {
   deleteUserProfile,
   deleteBondsmanProfile,
   updateBondsmanDetails,
+  updateUserDetails,
 } from "../controller/admin.controller.js";
 import { Router } from "express";
 import { authMiddleware } from "../middlewares/auth.middlewares.js";
@@ -62,6 +63,9 @@ router.route("/getTotalUsersCount").get(authMiddleware, getTotalUsersCount); // 
 router
   .route("/deleteUserProfile/:id")
   .delete(authMiddleware, deleteUserProfile); // delete user profile
+router
+  .route("/updateUserDetails/:userId")
+  .post(authMiddleware, updateUserDetails); // update user details
 router
   .route("/deleteBondsmanProfile/:id")
   .delete(authMiddleware, deleteBondsmanProfile); // delete user profile
