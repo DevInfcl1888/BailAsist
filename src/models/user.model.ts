@@ -2,17 +2,6 @@ import { Schema, model, Document, Date } from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt, { SignOptions } from "jsonwebtoken";
 
-//  --------------------- Contact Information --------------------
-interface contactInfo extends Document {
-  user: Schema.Types.ObjectId;
-  firstName: string;
-  middleName: string;
-  lastName: string;
-  email: string;
-  phoneNo: string;
-  countryCode: string;
-}
-
 //  --------------------- Residence Information --------------------
 interface residenceInfo extends Document {
   user: Schema.Types.ObjectId;
@@ -175,45 +164,7 @@ const CheckOutSchema = new Schema<ICheckOut>(
     timestamps: true,
   }
 );
-const contactInfoSchema = new Schema<contactInfo>({
-  //  --------------------- Contact Information --------------------
-  user: {
-    type: Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-    unique: true,
-  },
-  firstName: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  middleName: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  lastName: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  email: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  phoneNo: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  countryCode: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-});
+
 const residenceInfoSchema = new Schema<residenceInfo>({
   //  --------------------- Residence Information --------------------
   user: {
@@ -591,7 +542,6 @@ userSchema.methods.generateRefreshToken = function (): string {
 
 export const User = model("User", userSchema);
 export const LoggedIn = model("Login", loggedInSchema);
-export const ContactInfo = model("ContactInfo", contactInfoSchema);
 export const ResidenceInfo = model("ResidenceInfo", residenceInfoSchema);
 export const PersonalInfo = model("PersonalInfo", personalInfoSchema);
 export const personalRefrenceInfo = model(

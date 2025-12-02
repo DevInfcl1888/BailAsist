@@ -10,7 +10,6 @@ import {
   ResidenceInfo,
   LegalInfo,
   User,
-  ContactInfo,
   PersonalInfo,
   DriversLicInfo,
   personalRefrenceInfo,
@@ -472,7 +471,6 @@ const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
       .json({ message: "User profile can't be deleted", deletedUserInfo });
 
   await Promise.all([
-    ContactInfo.deleteOne({ user: userId }),
     EmployementInfo.deleteOne({ user: userId }),
     ResidenceInfo.deleteOne({ user: userId }),
     DriversLicInfo.deleteOne({ user: userId }),
@@ -593,13 +591,12 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
       phoneNo: string;
       countryCode: string;
     };
-  const { contactInfoId } = req.body;
   if (
     !firstName.trim() ||
     !middleName.trim() ||
     !lastName.trim() ||
     !email.trim() ||
-    !phoneNo.trim()||
+    !phoneNo.trim() ||
     !countryCode.trim()
   )
     return res.status(404).json({ message: "All fields are required" });
@@ -614,45 +611,32 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
     });
   if (!isValidEmail(email))
     return res.status(400).json({ message: "Invalid email" });
-  const user = await User.findById(req.user?._id);
-  if (!user) return res.status(404).json({ message: "User not found" });
   const data = {
-    user: req.user?._id,
     firstName,
     middleName,
     lastName,
     email,
     phoneNo,
-    countryCode
+    countryCode,
   };
-  let contactInfoDoc;
-  if (contactInfoId) {
-    contactInfoDoc = await ContactInfo.findByIdAndUpdate(
-      contactInfoId,
-      {
-        $set: data,
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        data,
       },
-      {
-        new: true,
-      }
-    );
-
-    if (!contactInfoId)
-      return res.status(404).json({ message: "Data not found or created" });
-  } else {
-    contactInfoDoc = await ContactInfo.findOneAndUpdate(
-      { user: req.user?._id }, // find existing record for user
-      { $set: data },
-      { new: true, upsert: true } // create if not found
-    );
-  }
-
-  if (!contactInfoDoc)
+    },
+    {
+      new: true,
+    }
+  );
+  if (!user) return res.status(404).json({ message: "User not found" });
+  if (!user)
     return res.status(500).json({ message: "Error occur during submit data." });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
-    message: contactInfoId ? "Updated successfully" : "Data save successfully",
+    message: user ? "Updated successfully" : "Data save successfully",
     accessToken: accessToken,
     refreshToken: refreshToken,
   });
@@ -661,8 +645,10 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
 const getContactInfo = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user?._id);
   if (!user) return res.status(404).json({ message: "User not found" });
-  const contactInfo = await ContactInfo.find({ user: req.user?._id });
-  if (contactInfo.length === 0)
+  const contactInfo = await User.findById(req.user?._id).select(
+    "firstName middleName lastName email phoneNo countryCode"
+  );
+  if (!contactInfo)
     return res
       .status(200)
       .json({ message: "No Contact data found", contactInfo: contactInfo });
@@ -670,7 +656,7 @@ const getContactInfo = asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
     message: "Contact info data fetched",
-    contactInfo: contactInfo[0],
+    contactInfo: contactInfo,
     accessToken: accessToken,
     refreshToken: refreshToken,
   });
@@ -1150,6 +1136,38 @@ const getUserBondsmanInfo = asyncHandler(
   }
 );
 
+const getHistory = asyncHandler(async (req: Request, res: Response) => {
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+  const getChekInData = await CheckIn.find({ user: req.user?._id }).lean();
+  const getCheckOutData = await CheckOut.find({ user: req.user?._id }).lean();
+
+  const checkInMapped = getChekInData.map((item) => ({
+    ...item,
+    type: "checkIn",
+  }));
+  const checkOutMapped = getCheckOutData.map((item) => ({
+    ...item,
+    type: "checkOut",
+  }));
+
+  const timeLine = [...checkInMapped, ...checkOutMapped];
+  timeLine.sort(
+    (a, b) =>
+      new Date(b.createdAt as any).getTime() -
+      new Date(a.createdAt as any).getTime()
+  );
+
+  const paginated = timeLine.slice(skip, skip + limit);
+  res.json({
+    total: timeLine.length,
+    page,
+    limit,
+    data: paginated,
+  });
+});
+
 const createOrUpdateCheckIn = asyncHandler(
   async (req: Request, res: Response) => {
     console.log("API_HIT", req.body);
@@ -1475,4 +1493,5 @@ export {
   getUserCheckInStatus,
   checkOut,
   userCheckInHistory,
+  getHistory
 };

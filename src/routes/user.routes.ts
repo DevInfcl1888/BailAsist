@@ -40,6 +40,7 @@ import {
   getUserCheckInStatus,
   checkOut,
   userCheckInHistory,
+  getHistory,
 } from "../controller/user.controller.js";
 
 // Home Screen Import
@@ -73,10 +74,11 @@ router.route("/getPersonalInfo").get(authMiddleware, getPersonalInfo); // get pe
 router.route("/addDriverLicInfo").post(authMiddleware, addDriverLicInfo); // add driver license info
 router.route("/getDriverLicInfo").get(authMiddleware, getDriverLicInfo); // get driver license info
 router.route("/bondsman").get(authMiddleware, getUserBondsmanInfo); // get user's bondsman info
+router.route("/getHistory").get(authMiddleware, getHistory); // get check-in check-out history
 router
   .route("/createOrUpdateCheckIn")
   .post(authMiddleware, upload.single("photoUrl"), createOrUpdateCheckIn);
-  
+
 router
   .route("/checkOut")
   .post(authMiddleware, upload.single("photoUrl"), checkOut); // check-out with image upload

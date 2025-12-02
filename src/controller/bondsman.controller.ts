@@ -4,6 +4,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { isValidEmail, isValidPassword } from "../utils/dataValidators.js";
 import { User, CheckIn } from "../models/user.model.js";
 import { Admin } from "../models/admin.model.js";
+import { populate } from "dotenv";
 
 const signUpAsBondsman = asyncHandler(async (req: Request, res: Response) => {
   const {
@@ -444,7 +445,12 @@ const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
       select: "_id firstName middleName lastName email phoneNo reminders",
       populate: {
         path: "reminders",
-        select: "caseNumber reminderDate reminderNote ",
+        select:
+          "court roomNumber reminderDate reminderTime reminderNote status interval isActive",
+        // populate: {
+        //   path: "court",
+        //   select: "courtName addressLine city state country zipCode ",
+        // },
       },
     },
     {
