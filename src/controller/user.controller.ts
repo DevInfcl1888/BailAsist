@@ -608,7 +608,7 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
   )
     return res.status(400).json({
       message:
-        "firstName, middleName or lastName has invalid type. please include only alphabets and length should be more then 3 char ",
+        "Invalid data",
     });
   if (!isValidEmail(email))
     return res.status(400).json({ message: "Invalid email" });
@@ -955,6 +955,7 @@ const addPersonalRefrenceInfo = asyncHandler(
       name: m.name,
       address: m.address,
       phoneNo: m.phoneNo,
+      countryCode: m.countryCode,
       knownDuration: `${m.knownDuration} Yr`,
     }));
     console.log("formattedMembers", formattedMembers);
@@ -1097,12 +1098,10 @@ const getEmployementStatus = asyncHandler(
       user: req.user?._id,
     });
     if (employementInfo.length === 0)
-      return res
-        .status(200)
-        .json({
-          message: "No Employement data found",
-          employementInfo: employementInfo,
-        });
+      return res.status(200).json({
+        message: "No Employement data found",
+        employementInfo: employementInfo,
+      });
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
     return res.status(200).json({

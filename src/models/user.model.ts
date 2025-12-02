@@ -29,6 +29,7 @@ interface personalRefrenceInfo extends Document {
     address: string;
     phoneNo: string;
     knownDuration: string;
+    countryCode: string;
   }[];
 }
 
@@ -318,6 +319,7 @@ const personalRefrenceInfoSchema = new Schema<personalRefrenceInfo>({
       name: { type: String, required: true, trim: true },
       address: { type: String, required: true, trim: true },
       phoneNo: { type: String, required: true, trim: true },
+      countryCode: { type: String, required: true, trim: true },
       knownDuration: { type: String, required: true, trim: true }, // e.g. "2 Yr"
     },
   ],
