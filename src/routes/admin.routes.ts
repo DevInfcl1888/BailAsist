@@ -19,6 +19,11 @@ import {
   deleteUserProfile,
   deleteBondsmanProfile,
   updateBondsmanDetails,
+  updateUserDetails,
+  createContactUs,
+  getContactUs,
+  createPrivacyPolicy,
+  getPrivacyPolicy,
 } from "../controller/admin.controller.js";
 import { Router } from "express";
 import { authMiddleware } from "../middlewares/auth.middlewares.js";
@@ -63,11 +68,22 @@ router
   .route("/deleteUserProfile/:id")
   .delete(authMiddleware, deleteUserProfile); // delete user profile
 router
+  .route("/updateUserDetails/:userId")
+  .post(authMiddleware, updateUserDetails); // update user details
+router
   .route("/deleteBondsmanProfile/:id")
   .delete(authMiddleware, deleteBondsmanProfile); // delete user profile
 
 // router.get("/verifyToken", authMiddleware,
 router.route("/verifyToken").get(authMiddleware, verifyToken);
 router.route("/getAllUsers").get(authMiddleware, getAllUsers);
+
+// Contact Us routes
+router.route("/contactUs").post(authMiddleware, createContactUs); // create/update contact us
+router.route("/contactUs").get(getContactUs); // get contact us (public)
+
+// Privacy Policy routes
+router.route("/privacyPolicy").post(authMiddleware, createPrivacyPolicy); // create/update privacy policy
+router.route("/privacyPolicy").get(getPrivacyPolicy); // get privacy policy (public)
 
 export default router;
