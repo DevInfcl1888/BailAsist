@@ -584,20 +584,23 @@ const getResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
-  const { firstName, middleName, lastName, email, phoneNo } = req.body as {
-    firstName: string;
-    middleName: string;
-    lastName: string;
-    email: string;
-    phoneNo: string;
-  };
+  const { firstName, middleName, lastName, email, phoneNo, countryCode } =
+    req.body as {
+      firstName: string;
+      middleName: string;
+      lastName: string;
+      email: string;
+      phoneNo: string;
+      countryCode: string;
+    };
   const { contactInfoId } = req.body;
   if (
     !firstName.trim() ||
     !middleName.trim() ||
     !lastName.trim() ||
     !email.trim() ||
-    !phoneNo.trim()
+    !phoneNo.trim()||
+    !countryCode.trim()
   )
     return res.status(404).json({ message: "All fields are required" });
 
@@ -607,8 +610,7 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
     !isValidData(lastName)
   )
     return res.status(400).json({
-      message:
-        "Invalid data",
+      message: "Invalid data",
     });
   if (!isValidEmail(email))
     return res.status(400).json({ message: "Invalid email" });
@@ -621,6 +623,7 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     phoneNo,
+    countryCode
   };
   let contactInfoDoc;
   if (contactInfoId) {

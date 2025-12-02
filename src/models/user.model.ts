@@ -10,6 +10,7 @@ interface contactInfo extends Document {
   lastName: string;
   email: string;
   phoneNo: string;
+  countryCode: string;
 }
 
 //  --------------------- Residence Information --------------------
@@ -203,6 +204,11 @@ const contactInfoSchema = new Schema<contactInfo>({
     trim: true,
   },
   phoneNo: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  countryCode: {
     type: String,
     required: true,
     trim: true,
