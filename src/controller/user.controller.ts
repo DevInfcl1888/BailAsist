@@ -569,13 +569,10 @@ const getResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
   if (!user) return res.status(404).json({ message: "User not found" });
   const residenceInfo = await ResidenceInfo.find({ user: req.user?._id });
   if (residenceInfo.length === 0)
-    return res.status(200).json({ residenceInfo: {
-  user:" ",
-    yearsAtCurrentAddress:" ",
-    homeOwnership: " ",
-    landlordName: " ",
-    landlordAddress: { type: String, required: true },
-    } });
+    return res.status(200).json({
+      message: "No residence info found",
+      residenceInfo: residenceInfo,
+    });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
@@ -663,7 +660,9 @@ const getContactInfo = asyncHandler(async (req: Request, res: Response) => {
   if (!user) return res.status(404).json({ message: "User not found" });
   const contactInfo = await ContactInfo.find({ user: req.user?._id });
   if (contactInfo.length === 0)
-    return res.status(404).json({ message: "No Contact data found" });
+    return res
+      .status(200)
+      .json({ message: "No Contact data found", contactInfo: contactInfo });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
@@ -741,10 +740,14 @@ const getLegalInfo = asyncHandler(async (req: Request, res: Response) => {
     _id: user._id,
     bondsman: user?.bondsman,
   })
-    .populate([{ path: "bondsman", select: "name address phoneNo countryCode" }])
+    .populate([
+      { path: "bondsman", select: "name address phoneNo countryCode" },
+    ])
     .select("bondsman");
   if (legalInfo.length === 0)
-    return res.status(404).json({ message: "No Legal data found" });
+    return res
+      .status(200)
+      .json({ message: "No Legal data found", legalInfo: legalInfo });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
@@ -837,7 +840,9 @@ const getPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
   if (!user) return res.status(404).json({ message: "User not found" });
   const personalInfo = await PersonalInfo.find({ user: req.user?._id });
   if (personalInfo.length === 0)
-    return res.status(404).json({ message: "No Personal data found" });
+    return res
+      .status(200)
+      .json({ message: "No Personal data found", personalInfo: personalInfo });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
@@ -915,7 +920,10 @@ const getDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
   if (!user) return res.status(404).json({ message: "User not found" });
   const driversLicInfo = await DriversLicInfo.find({ user: req.user?._id });
   if (driversLicInfo.length === 0)
-    return res.status(404).json({ message: "No Driver Lic data found" });
+    return res.status(200).json({
+      message: "No Driver Lic data found",
+      driversLicInfo: driversLicInfo,
+    });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
@@ -995,9 +1003,10 @@ const getPersonalRefrenceInfo = asyncHandler(
       user: req.user?._id,
     });
     if (personalRefInfo.length === 0)
-      return res
-        .status(404)
-        .json({ message: "No Personal Ref Info Lic data found" });
+      return res.status(200).json({
+        message: "No Personal Ref Info Lic data found",
+        personalRefInfo: personalRefInfo,
+      });
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
     return res.status(200).json({
@@ -1088,7 +1097,12 @@ const getEmployementStatus = asyncHandler(
       user: req.user?._id,
     });
     if (employementInfo.length === 0)
-      return res.status(404).json({ message: "No Employement data found" });
+      return res
+        .status(200)
+        .json({
+          message: "No Employement data found",
+          employementInfo: employementInfo,
+        });
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
     return res.status(200).json({
