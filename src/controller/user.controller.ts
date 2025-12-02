@@ -524,7 +524,7 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
 
   const data = {
     user: req.user?._id,
-    yearsAtCurrentAddress: `${yearsAtCurrentAddress} Yr`,
+    yearsAtCurrentAddress: yearsAtCurrentAddress,
     landlordName,
     homeOwnership,
     landlordAddress,
@@ -959,7 +959,7 @@ const addPersonalRefrenceInfo = asyncHandler(
       address: m.address,
       phoneNo: m.phoneNo,
       countryCode: m.countryCode,
-      knownDuration: `${m.knownDuration} Yr`,
+      knownDuration: m.knownDuration,
     }));
     console.log("formattedMembers", formattedMembers);
     const user = await User.findById(req.user?._id);
@@ -1050,7 +1050,7 @@ const addEmployementStatus = asyncHandler(
       employerSupervisorName: employerSupervisorName ?? " ",
       employerAddress: employerAddress ?? " ",
       employerWorkingPeriod: employerWorkingPeriod
-        ? `${employerWorkingPeriod} Yr`
+        ? employerWorkingPeriod
         : " ",
       automobileColor: automobileColor ?? " ",
       previousEmployer: previousEmployer ?? " ",
