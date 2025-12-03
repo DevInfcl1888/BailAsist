@@ -1,7 +1,11 @@
 import { Request, Response } from "express";
 import { Bondsman, Court, Reminder, Status } from "../models/bondsman.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { isValidEmail, isValidPassword } from "../utils/dataValidators.js";
+import {
+  isValidData,
+  isValidEmail,
+  isValidPassword,
+} from "../utils/dataValidators.js";
 import { User, CheckIn } from "../models/user.model.js";
 import { Admin } from "../models/admin.model.js";
 import { populate } from "dotenv";
@@ -271,97 +275,121 @@ const getAllUsersOfBondsman = asyncHandler(
   }
 );
 
-const updateUserDetailsByBondsman = asyncHandler(
-  async (req: Request, res: Response) => {
-    const { userId } = req.params;
-    const {
-      firstName,
-      middleName,
-      lastName,
-      email,
-      phoneNo,
-      street,
-      ZipCode,
-      isActive,
-    } = req.body as {
-      firstName: string;
-      middleName: string;
-      lastName: string;
-      email: string;
-      phoneNo: string;
-      street: string;
-      ZipCode: string;
-      isActive: boolean;
-    };
+const updateUserDetailsByBondsman = asyncHandler(async (req: Request, res: Response) => {
+  const {
+    firstName,
+    middleName,
+    lastName,
+    email,
+    phoneNo,
+    homeAddress,
+    street,
+    ZipCode,
+    countryCode,
+    isActive,
+  } = req.body as {
+    firstName?: string;
+    middleName?: string;
+    lastName?: string;
+    email?: string;
+    phoneNo?: string;
+    homeAddress?: string;
+    street?: string;
+    ZipCode?: string;
+    countryCode?: string;
+    isActive?: boolean;
+  };
+  const { userId } = req.params;
+  const updateFields: any = {};
 
-    // Data validation
-    if (
-      !firstName?.trim() ||
-      !middleName?.trim() ||
-      !lastName?.trim() ||
-      !email?.trim() ||
-      !phoneNo?.trim() ||
-      !street?.trim() ||
-      !ZipCode?.trim()
-    ) {
-      return res.status(400).json({ message: "All credentials are required" });
-    }
-    if (!isValidEmail(email)) {
-      return res.status(404).json({ message: "Invalid email" });
-    }
-
-    if (street.length > 100 || ZipCode.length > 11)
-      return res
-        .status(400)
-        .json({ message: "Street or ZIP code is too long" });
-    if (isActive !== true && isActive !== false)
-      return res
-        .status(400)
-        .json({ message: "User should be active or inactive" });
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    let data = {
-      firstName,
-      middleName,
-      lastName,
-      email,
-      phoneNo,
-      street,
-      ZipCode,
-      isActive,
-    };
-
-    const updatedUserDetails = await User.findByIdAndUpdate(
-      userId,
-      {
-        $set: {
-          firstName: data.firstName,
-          middleName: data.middleName,
-          lastName: data.lastName,
-          email: data.email.toLowerCase(),
-          phoneNo: data.phoneNo,
-          street: data.street,
-          ZipCode: data.ZipCode,
-          isActive: data.isActive,
-        },
-      },
-      {
-        new: true,
-      }
-    ).select("-password -refreshToken -isAgreed");
-
-    if (!updatedUserDetails)
-      return res.status(401).json({
-        message:
-          "Internal Server error so details are not updated. try again !..",
-      });
-
-    return res
-      .status(200)
-      .json({ message: "Details updated successfully", updatedUserDetails });
+  if (firstName !== undefined) {
+    if (!firstName.trim())
+      return res.status(400).json({ message: "First name can't be empty" });
+    if (!isValidData(firstName))
+      return res.status(400).json({ message: "Invalid first name" });
+    updateFields.firstName = firstName.trim();
   }
-);
+
+  if (middleName !== undefined) {
+    if (!middleName.trim())
+      return res.status(400).json({ message: "Middle name can't be empty" });
+    if (!isValidData(middleName))
+      return res.status(400).json({ message: "Invalid middle name" });
+    updateFields.middleName = middleName.trim();
+  }
+
+  if (lastName !== undefined) {
+    if (!lastName.trim())
+      return res.status(400).json({ message: "Last name can't be empty" });
+    if (!isValidData(lastName))
+      return res.status(400).json({ message: "Invalid last name" });
+    updateFields.lastName = lastName.trim();
+  }
+
+  if (email !== undefined) {
+    if (!email.trim())
+      return res.status(400).json({ message: "Email can't be empty" });
+    if (!isValidEmail(email))
+      return res.status(400).json({ message: "Invalid email" });
+    updateFields.email = email.toLowerCase().trim();
+  }
+
+  if (phoneNo !== undefined) {
+    if (!phoneNo.trim())
+      return res.status(400).json({ message: "Phone number can't be empty" });
+    updateFields.phoneNo = phoneNo.trim();
+  }
+
+  if (homeAddress !== undefined) {
+    if (!homeAddress.trim())
+      return res.status(400).json({ message: "Home address can't be empty" });
+    updateFields.homeAddress = homeAddress.trim();
+  }
+
+  if (street !== undefined) {
+    if (!street.trim())
+      return res.status(400).json({ message: "Street can't be empty" });
+    updateFields.street = street.trim();
+  }
+
+  if (ZipCode !== undefined) {
+    if (!ZipCode.trim())
+      return res.status(400).json({ message: "Zip code can't be empty" });
+    updateFields.ZipCode = ZipCode.trim();
+  }
+
+  if (countryCode !== undefined) {
+    if (!countryCode.trim())
+      return res.status(400).json({ message: "Country code can't be empty" });
+    updateFields.countryCode = countryCode.trim();
+  }
+
+  if (isActive !== undefined) {
+    updateFields.isActive = isActive;
+  }
+
+  if (Object.keys(updateFields).length === 0)
+    return res.status(400).json({ message: "No fields provided to update" });
+
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    {
+      $set: updateFields,
+    },
+    {
+      new: true,
+    }
+  ).select("-password -refreshToken");
+
+  if (!updatedUser)
+    return res
+      .status(404)
+      .json({ message: "User not found or data couldn't update" });
+
+  return res
+    .status(200)
+    .json({ message: "User data updated successfully", updatedUser });
+});
 
 const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
   const {
