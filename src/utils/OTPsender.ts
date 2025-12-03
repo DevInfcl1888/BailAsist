@@ -12,7 +12,7 @@ export const generateOTP = async (email: string): Promise<string> => {
   otpStore.set(email, {
     hash: hashedOTP,
     expiresAt:
-      Date.now() + (Number(process.env.OTP_EXPIRE_TIME!) || 300) * 1000, // 5 min
+      Date.now() + (Number(process.env.OTP_EXPIRE_TIME!) || 60) * 1000, // 1 min
   });
 
   // console.log("OTP store updated:", otpStore);
@@ -35,6 +35,6 @@ export const sendOTPfun = async (
     from: `${process.env.FROM_NAME} <${process.env.EMAIL_USER}>`,
     to: email,
     subject: "Your OTP code",
-    html: `<h3>Your OTP code is <b>${otp}</b>. It will expire in 5 minutes.</h3>`,
+    html: `<h3>Your OTP code is <b>${otp}</b>. It will expire in 1 minutes.</h3>`,
   });
 };
