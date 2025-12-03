@@ -41,6 +41,7 @@ import {
   checkOut,
   userCheckInHistory,
   getHistory,
+  refreshAccessToken
 } from "../controller/user.controller.js";
 
 // Home Screen Import
@@ -105,6 +106,7 @@ router
 router.route("/updateLatAndLong").post(authMiddleware, updateLatAndLong); // update latitude and longitude
 
 router.route("/userCheckInHistory").get(authMiddleware, userCheckInHistory);
+router.route("/refreshAccessToken").post(refreshAccessToken);
 
 // Home Screen Routes
 router.route("/createCourt").post(authMiddleware, createCourt); // create court

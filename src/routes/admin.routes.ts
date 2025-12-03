@@ -25,6 +25,7 @@ import {
   createPrivacyPolicy,
   getPrivacyPolicy,
 } from "../controller/admin.controller.js";
+import { refreshAccessToken } from "../controller/user.controller.js";
 import { Router } from "express";
 import { authMiddleware } from "../middlewares/auth.middlewares.js";
 import { upload } from "../middlewares/multer.middlewares.js";
@@ -86,4 +87,6 @@ router.route("/contactUs").get(getContactUs); // get contact us (public)
 router.route("/privacyPolicy").post(authMiddleware, createPrivacyPolicy); // create/update privacy policy
 router.route("/privacyPolicy").get(getPrivacyPolicy); // get privacy policy (public)
 
+// Refresh access token route
+router.route("/refreshAccessToken").post(refreshAccessToken);
 export default router;

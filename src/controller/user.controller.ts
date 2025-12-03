@@ -1,3 +1,4 @@
+import { DecodeToken } from "./../middlewares/auth.middlewares";
 import express, { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {
@@ -22,6 +23,33 @@ import { generateOTP, sendOTPfun, otpStore } from "../utils/OTPsender.js";
 import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
+import Blacklist from "../models/blacklist.model.js";
+
+const refreshAccessToken = async (req: Request, res: Response) => {
+  const incomingRefreshToken = req.body.refreshToken;
+
+  if (!incomingRefreshToken) {
+    return res.status(400).json({ message: "Refresh token required" });
+  }
+
+  const decoded = jwt.verify(
+    incomingRefreshToken,
+    process.env.REFRESH_TOKEN_KEY
+  ) as DecodeToken;
+
+  const user = await User.findById(decoded._id);
+
+  if (user.refreshToken !== incomingRefreshToken) {
+    return res.status(401).json({ message: "Invalid refresh token" });
+  }
+
+  const newAccessToken = user.generateAccessToken();
+
+  return res.status(200).json({
+    refreshToken: decoded,
+    accessToken: newAccessToken,
+  });
+};
 
 const registration = asyncHandler(async (req: Request, res: Response) => {
   const {
@@ -184,48 +212,48 @@ const login = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).json({
     message: "User login successfully",
     data: {
-      accessToken: `${accessToken}`,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
       deviceToken: deviceToken ? deviceToken : "",
     },
   });
 });
 
 const logout = asyncHandler(async (req: Request, res: Response) => {
-  const { refreshToken } = (req.body || {}) as { refreshToken?: string };
+  const accessToken = req.headers.authorization?.split(" ")[1]; // Bearer token
+  const refreshToken = (req.body || {}).refreshToken;
+console.log({accessToken})
+  if (!accessToken && !refreshToken) {
+    return res.status(400).json({ message: "No token found" });
+  }
 
-  // If no refreshToken in body, use the logged-in user's token
+  // Add access token to blacklist
+  if (accessToken) {
+    const decoded: any = jwt.decode(accessToken);
+
+    const expiresAt = decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 60 * 60 * 1000);
+    console.log({decoded})
+    console.log({expiresAt})
+    const a = await Blacklist.create({ token: accessToken, expiresAt });
+    console.log({a})
+  }
+  
+  console.log({accessToken})
+  // Existing refresh token invalidation
   let tokenToInvalidate = refreshToken;
+  const user = await User.findById(req.user?._id).select("refreshToken deviceToken");
+  if (!tokenToInvalidate && user?.refreshToken) tokenToInvalidate = user.refreshToken;
 
-  // Access token will give us req.user
-  if (!tokenToInvalidate && req.user?._id) {
-    const user = await User.findById(req.user?._id).select("refreshToken");
-    if (user?.refreshToken) tokenToInvalidate = user.refreshToken;
+  if (tokenToInvalidate) {
+    const u = await User.findOne({ refreshToken: tokenToInvalidate });
+    if (u) {
+      u.refreshToken = "";
+      u.deviceToken = "";
+      await u.save({ validateBeforeSave: false });
+    }
   }
 
-  // If still no refresh token → cannot logout
-  if (!tokenToInvalidate) {
-    return res.status(400).json({
-      message: "No refresh token found, cannot logout",
-    });
-  }
-
-  // Find user by refresh token
-  const user = await User.findOne({ refreshToken: tokenToInvalidate });
-
-  if (!user) {
-    return res.status(400).json({
-      message: "Invalid refresh token",
-    });
-  }
-
-  // Clear refreshToken + deviceToken in DB
-  user.refreshToken = "";
-  user.deviceToken = "";
-  await user.save({ validateBeforeSave: false });
-
-  return res.status(200).json({
-    message: "Logged out successfully",
-  });
+  return res.status(200).json({ message: "Logged out successfully", refreshToken: tokenToInvalidate });
 });
 
 const changePassword = asyncHandler(async (req: Request, res: Response) => {
@@ -1498,4 +1526,5 @@ export {
   checkOut,
   userCheckInHistory,
   getHistory,
+  refreshAccessToken,
 };
