@@ -222,7 +222,7 @@ const login = asyncHandler(async (req: Request, res: Response) => {
 const logout = asyncHandler(async (req: Request, res: Response) => {
   const accessToken = req.headers.authorization?.split(" ")[1]; // Bearer token
   const refreshToken = (req.body || {}).refreshToken;
-console.log({accessToken})
+  console.log({ accessToken });
   if (!accessToken && !refreshToken) {
     return res.status(400).json({ message: "No token found" });
   }
@@ -231,18 +231,23 @@ console.log({accessToken})
   if (accessToken) {
     const decoded: any = jwt.decode(accessToken);
 
-    const expiresAt = decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 60 * 60 * 1000);
-    console.log({decoded})
-    console.log({expiresAt})
+    const expiresAt = decoded.exp
+      ? new Date(decoded.exp * 1000)
+      : new Date(Date.now() + 60 * 60 * 1000);
+    console.log({ decoded });
+    console.log({ expiresAt });
     const a = await Blacklist.create({ token: accessToken, expiresAt });
-    console.log({a})
+    console.log({ a });
   }
-  
-  console.log({accessToken})
+
+  console.log({ accessToken });
   // Existing refresh token invalidation
   let tokenToInvalidate = refreshToken;
-  const user = await User.findById(req.user?._id).select("refreshToken deviceToken");
-  if (!tokenToInvalidate && user?.refreshToken) tokenToInvalidate = user.refreshToken;
+  const user = await User.findById(req.user?._id).select(
+    "refreshToken deviceToken"
+  );
+  if (!tokenToInvalidate && user?.refreshToken)
+    tokenToInvalidate = user.refreshToken;
 
   if (tokenToInvalidate) {
     const u = await User.findOne({ refreshToken: tokenToInvalidate });
@@ -253,7 +258,10 @@ console.log({accessToken})
     }
   }
 
-  return res.status(200).json({ message: "Logged out successfully", refreshToken: tokenToInvalidate });
+  return res.status(200).json({
+    message: "Logged out successfully",
+    refreshToken: tokenToInvalidate,
+  });
 });
 
 const changePassword = asyncHandler(async (req: Request, res: Response) => {
@@ -1207,11 +1215,16 @@ const createOrUpdateCheckIn = asyncHandler(
     const userId = req.user?._id;
     const { lat, long } = req.body;
 
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0); // 12.00 AM
+    // const startOfToday = new Date();
+    // startOfToday.setHours(0, 0, 0, 0); // 12.00 AM
+
+    // const endOfToday = new Date();
+    // endOfToday.setHours(23, 59, 59, 999); // 11.59 PM
+
+    const startOfToday = new Date(); // current time
 
     const endOfToday = new Date();
-    endOfToday.setHours(23, 59, 59, 999); // 11.59 PM
+    endOfToday.setMinutes(endOfToday.getMinutes() + 3); // +3 minutes
 
     const alreadyCheckOut = await CheckOut.findOne({
       user: userId,
@@ -1319,11 +1332,17 @@ const checkOut = asyncHandler(async (req: Request, res: Response) => {
   const { lat, long } = req.body;
 
   // Define today's date range
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+  // const startOfToday = new Date();
+  // startOfToday.setHours(0, 0, 0, 0);
+
+  // const endOfToday = new Date();
+  // endOfToday.setHours(23, 59, 59, 999);
+
+  const startOfToday = new Date(); // current time
 
   const endOfToday = new Date();
-  endOfToday.setHours(23, 59, 59, 999);
+  endOfToday.setMinutes(endOfToday.getMinutes() + 3);
+
   let checkOut = await CheckOut.findOne({
     user: userId,
     createdAt: { $gte: startOfToday, $lte: endOfToday },
