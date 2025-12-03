@@ -1214,89 +1214,82 @@ const createOrUpdateCheckIn = asyncHandler(
 
     const userId = req.user?._id;
     const { lat, long } = req.body;
+    const now = new Date();
+    const threeMinutes = 3 * 60 * 1000;
 
-    // const startOfToday = new Date();
-    // startOfToday.setHours(0, 0, 0, 0); // 12.00 AM
-
-    // const endOfToday = new Date();
-    // endOfToday.setHours(23, 59, 59, 999); // 11.59 PM
-
-    const startOfToday = new Date(); // current time
-
-    const endOfToday = new Date();
-    endOfToday.setMinutes(endOfToday.getMinutes() + 3); // +3 minutes
-
-    const alreadyCheckOut = await CheckOut.findOne({
+    // Get the latest checkout
+    const lastCheckOut = await CheckOut.findOne({
       user: userId,
-      createdAt: { $gte: startOfToday, $lte: endOfToday },
-    });
+      isCheckOut: true,
+    }).sort({ createdAt: -1 });
 
-    if (alreadyCheckOut) {
-      return res.status(400).json({
-        message: "You already checked out today. Come back tomorrow.",
-      });
+    // Disable check-in if last checkout is within 3 minutes
+    if (lastCheckOut) {
+      const diff =
+        now.getTime() - new Date(lastCheckOut.createdAt as any).getTime();
+
+      if (diff <= threeMinutes) {
+        return res.status(400).json({
+          message:
+            "You already checked out recently. Come back after 3 minutes.",
+        });
+      }
     }
 
-    let uploadedImageUrl: string;
-
     // Optional image upload
+    let uploadedImageUrl: string;
     if (req.file && req.file.buffer) {
       const imgUpload = await uploadToCloudinary(req.file.buffer);
       if (!imgUpload)
         return res.status(400).json({ message: "Image upload failed" });
-
       uploadedImageUrl = imgUpload.secure_url;
     }
-    let checkIn = await CheckIn.findOne({
-      user: userId,
-      createdAt: { $gte: startOfToday, $lte: endOfToday },
-    });
-    // const isCheckOutAlready = await CheckOut.find({
-    //   user: userId,
-    //   createdAt: {
-    //     $gte: startOfToday,
-    //     $lte: endOfToday,
-    //   },
-    // });
-    const now = new Date();
+
+    // Find the latest check-in
+    let checkIn = await CheckIn.findOne({ user: userId, isCheckIn: true }).sort(
+      { createdAt: -1 }
+    );
 
     if (checkIn) {
-      // Compare existing values
+      const diff = now.getTime() - new Date(checkIn.createdAt as any).getTime();
+      if (diff > threeMinutes) {
+        // Reset old check-in
+        checkIn.isCheckIn = false;
+        await checkIn.save();
+        checkIn = null;
+      }
+    }
+
+    if (checkIn) {
+      // Update existing check-in
       const sameLat = Number(checkIn.location.lat) === Number(lat);
       const sameLong = Number(checkIn.location.long) === Number(long);
       const samePhoto =
         !uploadedImageUrl || uploadedImageUrl === checkIn.photoUrl;
-
       const isSameData = sameLat && sameLong && samePhoto;
 
-      if (isSameData) {
-        checkIn.set("createdAt", now);
-        checkIn.set("updatedAt", now);
-      } else {
-        checkIn.location.lat = lat;
-        checkIn.location.long = long;
-
-        if (uploadedImageUrl) {
-          checkIn.photoUrl = uploadedImageUrl;
-        }
-
-        checkIn.set("updatedAt", now);
+      if (!isSameData) {
+        checkIn.location = { lat, long };
+        if (uploadedImageUrl) checkIn.photoUrl = uploadedImageUrl;
       }
 
+      checkIn.set("updatedAt", now);
       await checkIn.save();
     } else {
-      // Create new document
+      // Create new check-in
       checkIn = await CheckIn.create({
         user: userId,
         photoUrl: uploadedImageUrl ?? " ",
         location: { lat, long },
+        isCheckIn: true,
       });
-    }
 
-    // let checkIn = await CheckIn.findOne({
-    //   user: userId,
-    //   createdAt: { $gte: startOfToday, $lte: endOfToday },
-    // });
+      // Reset any active checkout for safety
+      await CheckOut.updateMany(
+        { user: userId, isCheckOut: true },
+        { isCheckOut: false }
+      );
+    }
 
     return res.status(200).json({
       message: "Check-in recorded",
@@ -1305,10 +1298,138 @@ const createOrUpdateCheckIn = asyncHandler(
         updatedAt: checkIn.updatedAt,
         photoUrl: checkIn.photoUrl ?? " ",
         location: checkIn.location,
+        isCheckIn: checkIn.isCheckIn,
       },
     });
   }
 );
+
+// const createOrUpdateCheckIn = asyncHandler(
+//   async (req: Request, res: Response) => {
+//     console.log("API_HIT", req.body);
+
+//     const userId = req.user?._id;
+//     const { lat, long } = req.body;
+
+//     // const startOfToday = new Date();
+//     // startOfToday.setHours(0, 0, 0, 0); // 12.00 AM
+
+//     // const endOfToday = new Date();
+//     // endOfToday.setHours(23, 59, 59, 999); // 11.59 PM
+
+//     const now = new Date();
+//     const threeMinutes = 3 * 60 * 1000;
+//     const alreadyCheckOut = await CheckOut.findOne({
+//       user: userId,
+//       isCheckOut: true,
+//     }).sort({
+//       createdAt: -1,
+//     });
+
+//     // const alreadyCheckOut = await CheckOut.findOne({
+//     //   user: userId,
+//     //   createdAt: { $gte: startOfToday, $lte: endOfToday },
+//     // });
+
+//     // if (alreadyCheckOut) {
+//     //   return res.status(400).json({
+//     //     message: "You already checked out today. Come back tomorrow.",
+//     //   });
+//     // }
+//     if (alreadyCheckOut) {
+//       const diff =
+//         now.getTime() - new Date(alreadyCheckOut.createdAt as any).getTime();
+//       if (diff <= threeMinutes) {
+//         return res.status(400).json({
+//           message: "You already checked out today. Come back tomorrow.",
+//         });
+//       }
+//     }
+//     let uploadedImageUrl: string;
+
+//     // Optional image upload
+//     if (req.file && req.file.buffer) {
+//       const imgUpload = await uploadToCloudinary(req.file.buffer);
+//       if (!imgUpload)
+//         return res.status(400).json({ message: "Image upload failed" });
+
+//       uploadedImageUrl = imgUpload.secure_url;
+//     }
+//     // let checkIn = await CheckIn.findOne({
+//     //   user: userId,
+//     //   createdAt: { $gte: startOfToday, $lte: endOfToday },
+//     // });
+
+//     let checkIn = await CheckIn.findOne({ user: userId, isCheckIn: true }).sort(
+//       {
+//         createdAt: -1,
+//       }
+//     );
+
+//     // const isCheckOutAlready = await CheckOut.find({
+//     //   user: userId,
+//     //   createdAt: {
+//     //     $gte: startOfToday,
+//     //     $lte: endOfToday,
+//     //   },
+//     // });
+//     if (checkIn) {
+//       const diff = now.getTime() - new Date(checkIn.createdAt as any).getTime();
+
+//       // If old (>3 mins), reset
+//       if (diff > threeMinutes) {
+//         checkIn = null;
+//       }
+//     }
+//     if (checkIn) {
+//       // Compare existing values
+//       const sameLat = Number(checkIn.location.lat) === Number(lat);
+//       const sameLong = Number(checkIn.location.long) === Number(long);
+//       const samePhoto =
+//         !uploadedImageUrl || uploadedImageUrl === checkIn.photoUrl;
+
+//       const isSameData = sameLat && sameLong && samePhoto;
+
+//       if (isSameData) {
+//         checkIn.set("createdAt", now);
+//         checkIn.set("updatedAt", now);
+//       } else {
+//         checkIn.location.lat = lat;
+//         checkIn.location.long = long;
+
+//         if (uploadedImageUrl) {
+//           checkIn.photoUrl = uploadedImageUrl;
+//         }
+
+//         checkIn.set("updatedAt", now);
+//       }
+
+//       await checkIn.save();
+//     } else {
+//       // Create new document
+//       checkIn = await CheckIn.create({
+//         user: userId,
+//         photoUrl: uploadedImageUrl ?? " ",
+//         location: { lat, long },
+//       });
+//     }
+
+//     // let checkIn = await CheckIn.findOne({
+//     //   user: userId,
+//     //   createdAt: { $gte: startOfToday, $lte: endOfToday },
+//     // });
+
+//     return res.status(200).json({
+//       message: "Check-in recorded",
+//       checkIn: {
+//         createdAt: checkIn.createdAt,
+//         updatedAt: checkIn.updatedAt,
+//         photoUrl: checkIn.photoUrl ?? " ",
+//         location: checkIn.location,
+//       },
+//     });
+//   }
+// );
 
 const getUserCheckInStatus = asyncHandler(
   async (req: Request, res: Response) => {
@@ -1327,96 +1448,185 @@ const getUserCheckInStatus = asyncHandler(
   }
 );
 
+// const checkOut = asyncHandler(async (req: Request, res: Response) => {
+//   const userId = req.user?._id;
+//   const { lat, long } = req.body;
+//   const now = new Date();
+//   const threeMinutes = 3 * 60 * 1000;
+
+//   let checkOut = await CheckOut.findOne({ user: userId }).sort({
+//     createdAt: -1,
+//   });
+//   // Define today's date range
+//   // const startOfToday = new Date();
+//   // startOfToday.setHours(0, 0, 0, 0);
+
+//   // const endOfToday = new Date();
+//   // endOfToday.setHours(23, 59, 59, 999);
+
+//   // let checkOut = await CheckOut.findOne({
+//   //   user: userId,
+//   //   createdAt: { $gte: startOfToday, $lte: endOfToday },
+//   // });
+//   // if (checkOut) {
+//   //   return res.status(400).json({
+//   //     message: "You already checked out today.",
+//   //   });
+//   // }
+
+//   if (checkOut) {
+//     const diff = now.getTime() - new Date(checkOut.createdAt as any).getTime();
+
+//     if (diff <= threeMinutes) {
+//       return res.status(400).json({
+//         message: "You already checked out today.",
+//       });
+//     }
+//   }
+
+//   // const checkInToday = await CheckIn.findOne({
+//   //   user: userId,
+//   //   createdAt: { $gte: startOfToday, $lte: endOfToday },
+//   // });
+//   const checkInToday = await CheckIn.findOne({ user: userId }).sort({
+//     createdAt: -1,
+//   });
+
+//   if (!checkInToday) {
+//     return res.status(400).json({
+//       message: "You cannot check out without checking in.",
+//     });
+//   }
+//   let uploadedImageUrl: "";
+
+//   // Optional image upload
+//   if (req.file && req.file.buffer) {
+//     const imgUpload = await uploadToCloudinary(req.file.buffer);
+
+//     if (!imgUpload)
+//       return res.status(400).json({ message: "Image upload failed" });
+
+//     uploadedImageUrl = imgUpload.secure_url;
+//   }
+
+//   // const checkIn = await CheckIn.findById(req.user?._id);
+//   // if(checkIn) return res.status(401).json({message:"You can't check out without check in"})
+//   // Check if today's checkout already exists
+//   // let checkOut = await CheckOut.findOne({
+//   //   user: userId,
+//   //   createdAt: { $gte: startOfToday, $lte: endOfToday },
+//   // });
+
+//   // const now = new Date();
+
+//   // if (checkOut) {
+//   //   // Compare existing data
+//   //   const sameLat = Number(checkOut.location.lat) === Number(lat);
+//   //   const sameLong = Number(checkOut.location.long) === Number(long);
+//   //   const samePhoto =
+//   //     !uploadedImageUrl || uploadedImageUrl === checkOut.photoUrl;
+
+//   //   const isSameData = sameLat && sameLong && samePhoto;
+
+//   //   if (isSameData) {
+//   //     // Refresh timestamps only
+//   //     checkOut.set("updatedAt", now);
+//   //   } else {
+//   //     // Update changed fields
+//   //     checkOut.location.lat = lat;
+//   //     checkOut.location.long = long;
+
+//   //     if (uploadedImageUrl) {
+//   //       checkOut.photoUrl = uploadedImageUrl;
+//   //     }
+
+//   //     checkOut.set("updatedAt", now);
+//   //   }
+
+//   //   await checkOut.save();
+//   // } else {
+//   // Create a new checkout record
+//   checkOut = await CheckOut.create({
+//     user: userId,
+//     photoUrl: uploadedImageUrl ?? " ",
+//     location: { lat, long },
+//   });
+//   // }
+
+//   return res.status(200).json({
+//     message: "Checkout recorded",
+//     checkOut: {
+//       createdAt: checkOut.createdAt,
+//       updatedAt: checkOut.updatedAt,
+//       photoUrl: checkOut.photoUrl ?? " ",
+//       location: checkOut.location,
+//     },
+//   });
+// });
 const checkOut = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?._id;
   const { lat, long } = req.body;
+  const now = new Date();
+  const threeMinutes = 3 * 60 * 1000;
 
-  // Define today's date range
-  // const startOfToday = new Date();
-  // startOfToday.setHours(0, 0, 0, 0);
-
-  // const endOfToday = new Date();
-  // endOfToday.setHours(23, 59, 59, 999);
-
-  const startOfToday = new Date(); // current time
-
-  const endOfToday = new Date();
-  endOfToday.setMinutes(endOfToday.getMinutes() + 3);
-
-  let checkOut = await CheckOut.findOne({
-    user: userId,
-    createdAt: { $gte: startOfToday, $lte: endOfToday },
+  // Get last checkout
+  let checkOut = await CheckOut.findOne({ user: userId }).sort({
+    createdAt: -1,
   });
+
   if (checkOut) {
-    return res.status(400).json({
-      message: "You already checked out today.",
-    });
+    const diff = now.getTime() - new Date(checkOut.createdAt as any).getTime();
+    if (diff <= threeMinutes && checkOut.isCheckOut) {
+      return res
+        .status(400)
+        .json({ message: "You already checked out recently." });
+    }
   }
-  const checkInToday = await CheckIn.findOne({
-    user: userId,
-    createdAt: { $gte: startOfToday, $lte: endOfToday },
-  });
 
-  if (!checkInToday) {
-    return res.status(400).json({
-      message: "You cannot check out without checking in.",
-    });
+  // Get last check-in
+  const lastCheckIn = await CheckIn.findOne({
+    user: userId,
+    isCheckIn: true,
+  }).sort({ createdAt: -1 });
+  if (!lastCheckIn) {
+    return res
+      .status(400)
+      .json({ message: "You cannot check out without checking in." });
   }
-  let uploadedImageUrl: "";
 
   // Optional image upload
+  let uploadedImageUrl: string = "";
   if (req.file && req.file.buffer) {
     const imgUpload = await uploadToCloudinary(req.file.buffer);
-
     if (!imgUpload)
       return res.status(400).json({ message: "Image upload failed" });
-
     uploadedImageUrl = imgUpload.secure_url;
   }
 
-  // const checkIn = await CheckIn.findById(req.user?._id);
-  // if(checkIn) return res.status(401).json({message:"You can't check out without check in"})
-  // Check if today's checkout already exists
-  // let checkOut = await CheckOut.findOne({
-  //   user: userId,
-  //   createdAt: { $gte: startOfToday, $lte: endOfToday },
-  // });
-
-  // const now = new Date();
-
-  // if (checkOut) {
-  //   // Compare existing data
-  //   const sameLat = Number(checkOut.location.lat) === Number(lat);
-  //   const sameLong = Number(checkOut.location.long) === Number(long);
-  //   const samePhoto =
-  //     !uploadedImageUrl || uploadedImageUrl === checkOut.photoUrl;
-
-  //   const isSameData = sameLat && sameLong && samePhoto;
-
-  //   if (isSameData) {
-  //     // Refresh timestamps only
-  //     checkOut.set("updatedAt", now);
-  //   } else {
-  //     // Update changed fields
-  //     checkOut.location.lat = lat;
-  //     checkOut.location.long = long;
-
-  //     if (uploadedImageUrl) {
-  //       checkOut.photoUrl = uploadedImageUrl;
-  //     }
-
-  //     checkOut.set("updatedAt", now);
-  //   }
-
-  //   await checkOut.save();
-  // } else {
-  // Create a new checkout record
+  // Create new checkout
   checkOut = await CheckOut.create({
     user: userId,
     photoUrl: uploadedImageUrl ?? " ",
     location: { lat, long },
+    isCheckOut: true,
   });
-  // }
+
+  // Mark check-in as false
+  await CheckIn.updateMany(
+    { user: userId, isCheckIn: true },
+    { isCheckIn: false }
+  );
+
+  // Auto-reset isCheckOut after 3 minutes
+  setTimeout(async () => {
+    // Step 1: reset checkout
+    await CheckOut.findByIdAndUpdate(checkOut._id, { isCheckOut: false });
+
+    // Step 2: enable check-in again
+    await CheckIn.updateMany({ user: userId }, { isCheckIn: true });
+
+    console.log("Auto-reset: checkout false, checkin true");
+  }, threeMinutes);
 
   return res.status(200).json({
     message: "Checkout recorded",
@@ -1425,6 +1635,7 @@ const checkOut = asyncHandler(async (req: Request, res: Response) => {
       updatedAt: checkOut.updatedAt,
       photoUrl: checkOut.photoUrl ?? " ",
       location: checkOut.location,
+      isCheckOut: checkOut.isCheckOut,
     },
   });
 });

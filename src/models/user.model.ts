@@ -124,6 +124,7 @@ interface ICheckIn extends Document {
   location: { lat: number; long: number };
   createdAt: Date;
   updatedAt: Date;
+  isCheckIn: boolean;
 }
 
 //  --------------------- CheckOut Information --------------------
@@ -133,6 +134,7 @@ interface ICheckOut extends Document {
   location?: { lat: number; long: number };
   createdAt: Date;
   updatedAt: Date;
+  isCheckOut: boolean;
 }
 
 //  --------------------- CheckIn Information --------------------
@@ -144,6 +146,11 @@ const CheckInSchema = new Schema<ICheckIn>(
     location: {
       lat: { type: Number, required: true },
       long: { type: Number, required: true },
+    },
+    isCheckIn: {
+      type: Boolean,
+      default: false,
+      required: true,
     },
   },
   {
@@ -158,6 +165,11 @@ const CheckOutSchema = new Schema<ICheckOut>(
     location: {
       lat: { type: Number, required: false },
       long: { type: Number, required: false },
+    },
+    isCheckOut: {
+      type: Boolean,
+      default: false,
+      required: true,
     },
   },
   {
