@@ -310,8 +310,8 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
       lastName: string;
       email: string;
       phoneNo: string;
-      street: string;
-      ZipCode: string;
+      street?: string;
+      ZipCode?: string;
     };
   // Data validation
   if (
