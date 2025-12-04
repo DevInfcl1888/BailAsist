@@ -73,3 +73,29 @@ export const sendSMS = async (to: string, body: string, email?: string) => {
         console.error("❌ Twilio credentials not available and no email provided. Cannot send message.");
     }
 };
+
+// Send email function
+export const sendEmail = async (to: string, subject: string, html: string): Promise<boolean> => {
+    if (!hasEmailCredentials) {
+        console.error("❌ Email credentials not available. Cannot send email.");
+        return false;
+    }
+
+    try {
+        const transporter = getEmailTransporter();
+        if (transporter) {
+            await transporter.sendMail({
+                from: `${process.env.FROM_NAME || "BailAsist"} <${process.env.EMAIL_USER}>`,
+                to: to,
+                subject: subject,
+                html: html,
+            });
+            console.log(`📧 Email sent to ${to}`);
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error("❌ Email Error:", error);
+        return false;
+    }
+};

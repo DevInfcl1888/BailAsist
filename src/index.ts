@@ -8,6 +8,8 @@ import cors from "cors";
 import connectDB from "./db/db.js";
 import "./config/firebase.js";
 import "./jobs/tokenCheckJob.js";
+import "./jobs/userActivityCheckJob.js";
+import "./jobs/reminderNotificationJob.js";
 
 dotenv.config();
 
