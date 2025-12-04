@@ -97,6 +97,7 @@ interface signUp extends Document {
   ZipCode: string;
   refreshToken: string;
   image: string;
+  SSOimg: string;
   isAgreed: boolean;
   bondsman: Schema.Types.ObjectId;
   court: Schema.Types.ObjectId;
@@ -104,6 +105,8 @@ interface signUp extends Document {
   longitude: number;
   countryCode: String;
   reminders: Schema.Types.ObjectId[];
+  subId: string; // Google UID
+  authProvider: string; // google/manual/etc
   isCorrectPassword(password: string): Promise<boolean>;
   generateAccessToken(): string;
   generateRefreshToken(): string;
@@ -399,6 +402,7 @@ const userSchema = new Schema<signUp>(
     //  --------------------- Sign Up Information --------------------
 
     firstName: {
+      // we can use it as givenName
       type: String,
       required: true,
       trim: true,
@@ -409,6 +413,7 @@ const userSchema = new Schema<signUp>(
       trim: true,
     },
     lastName: {
+      // we can use it as familyname
       type: String,
       required: true,
       trim: true,
@@ -468,6 +473,7 @@ const userSchema = new Schema<signUp>(
     image: {
       type: String, // cloudinary url
     },
+    SSOimg: { type: String },
     reminders: [{ type: Schema.Types.ObjectId, ref: "Reminder" }],
     latitude: { type: Number },
     longitude: { type: Number },
@@ -475,6 +481,8 @@ const userSchema = new Schema<signUp>(
       type: Schema.Types.ObjectId,
       ref: "Court",
     },
+    subId: { type: String }, // Google UID
+    authProvider: { type: String }, // google/manual/etc
   },
   {
     timestamps: true,

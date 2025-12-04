@@ -1152,8 +1152,13 @@ const getUserBondsmanInfo = asyncHandler(
     ]);
     if (!isBondsmanExist)
       return res.status(404).json({ message: "User not found" });
-    const getChekInData = await CheckIn.find({ user: req.user?._id });
-    const getCheckOutData = await CheckOut.find({ user: req.user?._id });
+    const getChekInData = await CheckIn.find({ user: req.user?._id })
+      .sort({ createdAt: -1 }) // newest first
+      .limit(1);
+
+    const getCheckOutData = await CheckOut.find({ user: req.user?._id })
+      .sort({ createdAt: -1 }) // newest first
+      .limit(1);
     const accessToken = isBondsmanExist.generateAccessToken();
     const refreshToken = isBondsmanExist.generateRefreshToken();
 
@@ -1168,6 +1173,10 @@ const getUserBondsmanInfo = asyncHandler(
         getCheckOutData.length === 0
           ? "No Check-out data found"
           : getCheckOutData,
+      isCheckIn:
+        getChekInData.length === 0 ? false : getChekInData[0].isCheckIn,
+      isCheckOut:
+        getCheckOutData.length === 0 ? false : getCheckOutData[0].isCheckOut,
     });
   }
 );
@@ -1623,7 +1632,7 @@ const checkOut = asyncHandler(async (req: Request, res: Response) => {
     await CheckOut.findByIdAndUpdate(checkOut._id, { isCheckOut: false });
 
     // Step 2: enable check-in again
-    await CheckIn.updateMany({ user: userId }, { isCheckIn: true });
+    await CheckIn.updateMany({ user: userId }, { isCheckIn: false });
 
     console.log("Auto-reset: checkout false, checkin true");
   }, threeMinutes);

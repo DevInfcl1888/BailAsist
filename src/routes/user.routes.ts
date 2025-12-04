@@ -41,9 +41,10 @@ import {
   checkOut,
   userCheckInHistory,
   getHistory,
-  refreshAccessToken
+  refreshAccessToken,
 } from "../controller/user.controller.js";
 
+import { ssoLogin } from "../controller/sso.controller.js";
 // Home Screen Import
 import {
   createCourt,
@@ -112,4 +113,6 @@ router.route("/refreshAccessToken").post(refreshAccessToken);
 router.route("/createCourt").post(authMiddleware, createCourt); // create court
 router.route("/getCourtDetails/:courtId").get(authMiddleware, getCourtDetails); // get court details by id
 
+// SSO route
+router.route("/SSO-Login").post(ssoLogin);
 export default router;
