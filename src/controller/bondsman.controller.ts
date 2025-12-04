@@ -475,10 +475,6 @@ const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
         path: "reminders",
         select:
           "court roomNumber reminderDate reminderTime reminderNote status interval isActive",
-        // populate: {
-        //   path: "court",
-        //   select: "courtName addressLine city state country zipCode ",
-        // },
       },
     },
     {

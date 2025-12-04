@@ -303,33 +303,26 @@ const changePassword = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
-  const { firstName, middleName, lastName, email, phoneNo, street, ZipCode } =
-    req.body as {
-      firstName: string;
-      middleName: string;
-      lastName: string;
-      email: string;
-      phoneNo: string;
-      street?: string;
-      ZipCode?: string;
-    };
+  const { firstName, middleName, lastName, email, phoneNo } = req.body as {
+    firstName: string;
+    middleName: string;
+    lastName: string;
+    email: string;
+    phoneNo: string;
+  };
   // Data validation
   if (
     !firstName?.trim() ||
     !middleName?.trim() ||
     !lastName?.trim() ||
     !email?.trim() ||
-    !phoneNo?.trim() ||
-    !street?.trim() ||
-    !ZipCode?.trim()
+    !phoneNo?.trim()
   ) {
     return res.status(400).json({ message: "All credentials are required" });
   }
   if (!isValidEmail(email)) {
     return res.status(404).json({ message: "Invalid email" });
   }
-  if (street.length > 100 || ZipCode.length > 11)
-    return res.status(400).json({ message: "Street or ZIP code is too long" });
 
   const user = await User.findById(req.user?._id);
   if (!user)
@@ -343,8 +336,6 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     phoneNo,
-    street,
-    ZipCode,
   };
 
   const updatedUser = await User.findByIdAndUpdate(
@@ -356,8 +347,6 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
         lastName: data.lastName,
         email: data.email.toLowerCase(),
         phoneNo: data.phoneNo,
-        street: data.street,
-        ZipCode: data.ZipCode,
       },
     },
     {
