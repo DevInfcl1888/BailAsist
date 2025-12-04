@@ -15,6 +15,7 @@ import {
   getAd,
   deleteReminder,
 } from "../controller/bondsman.controller.js";
+import { refreshAccessToken } from "../controller/user.controller.js";
 import { Router } from "express";
 import { authMiddleware } from "../middlewares/auth.middlewares.js";
 
@@ -25,12 +26,8 @@ router.route("/signUpAsBondsman").post(signUpAsBondsman); // sign Up
 router.route("/loginAsBondsman").post(loginAsBondsman); // login
 router.route("/logoutAsBondsman").post(authMiddleware, logoutAsBondsman); // logout
 // router.route("/creatCheckIn/:userId").post(authMiddleware, creatCheckIn); // create check in
-router
-  .route("/searchByPhoneNumber")
-  .get(authMiddleware, searchByPhoneNumber); // search by phone no
-router
-  .route("/deleteCheckIn/:checkIn_Id")
-  .post(authMiddleware, deleteCheckIn); // delete check in
+router.route("/searchByPhoneNumber").get(authMiddleware, searchByPhoneNumber); // search by phone no
+router.route("/deleteCheckIn/:checkIn_Id").post(authMiddleware, deleteCheckIn); // delete check in
 router.route("/deleteUser/:userId").delete(authMiddleware, deleteUser); // delete user from bondsman
 router
   .route("/getAllUsersOfBondsman")
@@ -55,5 +52,6 @@ router
 router
   .route("/deleteBondsmanProfile/:id")
   .delete(authMiddleware, deleteBondsmanProfile);
+router.route("/refreshAccessToken").post(refreshAccessToken);
 
 export default router;

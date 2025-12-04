@@ -40,8 +40,11 @@ import {
   getUserCheckInStatus,
   checkOut,
   userCheckInHistory,
+  getHistory,
+  refreshAccessToken,
 } from "../controller/user.controller.js";
 
+import { ssoLogin } from "../controller/sso.controller.js";
 // Home Screen Import
 import {
   createCourt,
@@ -73,10 +76,11 @@ router.route("/getPersonalInfo").get(authMiddleware, getPersonalInfo); // get pe
 router.route("/addDriverLicInfo").post(authMiddleware, addDriverLicInfo); // add driver license info
 router.route("/getDriverLicInfo").get(authMiddleware, getDriverLicInfo); // get driver license info
 router.route("/bondsman").get(authMiddleware, getUserBondsmanInfo); // get user's bondsman info
+router.route("/getHistory").get(authMiddleware, getHistory); // get check-in check-out history
 router
   .route("/createOrUpdateCheckIn")
   .post(authMiddleware, upload.single("photoUrl"), createOrUpdateCheckIn);
-  
+
 router
   .route("/checkOut")
   .post(authMiddleware, upload.single("photoUrl"), checkOut); // check-out with image upload
@@ -103,9 +107,12 @@ router
 router.route("/updateLatAndLong").post(authMiddleware, updateLatAndLong); // update latitude and longitude
 
 router.route("/userCheckInHistory").get(authMiddleware, userCheckInHistory);
+router.route("/refreshAccessToken").post(refreshAccessToken);
 
 // Home Screen Routes
 router.route("/createCourt").post(authMiddleware, createCourt); // create court
 router.route("/getCourtDetails/:courtId").get(authMiddleware, getCourtDetails); // get court details by id
 
+// SSO route
+router.route("/SSO-Login").post(ssoLogin);
 export default router;

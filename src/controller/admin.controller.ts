@@ -363,7 +363,10 @@ const getBondsmanDetails = asyncHandler(async (req: Request, res: Response) => {
     return res.status(403).json({ message: "only admin can allow this route" });
   const isBondsmanAllExist = await Bondsman.find({})
     .select("-password")
-    .populate("user", "_id firstName middleName lastName email phoneNo");
+    .populate(
+      "user",
+      "_id firstName middleName lastName email phoneNo countryCode"
+    );
 
   if (isBondsmanAllExist.length === 0)
     return res.status(200).json({ message: "No bondsman found" });
@@ -461,12 +464,13 @@ const updateBondsmanDetails = asyncHandler(
     const { bondsmanId } = req.params;
     if (!bondsmanId)
       return res.status(400).json({ message: "Bondsman Id is empty" });
-    const { name, email, phoneNo } = req.body as {
+    const { name, email, phoneNo, countryCode } = req.body as {
       name: string;
       email: string;
       phoneNo: string;
+      countryCode: string;
     };
-    if (!name.trim() || !email.trim() || !phoneNo.trim())
+    if (!name.trim() || !email.trim() || !phoneNo.trim() || !countryCode.trim())
       return res.status(400).json({ message: "Fields can't be empty" });
 
     if (!isValidData(name))
@@ -481,6 +485,7 @@ const updateBondsmanDetails = asyncHandler(
           name,
           email,
           phoneNo,
+          countryCode
         },
       },
       {
@@ -501,8 +506,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
   if (!isAdmin)
     return res.status(403).json({ message: "only admin can allow this route" });
   const { userId } = req.params;
-  if (!userId)
-    return res.status(400).json({ message: "User Id is empty" });
+  if (!userId) return res.status(400).json({ message: "User Id is empty" });
 
   const {
     firstName,
@@ -640,7 +644,9 @@ const createContactUs = asyncHandler(async (req: Request, res: Response) => {
   });
 
   if (!contactUs)
-    return res.status(500).json({ message: "Failed to create contact us content" });
+    return res
+      .status(500)
+      .json({ message: "Failed to create contact us content" });
 
   return res
     .status(200)
@@ -653,44 +659,59 @@ const getContactUs = asyncHandler(async (req: Request, res: Response) => {
   if (!contactUs)
     return res.status(404).json({ message: "Contact us content not found" });
 
-  return res.status(200).json({ message: "Contact us content retrieved", contactUs });
-});
-
-const createPrivacyPolicy = asyncHandler(async (req: Request, res: Response) => {
-  const isAdmin = await Admin.findById(req.user?._id);
-  if (!isAdmin)
-    return res.status(403).json({ message: "only admin can allow this route" });
-
-  const { text } = req.body as {
-    text: string;
-  };
-
-  if (!text || !text.trim())
-    return res.status(400).json({ message: "Text field is required" });
-
-  // Delete all previous entries
-  await PrivacyPolicy.deleteMany({});
-
-  // Create new entry
-  const privacyPolicy = await PrivacyPolicy.create({
-    text: text.trim(),
-  });
-
-  if (!privacyPolicy)
-    return res.status(500).json({ message: "Failed to create privacy policy content" });
-
   return res
     .status(200)
-    .json({ message: "Privacy policy content created successfully", privacyPolicy });
+    .json({ message: "Contact us content retrieved", contactUs });
 });
+
+const createPrivacyPolicy = asyncHandler(
+  async (req: Request, res: Response) => {
+    const isAdmin = await Admin.findById(req.user?._id);
+    if (!isAdmin)
+      return res
+        .status(403)
+        .json({ message: "only admin can allow this route" });
+
+    const { text } = req.body as {
+      text: string;
+    };
+
+    if (!text || !text.trim())
+      return res.status(400).json({ message: "Text field is required" });
+
+    // Delete all previous entries
+    await PrivacyPolicy.deleteMany({});
+
+    // Create new entry
+    const privacyPolicy = await PrivacyPolicy.create({
+      text: text.trim(),
+    });
+
+    if (!privacyPolicy)
+      return res
+        .status(500)
+        .json({ message: "Failed to create privacy policy content" });
+
+    return res
+      .status(200)
+      .json({
+        message: "Privacy policy content created successfully",
+        privacyPolicy,
+      });
+  }
+);
 
 const getPrivacyPolicy = asyncHandler(async (req: Request, res: Response) => {
   const privacyPolicy = await PrivacyPolicy.findOne().sort({ createdAt: -1 });
 
   if (!privacyPolicy)
-    return res.status(404).json({ message: "Privacy policy content not found" });
+    return res
+      .status(404)
+      .json({ message: "Privacy policy content not found" });
 
-  return res.status(200).json({ message: "Privacy policy content retrieved", privacyPolicy });
+  return res
+    .status(200)
+    .json({ message: "Privacy policy content retrieved", privacyPolicy });
 });
 
 export {

@@ -1,3 +1,4 @@
+import { DecodeToken } from "./../middlewares/auth.middlewares";
 import express, { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {
@@ -10,7 +11,6 @@ import {
   ResidenceInfo,
   LegalInfo,
   User,
-  ContactInfo,
   PersonalInfo,
   DriversLicInfo,
   personalRefrenceInfo,
@@ -23,6 +23,33 @@ import { generateOTP, sendOTPfun, otpStore } from "../utils/OTPsender.js";
 import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
+import Blacklist from "../models/blacklist.model.js";
+
+const refreshAccessToken = async (req: Request, res: Response) => {
+  const incomingRefreshToken = req.body.refreshToken;
+
+  if (!incomingRefreshToken) {
+    return res.status(400).json({ message: "Refresh token required" });
+  }
+
+  const decoded = jwt.verify(
+    incomingRefreshToken,
+    process.env.REFRESH_TOKEN_KEY
+  ) as DecodeToken;
+
+  const user = await User.findById(decoded._id);
+
+  if (user.refreshToken !== incomingRefreshToken) {
+    return res.status(401).json({ message: "Invalid refresh token" });
+  }
+
+  const newAccessToken = user.generateAccessToken();
+
+  return res.status(200).json({
+    refreshToken: decoded,
+    accessToken: newAccessToken,
+  });
+};
 
 const registration = asyncHandler(async (req: Request, res: Response) => {
   const {
@@ -185,47 +212,55 @@ const login = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).json({
     message: "User login successfully",
     data: {
-      accessToken: `${accessToken}`,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
       deviceToken: deviceToken ? deviceToken : "",
     },
   });
 });
 
 const logout = asyncHandler(async (req: Request, res: Response) => {
-  const { refreshToken } = (req.body || {}) as { refreshToken?: string };
+  const accessToken = req.headers.authorization?.split(" ")[1]; // Bearer token
+  const refreshToken = (req.body || {}).refreshToken;
+  console.log({ accessToken });
+  if (!accessToken && !refreshToken) {
+    return res.status(400).json({ message: "No token found" });
+  }
 
-  // If no refreshToken in body, use the logged-in user's token
+  // Add access token to blacklist
+  if (accessToken) {
+    const decoded: any = jwt.decode(accessToken);
+
+    const expiresAt = decoded.exp
+      ? new Date(decoded.exp * 1000)
+      : new Date(Date.now() + 60 * 60 * 1000);
+    console.log({ decoded });
+    console.log({ expiresAt });
+    const a = await Blacklist.create({ token: accessToken, expiresAt });
+    console.log({ a });
+  }
+
+  console.log({ accessToken });
+  // Existing refresh token invalidation
   let tokenToInvalidate = refreshToken;
+  const user = await User.findById(req.user?._id).select(
+    "refreshToken deviceToken"
+  );
+  if (!tokenToInvalidate && user?.refreshToken)
+    tokenToInvalidate = user.refreshToken;
 
-  // Access token will give us req.user
-  if (!tokenToInvalidate && req.user?._id) {
-    const user = await User.findById(req.user?._id).select("refreshToken");
-    if (user?.refreshToken) tokenToInvalidate = user.refreshToken;
+  if (tokenToInvalidate) {
+    const u = await User.findOne({ refreshToken: tokenToInvalidate });
+    if (u) {
+      u.refreshToken = "";
+      u.deviceToken = "";
+      await u.save({ validateBeforeSave: false });
+    }
   }
-
-  // If still no refresh token → cannot logout
-  if (!tokenToInvalidate) {
-    return res.status(400).json({
-      message: "No refresh token found, cannot logout",
-    });
-  }
-
-  // Find user by refresh token
-  const user = await User.findOne({ refreshToken: tokenToInvalidate });
-
-  if (!user) {
-    return res.status(400).json({
-      message: "Invalid refresh token",
-    });
-  }
-
-  // Clear refreshToken + deviceToken in DB
-  user.refreshToken = "";
-  user.deviceToken = "";
-  await user.save({ validateBeforeSave: false });
 
   return res.status(200).json({
     message: "Logged out successfully",
+    refreshToken: tokenToInvalidate,
   });
 });
 
@@ -268,33 +303,26 @@ const changePassword = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
-  const { firstName, middleName, lastName, email, phoneNo, street, ZipCode } =
-    req.body as {
-      firstName: string;
-      middleName: string;
-      lastName: string;
-      email: string;
-      phoneNo: string;
-      street: string;
-      ZipCode: string;
-    };
+  const { firstName, middleName, lastName, email, phoneNo } = req.body as {
+    firstName: string;
+    middleName: string;
+    lastName: string;
+    email: string;
+    phoneNo: string;
+  };
   // Data validation
   if (
     !firstName?.trim() ||
     !middleName?.trim() ||
     !lastName?.trim() ||
     !email?.trim() ||
-    !phoneNo?.trim() ||
-    !street?.trim() ||
-    !ZipCode?.trim()
+    !phoneNo?.trim()
   ) {
     return res.status(400).json({ message: "All credentials are required" });
   }
   if (!isValidEmail(email)) {
     return res.status(404).json({ message: "Invalid email" });
   }
-  if (street.length > 100 || ZipCode.length > 11)
-    return res.status(400).json({ message: "Street or ZIP code is too long" });
 
   const user = await User.findById(req.user?._id);
   if (!user)
@@ -308,8 +336,6 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     phoneNo,
-    street,
-    ZipCode,
   };
 
   const updatedUser = await User.findByIdAndUpdate(
@@ -321,8 +347,6 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
         lastName: data.lastName,
         email: data.email.toLowerCase(),
         phoneNo: data.phoneNo,
-        street: data.street,
-        ZipCode: data.ZipCode,
       },
     },
     {
@@ -472,7 +496,6 @@ const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
       .json({ message: "User profile can't be deleted", deletedUserInfo });
 
   await Promise.all([
-    ContactInfo.deleteOne({ user: userId }),
     EmployementInfo.deleteOne({ user: userId }),
     ResidenceInfo.deleteOne({ user: userId }),
     DriversLicInfo.deleteOne({ user: userId }),
@@ -524,7 +547,7 @@ const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
 
   const data = {
     user: req.user?._id,
-    yearsAtCurrentAddress: `${yearsAtCurrentAddress} Yr`,
+    yearsAtCurrentAddress: yearsAtCurrentAddress,
     landlordName,
     homeOwnership,
     landlordAddress,
@@ -569,7 +592,10 @@ const getResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
   if (!user) return res.status(404).json({ message: "User not found" });
   const residenceInfo = await ResidenceInfo.find({ user: req.user?._id });
   if (residenceInfo.length === 0)
-    return res.status(404).json({ message: "No residence data found" });
+    return res.status(200).json({
+      message: "No residence info found",
+      residenceInfo: residenceInfo,
+    });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
@@ -581,20 +607,22 @@ const getResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
-  const { firstName, middleName, lastName, email, phoneNo } = req.body as {
-    firstName: string;
-    middleName: string;
-    lastName: string;
-    email: string;
-    phoneNo: string;
-  };
-  const { contactInfoId } = req.body;
+  const { firstName, middleName, lastName, email, phoneNo, countryCode } =
+    req.body as {
+      firstName: string;
+      middleName: string;
+      lastName: string;
+      email: string;
+      phoneNo: string;
+      countryCode: string;
+    };
   if (
     !firstName.trim() ||
     !middleName.trim() ||
     !lastName.trim() ||
     !email.trim() ||
-    !phoneNo.trim()
+    !phoneNo.trim() ||
+    !countryCode.trim()
   )
     return res.status(404).json({ message: "All fields are required" });
 
@@ -604,49 +632,36 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
     !isValidData(lastName)
   )
     return res.status(400).json({
-      message:
-        "firstName, middleName or lastName has invalid type. please include only alphabets and length should be more then 3 char ",
+      message: "Invalid data",
     });
   if (!isValidEmail(email))
     return res.status(400).json({ message: "Invalid email" });
-  const user = await User.findById(req.user?._id);
-  if (!user) return res.status(404).json({ message: "User not found" });
   const data = {
-    user: req.user?._id,
     firstName,
     middleName,
     lastName,
     email,
     phoneNo,
+    countryCode,
   };
-  let contactInfoDoc;
-  if (contactInfoId) {
-    contactInfoDoc = await ContactInfo.findByIdAndUpdate(
-      contactInfoId,
-      {
-        $set: data,
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        data,
       },
-      {
-        new: true,
-      }
-    );
-
-    if (!contactInfoId)
-      return res.status(404).json({ message: "Data not found or created" });
-  } else {
-    contactInfoDoc = await ContactInfo.findOneAndUpdate(
-      { user: req.user?._id }, // find existing record for user
-      { $set: data },
-      { new: true, upsert: true } // create if not found
-    );
-  }
-
-  if (!contactInfoDoc)
+    },
+    {
+      new: true,
+    }
+  );
+  if (!user) return res.status(404).json({ message: "User not found" });
+  if (!user)
     return res.status(500).json({ message: "Error occur during submit data." });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
-    message: contactInfoId ? "Updated successfully" : "Data save successfully",
+    message: user ? "Updated successfully" : "Data save successfully",
     accessToken: accessToken,
     refreshToken: refreshToken,
   });
@@ -655,14 +670,18 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
 const getContactInfo = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user?._id);
   if (!user) return res.status(404).json({ message: "User not found" });
-  const contactInfo = await ContactInfo.find({ user: req.user?._id });
-  if (contactInfo.length === 0)
-    return res.status(404).json({ message: "No Contact data found" });
+  const contactInfo = await User.findById(req.user?._id).select(
+    "firstName middleName lastName email phoneNo countryCode"
+  );
+  if (!contactInfo)
+    return res
+      .status(200)
+      .json({ message: "No Contact data found", contactInfo: contactInfo });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
     message: "Contact info data fetched",
-    contactInfo: contactInfo[0],
+    contactInfo: contactInfo,
     accessToken: accessToken,
     refreshToken: refreshToken,
   });
@@ -735,10 +754,14 @@ const getLegalInfo = asyncHandler(async (req: Request, res: Response) => {
     _id: user._id,
     bondsman: user?.bondsman,
   })
-    .populate([{ path: "bondsman", select: "name address phoneNo" }])
+    .populate([
+      { path: "bondsman", select: "name address phoneNo countryCode" },
+    ])
     .select("bondsman");
   if (legalInfo.length === 0)
-    return res.status(404).json({ message: "No Legal data found" });
+    return res
+      .status(200)
+      .json({ message: "No Legal data found", legalInfo: legalInfo });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
@@ -831,7 +854,9 @@ const getPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
   if (!user) return res.status(404).json({ message: "User not found" });
   const personalInfo = await PersonalInfo.find({ user: req.user?._id });
   if (personalInfo.length === 0)
-    return res.status(404).json({ message: "No Personal data found" });
+    return res
+      .status(200)
+      .json({ message: "No Personal data found", personalInfo: personalInfo });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
@@ -909,7 +934,10 @@ const getDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
   if (!user) return res.status(404).json({ message: "User not found" });
   const driversLicInfo = await DriversLicInfo.find({ user: req.user?._id });
   if (driversLicInfo.length === 0)
-    return res.status(404).json({ message: "No Driver Lic data found" });
+    return res.status(200).json({
+      message: "No Driver Lic data found",
+      driversLicInfo: driversLicInfo,
+    });
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
@@ -941,7 +969,8 @@ const addPersonalRefrenceInfo = asyncHandler(
       name: m.name,
       address: m.address,
       phoneNo: m.phoneNo,
-      knownDuration: `${m.knownDuration} Yr`,
+      countryCode: m.countryCode,
+      knownDuration: m.knownDuration,
     }));
     console.log("formattedMembers", formattedMembers);
     const user = await User.findById(req.user?._id);
@@ -989,9 +1018,10 @@ const getPersonalRefrenceInfo = asyncHandler(
       user: req.user?._id,
     });
     if (personalRefInfo.length === 0)
-      return res
-        .status(404)
-        .json({ message: "No Personal Ref Info Lic data found" });
+      return res.status(200).json({
+        message: "No Personal Ref Info Lic data found",
+        personalRefInfo: personalRefInfo,
+      });
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
     return res.status(200).json({
@@ -1031,7 +1061,7 @@ const addEmployementStatus = asyncHandler(
       employerSupervisorName: employerSupervisorName ?? " ",
       employerAddress: employerAddress ?? " ",
       employerWorkingPeriod: employerWorkingPeriod
-        ? `${employerWorkingPeriod} Yr`
+        ? employerWorkingPeriod
         : " ",
       automobileColor: automobileColor ?? " ",
       previousEmployer: previousEmployer ?? " ",
@@ -1082,7 +1112,10 @@ const getEmployementStatus = asyncHandler(
       user: req.user?._id,
     });
     if (employementInfo.length === 0)
-      return res.status(404).json({ message: "No Employement data found" });
+      return res.status(200).json({
+        message: "No Employement data found",
+        employementInfo: employementInfo,
+      });
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
     return res.status(200).json({
@@ -1108,8 +1141,13 @@ const getUserBondsmanInfo = asyncHandler(
     ]);
     if (!isBondsmanExist)
       return res.status(404).json({ message: "User not found" });
-    const getChekInData = await CheckIn.find({ user: req.user?._id });
-    const getCheckOutData = await CheckOut.find({ user: req.user?._id });
+    const getChekInData = await CheckIn.find({ user: req.user?._id })
+      .sort({ createdAt: -1 }) // newest first
+      .limit(1);
+
+    const getCheckOutData = await CheckOut.find({ user: req.user?._id })
+      .sort({ createdAt: -1 }) // newest first
+      .limit(1);
     const accessToken = isBondsmanExist.generateAccessToken();
     const refreshToken = isBondsmanExist.generateRefreshToken();
 
@@ -1124,9 +1162,49 @@ const getUserBondsmanInfo = asyncHandler(
         getCheckOutData.length === 0
           ? "No Check-out data found"
           : getCheckOutData,
+      isCheckIn:
+        getChekInData.length === 0 ? false : getChekInData[0].isCheckIn,
+      isCheckOut:
+        getCheckOutData.length === 0 ? false : getCheckOutData[0].isCheckOut,
     });
   }
 );
+
+const getHistory = asyncHandler(async (req: Request, res: Response) => {
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+  const getChekInData = await CheckIn.find({ user: req.user?._id })
+    .lean()
+    .populate("user", "firstName middleName lastName");
+  const getCheckOutData = await CheckOut.find({ user: req.user?._id })
+    .lean()
+    .populate("user", "firstName middleName lastName");
+
+  const checkInMapped = getChekInData.map((item) => ({
+    ...item,
+    type: "checkIn",
+  }));
+  const checkOutMapped = getCheckOutData.map((item) => ({
+    ...item,
+    type: "checkOut",
+  }));
+
+  const timeLine = [...checkInMapped, ...checkOutMapped];
+  timeLine.sort(
+    (a, b) =>
+      new Date(b.createdAt as any).getTime() -
+      new Date(a.createdAt as any).getTime()
+  );
+
+  const paginated = timeLine.slice(skip, skip + limit);
+  res.json({
+    total: timeLine.length,
+    page,
+    limit,
+    data: paginated,
+  });
+});
 
 const createOrUpdateCheckIn = asyncHandler(
   async (req: Request, res: Response) => {
@@ -1134,84 +1212,82 @@ const createOrUpdateCheckIn = asyncHandler(
 
     const userId = req.user?._id;
     const { lat, long } = req.body;
+    const now = new Date();
+    const threeMinutes = 3 * 60 * 1000;
 
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0); // 12.00 AM
-
-    const endOfToday = new Date();
-    endOfToday.setHours(23, 59, 59, 999); // 11.59 PM
-
-    const alreadyCheckOut = await CheckOut.findOne({
+    // Get the latest checkout
+    const lastCheckOut = await CheckOut.findOne({
       user: userId,
-      createdAt: { $gte: startOfToday, $lte: endOfToday },
-    });
+      isCheckOut: true,
+    }).sort({ createdAt: -1 });
 
-    if (alreadyCheckOut) {
-      return res.status(400).json({
-        message: "You already checked out today. Come back tomorrow.",
-      });
+    // Disable check-in if last checkout is within 3 minutes
+    if (lastCheckOut) {
+      const diff =
+        now.getTime() - new Date(lastCheckOut.createdAt as any).getTime();
+
+      if (diff <= threeMinutes) {
+        return res.status(400).json({
+          message:
+            "You already checked out recently. Come back after 3 minutes.",
+        });
+      }
     }
 
-    let uploadedImageUrl: string;
-
     // Optional image upload
+    let uploadedImageUrl: string;
     if (req.file && req.file.buffer) {
       const imgUpload = await uploadToCloudinary(req.file.buffer);
       if (!imgUpload)
         return res.status(400).json({ message: "Image upload failed" });
-
       uploadedImageUrl = imgUpload.secure_url;
     }
-    let checkIn = await CheckIn.findOne({
-      user: userId,
-      createdAt: { $gte: startOfToday, $lte: endOfToday },
-    });
-    // const isCheckOutAlready = await CheckOut.find({
-    //   user: userId,
-    //   createdAt: {
-    //     $gte: startOfToday,
-    //     $lte: endOfToday,
-    //   },
-    // });
-    const now = new Date();
+
+    // Find the latest check-in
+    let checkIn = await CheckIn.findOne({ user: userId, isCheckIn: true }).sort(
+      { createdAt: -1 }
+    );
 
     if (checkIn) {
-      // Compare existing values
+      const diff = now.getTime() - new Date(checkIn.createdAt as any).getTime();
+      if (diff > threeMinutes) {
+        // Reset old check-in
+        checkIn.isCheckIn = false;
+        await checkIn.save();
+        checkIn = null;
+      }
+    }
+
+    if (checkIn) {
+      // Update existing check-in
       const sameLat = Number(checkIn.location.lat) === Number(lat);
       const sameLong = Number(checkIn.location.long) === Number(long);
       const samePhoto =
         !uploadedImageUrl || uploadedImageUrl === checkIn.photoUrl;
-
       const isSameData = sameLat && sameLong && samePhoto;
 
-      if (isSameData) {
-        checkIn.set("createdAt", now);
-        checkIn.set("updatedAt", now);
-      } else {
-        checkIn.location.lat = lat;
-        checkIn.location.long = long;
-
-        if (uploadedImageUrl) {
-          checkIn.photoUrl = uploadedImageUrl;
-        }
-
-        checkIn.set("updatedAt", now);
+      if (!isSameData) {
+        checkIn.location = { lat, long };
+        if (uploadedImageUrl) checkIn.photoUrl = uploadedImageUrl;
       }
 
+      checkIn.set("updatedAt", now);
       await checkIn.save();
     } else {
-      // Create new document
+      // Create new check-in
       checkIn = await CheckIn.create({
         user: userId,
         photoUrl: uploadedImageUrl ?? " ",
         location: { lat, long },
+        isCheckIn: true,
       });
-    }
 
-    // let checkIn = await CheckIn.findOne({
-    //   user: userId,
-    //   createdAt: { $gte: startOfToday, $lte: endOfToday },
-    // });
+      // Reset any active checkout for safety
+      await CheckOut.updateMany(
+        { user: userId, isCheckOut: true },
+        { isCheckOut: false }
+      );
+    }
 
     return res.status(200).json({
       message: "Check-in recorded",
@@ -1220,10 +1296,138 @@ const createOrUpdateCheckIn = asyncHandler(
         updatedAt: checkIn.updatedAt,
         photoUrl: checkIn.photoUrl ?? " ",
         location: checkIn.location,
+        isCheckIn: checkIn.isCheckIn,
       },
     });
   }
 );
+
+// const createOrUpdateCheckIn = asyncHandler(
+//   async (req: Request, res: Response) => {
+//     console.log("API_HIT", req.body);
+
+//     const userId = req.user?._id;
+//     const { lat, long } = req.body;
+
+//     // const startOfToday = new Date();
+//     // startOfToday.setHours(0, 0, 0, 0); // 12.00 AM
+
+//     // const endOfToday = new Date();
+//     // endOfToday.setHours(23, 59, 59, 999); // 11.59 PM
+
+//     const now = new Date();
+//     const threeMinutes = 3 * 60 * 1000;
+//     const alreadyCheckOut = await CheckOut.findOne({
+//       user: userId,
+//       isCheckOut: true,
+//     }).sort({
+//       createdAt: -1,
+//     });
+
+//     // const alreadyCheckOut = await CheckOut.findOne({
+//     //   user: userId,
+//     //   createdAt: { $gte: startOfToday, $lte: endOfToday },
+//     // });
+
+//     // if (alreadyCheckOut) {
+//     //   return res.status(400).json({
+//     //     message: "You already checked out today. Come back tomorrow.",
+//     //   });
+//     // }
+//     if (alreadyCheckOut) {
+//       const diff =
+//         now.getTime() - new Date(alreadyCheckOut.createdAt as any).getTime();
+//       if (diff <= threeMinutes) {
+//         return res.status(400).json({
+//           message: "You already checked out today. Come back tomorrow.",
+//         });
+//       }
+//     }
+//     let uploadedImageUrl: string;
+
+//     // Optional image upload
+//     if (req.file && req.file.buffer) {
+//       const imgUpload = await uploadToCloudinary(req.file.buffer);
+//       if (!imgUpload)
+//         return res.status(400).json({ message: "Image upload failed" });
+
+//       uploadedImageUrl = imgUpload.secure_url;
+//     }
+//     // let checkIn = await CheckIn.findOne({
+//     //   user: userId,
+//     //   createdAt: { $gte: startOfToday, $lte: endOfToday },
+//     // });
+
+//     let checkIn = await CheckIn.findOne({ user: userId, isCheckIn: true }).sort(
+//       {
+//         createdAt: -1,
+//       }
+//     );
+
+//     // const isCheckOutAlready = await CheckOut.find({
+//     //   user: userId,
+//     //   createdAt: {
+//     //     $gte: startOfToday,
+//     //     $lte: endOfToday,
+//     //   },
+//     // });
+//     if (checkIn) {
+//       const diff = now.getTime() - new Date(checkIn.createdAt as any).getTime();
+
+//       // If old (>3 mins), reset
+//       if (diff > threeMinutes) {
+//         checkIn = null;
+//       }
+//     }
+//     if (checkIn) {
+//       // Compare existing values
+//       const sameLat = Number(checkIn.location.lat) === Number(lat);
+//       const sameLong = Number(checkIn.location.long) === Number(long);
+//       const samePhoto =
+//         !uploadedImageUrl || uploadedImageUrl === checkIn.photoUrl;
+
+//       const isSameData = sameLat && sameLong && samePhoto;
+
+//       if (isSameData) {
+//         checkIn.set("createdAt", now);
+//         checkIn.set("updatedAt", now);
+//       } else {
+//         checkIn.location.lat = lat;
+//         checkIn.location.long = long;
+
+//         if (uploadedImageUrl) {
+//           checkIn.photoUrl = uploadedImageUrl;
+//         }
+
+//         checkIn.set("updatedAt", now);
+//       }
+
+//       await checkIn.save();
+//     } else {
+//       // Create new document
+//       checkIn = await CheckIn.create({
+//         user: userId,
+//         photoUrl: uploadedImageUrl ?? " ",
+//         location: { lat, long },
+//       });
+//     }
+
+//     // let checkIn = await CheckIn.findOne({
+//     //   user: userId,
+//     //   createdAt: { $gte: startOfToday, $lte: endOfToday },
+//     // });
+
+//     return res.status(200).json({
+//       message: "Check-in recorded",
+//       checkIn: {
+//         createdAt: checkIn.createdAt,
+//         updatedAt: checkIn.updatedAt,
+//         photoUrl: checkIn.photoUrl ?? " ",
+//         location: checkIn.location,
+//       },
+//     });
+//   }
+// );
 
 const getUserCheckInStatus = asyncHandler(
   async (req: Request, res: Response) => {
@@ -1242,90 +1446,185 @@ const getUserCheckInStatus = asyncHandler(
   }
 );
 
+// const checkOut = asyncHandler(async (req: Request, res: Response) => {
+//   const userId = req.user?._id;
+//   const { lat, long } = req.body;
+//   const now = new Date();
+//   const threeMinutes = 3 * 60 * 1000;
+
+//   let checkOut = await CheckOut.findOne({ user: userId }).sort({
+//     createdAt: -1,
+//   });
+//   // Define today's date range
+//   // const startOfToday = new Date();
+//   // startOfToday.setHours(0, 0, 0, 0);
+
+//   // const endOfToday = new Date();
+//   // endOfToday.setHours(23, 59, 59, 999);
+
+//   // let checkOut = await CheckOut.findOne({
+//   //   user: userId,
+//   //   createdAt: { $gte: startOfToday, $lte: endOfToday },
+//   // });
+//   // if (checkOut) {
+//   //   return res.status(400).json({
+//   //     message: "You already checked out today.",
+//   //   });
+//   // }
+
+//   if (checkOut) {
+//     const diff = now.getTime() - new Date(checkOut.createdAt as any).getTime();
+
+//     if (diff <= threeMinutes) {
+//       return res.status(400).json({
+//         message: "You already checked out today.",
+//       });
+//     }
+//   }
+
+//   // const checkInToday = await CheckIn.findOne({
+//   //   user: userId,
+//   //   createdAt: { $gte: startOfToday, $lte: endOfToday },
+//   // });
+//   const checkInToday = await CheckIn.findOne({ user: userId }).sort({
+//     createdAt: -1,
+//   });
+
+//   if (!checkInToday) {
+//     return res.status(400).json({
+//       message: "You cannot check out without checking in.",
+//     });
+//   }
+//   let uploadedImageUrl: "";
+
+//   // Optional image upload
+//   if (req.file && req.file.buffer) {
+//     const imgUpload = await uploadToCloudinary(req.file.buffer);
+
+//     if (!imgUpload)
+//       return res.status(400).json({ message: "Image upload failed" });
+
+//     uploadedImageUrl = imgUpload.secure_url;
+//   }
+
+//   // const checkIn = await CheckIn.findById(req.user?._id);
+//   // if(checkIn) return res.status(401).json({message:"You can't check out without check in"})
+//   // Check if today's checkout already exists
+//   // let checkOut = await CheckOut.findOne({
+//   //   user: userId,
+//   //   createdAt: { $gte: startOfToday, $lte: endOfToday },
+//   // });
+
+//   // const now = new Date();
+
+//   // if (checkOut) {
+//   //   // Compare existing data
+//   //   const sameLat = Number(checkOut.location.lat) === Number(lat);
+//   //   const sameLong = Number(checkOut.location.long) === Number(long);
+//   //   const samePhoto =
+//   //     !uploadedImageUrl || uploadedImageUrl === checkOut.photoUrl;
+
+//   //   const isSameData = sameLat && sameLong && samePhoto;
+
+//   //   if (isSameData) {
+//   //     // Refresh timestamps only
+//   //     checkOut.set("updatedAt", now);
+//   //   } else {
+//   //     // Update changed fields
+//   //     checkOut.location.lat = lat;
+//   //     checkOut.location.long = long;
+
+//   //     if (uploadedImageUrl) {
+//   //       checkOut.photoUrl = uploadedImageUrl;
+//   //     }
+
+//   //     checkOut.set("updatedAt", now);
+//   //   }
+
+//   //   await checkOut.save();
+//   // } else {
+//   // Create a new checkout record
+//   checkOut = await CheckOut.create({
+//     user: userId,
+//     photoUrl: uploadedImageUrl ?? " ",
+//     location: { lat, long },
+//   });
+//   // }
+
+//   return res.status(200).json({
+//     message: "Checkout recorded",
+//     checkOut: {
+//       createdAt: checkOut.createdAt,
+//       updatedAt: checkOut.updatedAt,
+//       photoUrl: checkOut.photoUrl ?? " ",
+//       location: checkOut.location,
+//     },
+//   });
+// });
 const checkOut = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?._id;
   const { lat, long } = req.body;
+  const now = new Date();
+  const threeMinutes = 3 * 60 * 1000;
 
-  // Define today's date range
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-
-  const endOfToday = new Date();
-  endOfToday.setHours(23, 59, 59, 999);
-  let checkOut = await CheckOut.findOne({
-    user: userId,
-    createdAt: { $gte: startOfToday, $lte: endOfToday },
+  // Get last checkout
+  let checkOut = await CheckOut.findOne({ user: userId }).sort({
+    createdAt: -1,
   });
+
   if (checkOut) {
-    return res.status(400).json({
-      message: "You already checked out today.",
-    });
+    const diff = now.getTime() - new Date(checkOut.createdAt as any).getTime();
+    if (diff <= threeMinutes && checkOut.isCheckOut) {
+      return res
+        .status(400)
+        .json({ message: "You already checked out recently." });
+    }
   }
-  const checkInToday = await CheckIn.findOne({
-    user: userId,
-    createdAt: { $gte: startOfToday, $lte: endOfToday },
-  });
 
-  if (!checkInToday) {
-    return res.status(400).json({
-      message: "You cannot check out without checking in.",
-    });
+  // Get last check-in
+  const lastCheckIn = await CheckIn.findOne({
+    user: userId,
+    isCheckIn: true,
+  }).sort({ createdAt: -1 });
+  if (!lastCheckIn) {
+    return res
+      .status(400)
+      .json({ message: "You cannot check out without checking in." });
   }
-  let uploadedImageUrl: "";
 
   // Optional image upload
+  let uploadedImageUrl: string = "";
   if (req.file && req.file.buffer) {
     const imgUpload = await uploadToCloudinary(req.file.buffer);
-
     if (!imgUpload)
       return res.status(400).json({ message: "Image upload failed" });
-
     uploadedImageUrl = imgUpload.secure_url;
   }
 
-  // const checkIn = await CheckIn.findById(req.user?._id);
-  // if(checkIn) return res.status(401).json({message:"You can't check out without check in"})
-  // Check if today's checkout already exists
-  // let checkOut = await CheckOut.findOne({
-  //   user: userId,
-  //   createdAt: { $gte: startOfToday, $lte: endOfToday },
-  // });
-
-  // const now = new Date();
-
-  // if (checkOut) {
-  //   // Compare existing data
-  //   const sameLat = Number(checkOut.location.lat) === Number(lat);
-  //   const sameLong = Number(checkOut.location.long) === Number(long);
-  //   const samePhoto =
-  //     !uploadedImageUrl || uploadedImageUrl === checkOut.photoUrl;
-
-  //   const isSameData = sameLat && sameLong && samePhoto;
-
-  //   if (isSameData) {
-  //     // Refresh timestamps only
-  //     checkOut.set("updatedAt", now);
-  //   } else {
-  //     // Update changed fields
-  //     checkOut.location.lat = lat;
-  //     checkOut.location.long = long;
-
-  //     if (uploadedImageUrl) {
-  //       checkOut.photoUrl = uploadedImageUrl;
-  //     }
-
-  //     checkOut.set("updatedAt", now);
-  //   }
-
-  //   await checkOut.save();
-  // } else {
-  // Create a new checkout record
+  // Create new checkout
   checkOut = await CheckOut.create({
     user: userId,
     photoUrl: uploadedImageUrl ?? " ",
     location: { lat, long },
+    isCheckOut: true,
   });
-  // }
+
+  // Mark check-in as false
+  await CheckIn.updateMany(
+    { user: userId, isCheckIn: true },
+    { isCheckIn: false }
+  );
+
+  // Auto-reset isCheckOut after 3 minutes
+  setTimeout(async () => {
+    // Step 1: reset checkout
+    await CheckOut.findByIdAndUpdate(checkOut._id, { isCheckOut: false });
+
+    // Step 2: enable check-in again
+    await CheckIn.updateMany({ user: userId }, { isCheckIn: false });
+
+    console.log("Auto-reset: checkout false, checkin true");
+  }, threeMinutes);
 
   return res.status(200).json({
     message: "Checkout recorded",
@@ -1334,6 +1633,7 @@ const checkOut = asyncHandler(async (req: Request, res: Response) => {
       updatedAt: checkOut.updatedAt,
       photoUrl: checkOut.photoUrl ?? " ",
       location: checkOut.location,
+      isCheckOut: checkOut.isCheckOut,
     },
   });
 });
@@ -1453,4 +1753,6 @@ export {
   getUserCheckInStatus,
   checkOut,
   userCheckInHistory,
+  getHistory,
+  refreshAccessToken,
 };

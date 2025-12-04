@@ -92,9 +92,17 @@ AdminSchema.methods.isCorrectPassword = async function (password: string) {
 // This function use for generate access token
 AdminSchema.methods.generateAccessToken = function (): string {
   const secret = process.env.ACCESS_TOKEN_KEY!;
-  const expiresIn = process.env.ACCESS_TOKEN_EXPIRE!;
-  if (!secret || !expiresIn) throw Error("JWT Error...!");
+  const accessTokenExpiresIn = process.env.ACCESS_TOKEN_EXPIRE!;
+  if (!secret || !accessTokenExpiresIn) throw Error("JWT Error...!");
+  let expiresIn: number;
 
+  if (accessTokenExpiresIn.endsWith("h")) {
+    expiresIn = parseInt(accessTokenExpiresIn) * 60 * 60; // hours → seconds
+  } else if (accessTokenExpiresIn.endsWith("m")) {
+    expiresIn = parseInt(accessTokenExpiresIn) * 60; // minutes → seconds
+  } else {
+    expiresIn = parseInt(accessTokenExpiresIn); // assume seconds
+  }
   const payload = {
     _id: this._id,
     username: this.username,
@@ -103,6 +111,7 @@ AdminSchema.methods.generateAccessToken = function (): string {
   };
   const options: SignOptions = {
     algorithm: "HS256",
+    expiresIn,
   };
 
   return jwt.sign(payload, secret, options);
@@ -111,13 +120,23 @@ AdminSchema.methods.generateAccessToken = function (): string {
 // This function use for generate access token
 AdminSchema.methods.generateRefreshToken = function (): string {
   const secret = process.env.REFRESH_TOKEN_KEY!;
-  const expiresIn = process.env.REFRESH_TOKEN_EXPIRE!;
-  if (!secret || !expiresIn) throw Error("JWT Error...!");
-
+  const refreshTokenExpiresIn = process.env.REFRESH_TOKEN_EXPIRE!;
+  if (!secret || !refreshTokenExpiresIn) throw Error("JWT Error...!");
+  let expiresIn: number;
+  if (refreshTokenExpiresIn.endsWith("h")) {
+    expiresIn = parseInt(refreshTokenExpiresIn) * 60 * 60; // hours → seconds
+  } else if (refreshTokenExpiresIn.endsWith("m")) {
+    expiresIn = parseInt(refreshTokenExpiresIn) * 60; // minutes → seconds
+  } else if (refreshTokenExpiresIn.endsWith("d")) {
+    expiresIn = parseInt(refreshTokenExpiresIn) * 24 * 60 * 60; // minutes → seconds
+  } else {
+    expiresIn = parseInt(refreshTokenExpiresIn); // assume seconds
+  }
   const payload = {
     _id: this._id,
   };
   const options: SignOptions = {
+    expiresIn,
     algorithm: "HS256",
   };
 
