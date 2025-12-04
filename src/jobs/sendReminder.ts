@@ -1,49 +1,27 @@
-import cron from "node-cron";
-import { ScheduledTask } from "node-cron";
-import { asyncHandler } from "../utils/asyncHandler.js";
-import { Request, Response } from "express";
-import { Reminder } from "../models/bondsman.model";
+// import cron from "node-cron";
+// import { Reminder } from "../models/bondsman.model.js";
 
-let dailyJobs: ScheduledTask = null;
+// cron.schedule(`* * * * *`, async () => {
+//   // every 5th day of month
+//   console.log("Running reminder job");
+//   try {
+//     const now = new Date();
+//     const reminders = await Reminder.find({
+//       isActive: true,
+//     });
 
-const sendReminderToUser = asyncHandler(async (req: Request, res: Response) => {
-  const {
-    interval,
-    roomNumber,
-    reminderDate,
-    reminderTime,
-    reminderNote,
-    status,
-  } = req.body as {
-    interval: string;
-    roomNumber?: string;
-    reminderDate: string;
-    reminderTime: string;
-    reminderNote?: string;
-    status: string;
-  }; // every day
-  if (!interval)
-    return res
-      .status(400)
-      .json({ message: "select interval first for send reminder" });
+//     for (const r of reminders) {
+//       const dueTime = new Date(`${r.reminderDate}T${r.reminderTime}:00`);
+//       if (now >= dueTime) {
+//         //   sendNotification(r)  <-- send notification
+//         const next = new Date(dueTime);
+//         next.setDate(next.getDate() + Number(r.interval));
 
-  // previous job stops
-  if (dailyJobs) dailyJobs.stop();
-
-  if (!reminderDate || !reminderTime)
-    return res
-      .status(400)
-      .json({ message: "Reminder date and time are required" });
-  const dueReminder = await Reminder.findOne({
-    reminderDate: reminderDate,
-    reminderTime: reminderTime,
-    status: "complete",
-  });
-
-  if (!dueReminder)
-    return res.status(404).json({ message: "Reminder not found" });
-
-  dailyJobs = cron.schedule(`* * * */${interval} * *`, async () => {
-    // every 5th day of month
-  });
-});
+//         r.reminderDate = next.toISOString().split("T")[0];
+//         await r.save();
+//       }
+//     }
+//   } catch (error) {
+//     console.log("Error occur during sending reminder", error);
+//   }
+// });

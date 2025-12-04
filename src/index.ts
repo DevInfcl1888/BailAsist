@@ -10,6 +10,7 @@ import "./config/firebase.js";
 import "./jobs/tokenCheckJob.js";
 import "./jobs/userActivityCheckJob.js";
 import "./jobs/reminderNotificationJob.js";
+import "./jobs/sendReminder.js"
 
 dotenv.config();
 
