@@ -1701,19 +1701,13 @@ const updateLatAndLong = asyncHandler(async (req: Request, res: Response) => {
       .json({ message: "Please provide latitude and longitude" });
   }
 
-  // Update user's location in the database
-  const updatedLocation = await User.findByIdAndUpdate(
-    req.user?._id,
-    {
-      $set: { latitude, longitude },
-    },
-    {
-      new: true,
-    }
-  ).select("-refreshToken -password");
+  const user = await User.findById(req.user?._id);
+  user.latitude = latitude;
+  user.longitude = longitude;
+  const updatedLocation = await user.save({ validateBeforeSave: true });
 
-  if (!updatedLocation)
-    return res.status(400).json({ message: "Location couldn't be updated" });
+  // if (!updatedLocation)
+  //   return res.status(400).json({ message: "Location couldn't be updated" });
 
   return res
     .status(200)

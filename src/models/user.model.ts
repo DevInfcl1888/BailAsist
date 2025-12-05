@@ -103,8 +103,9 @@ interface signUp extends Document {
   court: Schema.Types.ObjectId;
   latitude: number;
   longitude: number;
-  countryCode: String;
+  countryCode: string;
   reminders: Schema.Types.ObjectId[];
+  latUpdatedAt: Date;
   subId: string; // Google UID
   authProvider: string; // google/manual/etc
   isCorrectPassword(password: string): Promise<boolean>;
@@ -476,6 +477,7 @@ const userSchema = new Schema<signUp>(
     SSOimg: { type: String },
     reminders: [{ type: Schema.Types.ObjectId, ref: "Reminder" }],
     latitude: { type: Number },
+    latUpdatedAt: { type: Date },
     longitude: { type: Number },
     court: {
       type: Schema.Types.ObjectId,
@@ -512,6 +514,13 @@ const loggedInSchema = new Schema<login>(
   }
 );
 
+userSchema.pre("save", function (next) {
+  const doc = this as any;
+  if (doc.isModified("latitude")) {
+    doc.latUpdatedAt = new Date();
+  }
+  next();
+});
 // This is middleware for encrypt password only when password is changed
 userSchema.pre("save", async function (next) {
   if (this.isModified("password")) {
