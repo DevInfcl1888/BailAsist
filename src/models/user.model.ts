@@ -405,35 +405,48 @@ const userSchema = new Schema<signUp>(
     firstName: {
       // we can use it as givenName
       type: String,
-      required: true,
+      required: function () {
+        return this.authProvider === "manual";
+      },
       trim: true,
     },
     middleName: {
       type: String,
-      required: true,
+      required: function () {
+        return this.authProvider === "manual";
+      },
       trim: true,
     },
     lastName: {
       // we can use it as familyname
       type: String,
-      required: true,
+      required: function () {
+        return this.authProvider === "manual";
+      },
       trim: true,
     },
     email: {
       type: String,
-      required: true,
+      required: function () {
+        return this.authProvider === "manual";
+      },
       trim: true,
     },
     password: {
       type: String,
-      required: true,
+      required: function () {
+        return this.authProvider === "manual";
+      },
+      default: null,
     },
     confirmPassword: {
       type: String,
     },
     phoneNo: {
       type: String,
-      required: true,
+      required: function () {
+        return this.authProvider === "manual";
+      },
       trim: true,
     },
     isActive: {
@@ -445,27 +458,37 @@ const userSchema = new Schema<signUp>(
     },
     homeAddress: {
       type: String,
-      required: true,
+      required: function () {
+        return this.authProvider === "manual";
+      },
       trim: true,
     },
     street: {
       type: String,
-      required: true,
+      required: function () {
+        return this.authProvider === "manual";
+      },
       trim: true,
     },
     ZipCode: {
       type: String,
-      required: true,
+      required: function () {
+        return this.authProvider === "manual";
+      },
       trim: true,
     },
     isAgreed: {
       type: Boolean,
-      required: true,
+      required: function () {
+        return this.authProvider === "manual";
+      },
       immutable: true,
     },
     countryCode: {
       type: String,
-      required: true,
+      required: function () {
+        return this.authProvider === "manual";
+      },
     },
     refreshToken: {
       type: String,
@@ -523,9 +546,11 @@ userSchema.pre("save", function (next) {
 });
 // This is middleware for encrypt password only when password is changed
 userSchema.pre("save", async function (next) {
-  if (this.isModified("password")) {
-    this.password = await bcrypt.hash(this.password, 10);
-  }
+  if (!this.isModified("password")) next();
+  if (this.authProvider !== "manual") return next();
+  if (this.password === null) return next();
+
+  this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 

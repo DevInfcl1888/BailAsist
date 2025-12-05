@@ -4,21 +4,21 @@ import { sendEmail } from "../utils/twilio.js";
 
 // Track recently notified users to prevent duplicate emails (userId -> timestamp)
 const recentlyNotifiedUsers = new Map<string, number>();
-const NOTIFICATION_COOLDOWN = 60 * 60 * 1000; // 1 hour in milliseconds
+const NOTIFICATION_COOLDOWN = 60 * 1000; // 1 hour in milliseconds
 
 // Run every 5 minutes
-cron.schedule("*/5 * * * *", async () => {
+cron.schedule("*/1 * * * *", async () => {
   console.log("🕐 Running user activity check job...");
 
   try {
     // Calculate the time 5 minutes ago
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const fiveMinutesAgo = new Date(Date.now() - 60 * 1000); // 1 min
 
     // Find users with latitude and longitude whose updatedAt is older than 5 minutes
     const inactiveUsers = await User.find({
       latitude: { $exists: true, $ne: null },
       longitude: { $exists: true, $ne: null },
-      latUpdatedAt: { $lt: fiveMinutesAgo }, // if latitude and longitude is not updated. latUpdatedAt stay same.
+      latUpdatedAt: { $lte: fiveMinutesAgo }, // if latitude and longitude is not updated. latUpdatedAt stay same.
       isActive: true, // Only check active users
     });
     if (inactiveUsers.length === 0) {
@@ -29,7 +29,6 @@ cron.schedule("*/5 * * * *", async () => {
     }
 
     console.log(`⚠️ Found ${inactiveUsers.length} inactive user(s)`);
-
     // Send email to each inactive user
     for (const user of inactiveUsers) {
       if (!user.email) {
