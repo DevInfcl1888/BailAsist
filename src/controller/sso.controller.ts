@@ -32,19 +32,13 @@ const ssoLogin = asyncHandler(async (req: Request, res: Response) => {
     user = await User.create({
       firstName: given_name, // actual name
       middleName: family_name, // last name or surname
-      lastName: "",
       email: normalizeEmail,
-      phoneNo: "",
-      countryCode: "",
-      homeAddress: "",
-      street: "",
-      ZipCode: "",
       //   deviceToken: deviceToken ? deviceToken : "",
       subId,
       SSOimg: picture,
       password: null,
       isAgreed: true,
-      authProvider
+      authProvider,
     });
   }
 
@@ -54,8 +48,9 @@ const ssoLogin = asyncHandler(async (req: Request, res: Response) => {
   user.refreshToken = refreshToken;
   await user.save();
   return res.status(200).json({
-    message: user ? "Login successful" : "User registered & logged in",
+    message: user.subId ? "User registered & logged in" : "Login successful",
     data: { accessToken, refreshToken },
+    user,
   });
 });
 

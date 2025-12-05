@@ -1157,11 +1157,11 @@ const getUserBondsmanInfo = asyncHandler(
       refreshToken: refreshToken,
       isBondsmanExist,
       getChekInData:
-        getChekInData.length === 0 ? "No Check-in data found" : getChekInData,
+        getChekInData.length === 0 ? "No Check-in data found" : getChekInData[0],
       getCheckOutData:
         getCheckOutData.length === 0
           ? "No Check-out data found"
-          : getCheckOutData,
+          : getCheckOutData[0],
       isCheckIn:
         getChekInData.length === 0 ? false : getChekInData[0].isCheckIn,
       isCheckOut:
