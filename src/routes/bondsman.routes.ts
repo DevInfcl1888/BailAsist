@@ -14,6 +14,10 @@ import {
   cancelReminder,
   getAd,
   deleteReminder,
+  getContactUs,
+  createContactUs,
+  createPrivacyPolicy,
+  getPrivacyPolicy,
 } from "../controller/bondsman.controller.js";
 import { refreshAccessToken } from "../controller/user.controller.js";
 import { Router } from "express";
@@ -53,5 +57,13 @@ router
   .route("/deleteBondsmanProfile/:id")
   .delete(authMiddleware, deleteBondsmanProfile);
 router.route("/refreshAccessToken").post(refreshAccessToken);
+
+// Contact Us routes
+router.route("/contactUs").post(authMiddleware, createContactUs); // create/update contact us
+router.route("/contactUs").get(getContactUs); // get contact us (public)
+
+// Privacy Policy routes
+router.route("/privacyPolicy").post(authMiddleware, createPrivacyPolicy); // create/update privacy policy
+router.route("/privacyPolicy").get(getPrivacyPolicy); // get privacy policy (public)
 
 export default router;
