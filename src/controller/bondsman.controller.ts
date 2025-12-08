@@ -9,6 +9,7 @@ import {
 import { User, CheckIn } from "../models/user.model.js";
 import { Admin } from "../models/admin.model.js";
 import { populate } from "dotenv";
+import { ContactUs, PrivacyPolicy } from "../models/content.model.js";
 
 const signUpAsBondsman = asyncHandler(async (req: Request, res: Response) => {
   const {
@@ -275,121 +276,123 @@ const getAllUsersOfBondsman = asyncHandler(
   }
 );
 
-const updateUserDetailsByBondsman = asyncHandler(async (req: Request, res: Response) => {
-  const {
-    firstName,
-    middleName,
-    lastName,
-    email,
-    phoneNo,
-    homeAddress,
-    street,
-    ZipCode,
-    countryCode,
-    isActive,
-  } = req.body as {
-    firstName?: string;
-    middleName?: string;
-    lastName?: string;
-    email?: string;
-    phoneNo?: string;
-    homeAddress?: string;
-    street?: string;
-    ZipCode?: string;
-    countryCode?: string;
-    isActive?: boolean;
-  };
-  const { userId } = req.params;
-  const updateFields: any = {};
+const updateUserDetailsByBondsman = asyncHandler(
+  async (req: Request, res: Response) => {
+    const {
+      firstName,
+      middleName,
+      lastName,
+      email,
+      phoneNo,
+      homeAddress,
+      street,
+      ZipCode,
+      countryCode,
+      isActive,
+    } = req.body as {
+      firstName?: string;
+      middleName?: string;
+      lastName?: string;
+      email?: string;
+      phoneNo?: string;
+      homeAddress?: string;
+      street?: string;
+      ZipCode?: string;
+      countryCode?: string;
+      isActive?: boolean;
+    };
+    const { userId } = req.params;
+    const updateFields: any = {};
 
-  if (firstName !== undefined) {
-    if (!firstName.trim())
-      return res.status(400).json({ message: "First name can't be empty" });
-    if (!isValidData(firstName))
-      return res.status(400).json({ message: "Invalid first name" });
-    updateFields.firstName = firstName.trim();
-  }
-
-  if (middleName !== undefined) {
-    if (!middleName.trim())
-      return res.status(400).json({ message: "Middle name can't be empty" });
-    if (!isValidData(middleName))
-      return res.status(400).json({ message: "Invalid middle name" });
-    updateFields.middleName = middleName.trim();
-  }
-
-  if (lastName !== undefined) {
-    if (!lastName.trim())
-      return res.status(400).json({ message: "Last name can't be empty" });
-    if (!isValidData(lastName))
-      return res.status(400).json({ message: "Invalid last name" });
-    updateFields.lastName = lastName.trim();
-  }
-
-  if (email !== undefined) {
-    if (!email.trim())
-      return res.status(400).json({ message: "Email can't be empty" });
-    if (!isValidEmail(email))
-      return res.status(400).json({ message: "Invalid email" });
-    updateFields.email = email.toLowerCase().trim();
-  }
-
-  if (phoneNo !== undefined) {
-    if (!phoneNo.trim())
-      return res.status(400).json({ message: "Phone number can't be empty" });
-    updateFields.phoneNo = phoneNo.trim();
-  }
-
-  if (homeAddress !== undefined) {
-    if (!homeAddress.trim())
-      return res.status(400).json({ message: "Home address can't be empty" });
-    updateFields.homeAddress = homeAddress.trim();
-  }
-
-  if (street !== undefined) {
-    if (!street.trim())
-      return res.status(400).json({ message: "Street can't be empty" });
-    updateFields.street = street.trim();
-  }
-
-  if (ZipCode !== undefined) {
-    if (!ZipCode.trim())
-      return res.status(400).json({ message: "Zip code can't be empty" });
-    updateFields.ZipCode = ZipCode.trim();
-  }
-
-  if (countryCode !== undefined) {
-    if (!countryCode.trim())
-      return res.status(400).json({ message: "Country code can't be empty" });
-    updateFields.countryCode = countryCode.trim();
-  }
-
-  if (isActive !== undefined) {
-    updateFields.isActive = isActive;
-  }
-
-  if (Object.keys(updateFields).length === 0)
-    return res.status(400).json({ message: "No fields provided to update" });
-
-  const updatedUser = await User.findByIdAndUpdate(
-    userId,
-    {
-      $set: updateFields,
-    },
-    {
-      new: true,
+    if (firstName !== undefined) {
+      if (!firstName.trim())
+        return res.status(400).json({ message: "First name can't be empty" });
+      if (!isValidData(firstName))
+        return res.status(400).json({ message: "Invalid first name" });
+      updateFields.firstName = firstName.trim();
     }
-  ).select("-password -refreshToken");
 
-  if (!updatedUser)
+    if (middleName !== undefined) {
+      if (!middleName.trim())
+        return res.status(400).json({ message: "Middle name can't be empty" });
+      if (!isValidData(middleName))
+        return res.status(400).json({ message: "Invalid middle name" });
+      updateFields.middleName = middleName.trim();
+    }
+
+    if (lastName !== undefined) {
+      if (!lastName.trim())
+        return res.status(400).json({ message: "Last name can't be empty" });
+      if (!isValidData(lastName))
+        return res.status(400).json({ message: "Invalid last name" });
+      updateFields.lastName = lastName.trim();
+    }
+
+    if (email !== undefined) {
+      if (!email.trim())
+        return res.status(400).json({ message: "Email can't be empty" });
+      if (!isValidEmail(email))
+        return res.status(400).json({ message: "Invalid email" });
+      updateFields.email = email.toLowerCase().trim();
+    }
+
+    if (phoneNo !== undefined) {
+      if (!phoneNo.trim())
+        return res.status(400).json({ message: "Phone number can't be empty" });
+      updateFields.phoneNo = phoneNo.trim();
+    }
+
+    if (homeAddress !== undefined) {
+      if (!homeAddress.trim())
+        return res.status(400).json({ message: "Home address can't be empty" });
+      updateFields.homeAddress = homeAddress.trim();
+    }
+
+    if (street !== undefined) {
+      if (!street.trim())
+        return res.status(400).json({ message: "Street can't be empty" });
+      updateFields.street = street.trim();
+    }
+
+    if (ZipCode !== undefined) {
+      if (!ZipCode.trim())
+        return res.status(400).json({ message: "Zip code can't be empty" });
+      updateFields.ZipCode = ZipCode.trim();
+    }
+
+    if (countryCode !== undefined) {
+      if (!countryCode.trim())
+        return res.status(400).json({ message: "Country code can't be empty" });
+      updateFields.countryCode = countryCode.trim();
+    }
+
+    if (isActive !== undefined) {
+      updateFields.isActive = isActive;
+    }
+
+    if (Object.keys(updateFields).length === 0)
+      return res.status(400).json({ message: "No fields provided to update" });
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: updateFields,
+      },
+      {
+        new: true,
+      }
+    ).select("-password -refreshToken");
+
+    if (!updatedUser)
+      return res
+        .status(404)
+        .json({ message: "User not found or data couldn't update" });
+
     return res
-      .status(404)
-      .json({ message: "User not found or data couldn't update" });
-
-  return res
-    .status(200)
-    .json({ message: "User data updated successfully", updatedUser });
-});
+      .status(200)
+      .json({ message: "User data updated successfully", updatedUser });
+  }
+);
 
 const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
   const {
@@ -607,6 +610,84 @@ const deleteBondsmanProfile = asyncHandler(
   }
 );
 
+const createContactUs = asyncHandler(async (req: Request, res: Response) => {
+  const { text } = req.body as {
+    text: string;
+  };
+
+  if (!text || !text.trim())
+    return res.status(400).json({ message: "Text field is required" });
+
+  // Delete all previous entries
+  await ContactUs.deleteMany({});
+
+  // Create new entry
+  const contactUs = await ContactUs.create({
+    text: text.trim(),
+  });
+
+  if (!contactUs)
+    return res
+      .status(500)
+      .json({ message: "Failed to create contact us content" });
+
+  return res
+    .status(200)
+    .json({ message: "Contact us content created successfully", contactUs });
+});
+
+const getContactUs = asyncHandler(async (req: Request, res: Response) => {
+  const contactUs = await ContactUs.findOne().sort({ createdAt: -1 });
+
+  if (!contactUs)
+    return res.status(404).json({ message: "Contact us content not found" });
+
+  return res
+    .status(200)
+    .json({ message: "Contact us content retrieved", contactUs });
+});
+
+const createPrivacyPolicy = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { text } = req.body as {
+      text: string;
+    };
+
+    if (!text || !text.trim())
+      return res.status(400).json({ message: "Text field is required" });
+
+    // Delete all previous entries
+    await PrivacyPolicy.deleteMany({});
+
+    // Create new entry
+    const privacyPolicy = await PrivacyPolicy.create({
+      text: text.trim(),
+    });
+
+    if (!privacyPolicy)
+      return res
+        .status(500)
+        .json({ message: "Failed to create privacy policy content" });
+
+    return res.status(200).json({
+      message: "Privacy policy content created successfully",
+      privacyPolicy,
+    });
+  }
+);
+
+const getPrivacyPolicy = asyncHandler(async (req: Request, res: Response) => {
+  const privacyPolicy = await PrivacyPolicy.findOne().sort({ createdAt: -1 });
+
+  if (!privacyPolicy)
+    return res
+      .status(404)
+      .json({ message: "Privacy policy content not found" });
+
+  return res
+    .status(200)
+    .json({ message: "Privacy policy content retrieved", privacyPolicy });
+});
 export {
   signUpAsBondsman,
   loginAsBondsman,
@@ -623,4 +704,8 @@ export {
   cancelReminder,
   getAd,
   deleteReminder,
+  createContactUs,
+  getContactUs,
+  createPrivacyPolicy,
+  getPrivacyPolicy,
 };

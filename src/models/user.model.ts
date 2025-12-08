@@ -507,7 +507,11 @@ const userSchema = new Schema<signUp>(
       ref: "Court",
     },
     subId: { type: String }, // Google UID
-    authProvider: { type: String }, // google/manual/etc
+    authProvider: {
+      type: String,
+      enum: ["manual", "google", "apple"],
+      default: "manual",
+    }, // google/manual/etc
   },
   {
     timestamps: true,
@@ -548,7 +552,7 @@ userSchema.pre("save", function (next) {
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) next();
   if (this.authProvider !== "manual") return next();
-  if (this.password === null) return next();
+  if (!this.password) return next();
 
   this.password = await bcrypt.hash(this.password, 10);
   next();
