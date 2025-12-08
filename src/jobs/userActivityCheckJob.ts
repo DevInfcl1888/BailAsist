@@ -12,13 +12,13 @@ cron.schedule("*/1 * * * *", async () => {
 
   try {
     // Calculate the time 5 minutes ago
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000); // 1 min
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000); // 1 min
 
     // Find users with latitude and longitude whose updatedAt is older than 5 minutes
     const inactiveUsers = await User.find({
       latitude: { $exists: true, $ne: null },
       longitude: { $exists: true, $ne: null },
-      latUpdatedAt: { $lte: fiveMinutesAgo }, // if latitude and longitude is not updated. latUpdatedAt stay same.
+      latUpdatedAt: { $lte: tenMinutesAgo }, // if latitude and longitude is not updated. latUpdatedAt stay same.
       isActive: true, // Only check active users
     });
     if (inactiveUsers.length === 0) {
