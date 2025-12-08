@@ -4,10 +4,10 @@ import { sendEmail } from "../utils/twilio.js";
 
 // Track recently notified users to prevent duplicate emails (userId -> timestamp)
 const recentlyNotifiedUsers = new Map<string, number>();
-const NOTIFICATION_COOLDOWN = 60 * 1000; // 1 hour in milliseconds
+const NOTIFICATION_COOLDOWN = 5 * 60 * 1000; // 1 hour in milliseconds
 
 // Run every 5 minutes
-cron.schedule("*/1 * * * *", async () => {
+cron.schedule("* * * * *", async () => {
   console.log("🕐 Running user activity check job...");
 
   try {

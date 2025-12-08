@@ -611,34 +611,45 @@ const deleteBondsmanProfile = asyncHandler(
 );
 
 const createContactUs = asyncHandler(async (req: Request, res: Response) => {
-  const { text } = req.body as {
-    text: string;
-  };
+  const { text } = req.body;
 
   if (!text || !text.trim())
-    return res.status(400).json({ message: "Text field is required" });
+    return res.status(400).json({ message: "Text is required" });
 
-  // Delete all previous entries
-  await ContactUs.deleteMany({});
+  const userId = req.user?._id;
 
+  // CHECK ADMIN
+  let role: "Admin" | "Bondsman" = "Bondsman";
+
+  const isBondsman = await Bondsman.findById(userId);
+  if (isBondsman) role = "Bondsman";
+  console.log({ role });
+  // Delete only same-role previous entries
+  const a = await ContactUs.deleteMany({ role });
+  console.log({ a });
   // Create new entry
   const contactUs = await ContactUs.create({
     text: text.trim(),
+    createdBy: userId,
+    role,
   });
 
-  if (!contactUs)
-    return res
-      .status(500)
-      .json({ message: "Failed to create contact us content" });
-
-  return res
-    .status(200)
-    .json({ message: "Contact us content created successfully", contactUs });
+  return res.status(200).json({
+    message: "Contact Us updated successfully",
+    contactUs,
+  });
 });
 
 const getContactUs = asyncHandler(async (req: Request, res: Response) => {
-  const contactUs = await ContactUs.findOne().sort({ createdAt: -1 });
+  const userId = req.user?._id;
 
+  // CHECK ADMIN
+  let role: "Admin" | "Bondsman" = "Bondsman";
+
+  const isBondsman = await Bondsman.findById(userId);
+  if (isBondsman) role = "Bondsman";
+
+  const contactUs = await ContactUs.findOne({ role });
   if (!contactUs)
     return res.status(404).json({ message: "Contact us content not found" });
 
@@ -653,15 +664,27 @@ const createPrivacyPolicy = asyncHandler(
       text: string;
     };
 
-    if (!text || !text.trim())
-      return res.status(400).json({ message: "Text field is required" });
+    const userId = req.user?._id;
+
+    // CHECK ADMIN
+    let role: "Admin" | "Bondsman" = "Bondsman";
+
+    const isBondsman = await Bondsman.findById(userId);
+    if (isBondsman) role = "Bondsman";
+    console.log({ role });
 
     // Delete all previous entries
-    await PrivacyPolicy.deleteMany({});
+    const a = await PrivacyPolicy.deleteMany({ role });
+    console.log({ a });
+
+    if (!text || !text.trim())
+      return res.status(400).json({ message: "Text field is required" });
 
     // Create new entry
     const privacyPolicy = await PrivacyPolicy.create({
       text: text.trim(),
+      createdBy: userId,
+      role,
     });
 
     if (!privacyPolicy)
@@ -677,7 +700,15 @@ const createPrivacyPolicy = asyncHandler(
 );
 
 const getPrivacyPolicy = asyncHandler(async (req: Request, res: Response) => {
-  const privacyPolicy = await PrivacyPolicy.findOne().sort({ createdAt: -1 });
+  const userId = req.user?._id;
+
+  // CHECK ADMIN
+  let role: "Admin" | "Bondsman" = "Bondsman";
+
+  const isBondsman = await Bondsman.findById(userId);
+  if (isBondsman) role = "Bondsman";
+
+  const privacyPolicy = await PrivacyPolicy.findOne({ role });
 
   if (!privacyPolicy)
     return res
@@ -688,6 +719,7 @@ const getPrivacyPolicy = asyncHandler(async (req: Request, res: Response) => {
     .status(200)
     .json({ message: "Privacy policy content retrieved", privacyPolicy });
 });
+
 export {
   signUpAsBondsman,
   loginAsBondsman,
