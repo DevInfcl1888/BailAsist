@@ -7,12 +7,12 @@ const recentlyNotifiedUsers = new Map<string, number>();
 const NOTIFICATION_COOLDOWN = 5 * 60 * 1000; // 1 hour in milliseconds
 
 // Run every 5 minutes
-cron.schedule("* * * * *", async () => {
+cron.schedule("*/1 * * * *", async () => {
   console.log("🕐 Running user activity check job...");
 
   try {
     // Calculate the time 5 minutes ago
-    const fiveMinutesAgo = new Date(Date.now() - 60 * 1000); // 1 min
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000); // 1 min
 
     // Find users with latitude and longitude whose updatedAt is older than 5 minutes
     const inactiveUsers = await User.find({
