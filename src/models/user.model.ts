@@ -67,6 +67,7 @@ interface driversLicInfo extends Document {
   automobileColor?: string;
   automobileMake?: string;
   automobileModel?: string;
+  automobileTag?: string;
 }
 
 //  --------------------- Employement Information --------------------
@@ -357,6 +358,10 @@ const driversLicInfoSchema = new Schema<driversLicInfo>({
     trim: true,
   },
   automobileModel: {
+    type: String,
+    trim: true,
+  },
+  automobileTag: {
     type: String,
     trim: true,
   },

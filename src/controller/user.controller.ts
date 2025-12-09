@@ -338,7 +338,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     phoneNo,
-    countryCode
+    countryCode,
   };
 
   const updatedUser = await User.findByIdAndUpdate(
@@ -880,6 +880,7 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     automobileColor,
     automobileMake,
     automobileModel,
+    automobileTag,
   } = req.body as {
     socialSecurityNumber: String;
     state: String;
@@ -888,6 +889,7 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     automobileColor: String;
     automobileMake: String;
     automobileModel: String;
+    automobileTag: String;
   };
   let { driverLicId } = req.body;
   if (!socialSecurityNumber.trim() || !state.trim() || !drivingLicenseNo.trim())
@@ -901,6 +903,7 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     automobileColor: automobileColor ?? "",
     automobileMake: automobileMake ?? "",
     automobileModel: automobileModel ?? "",
+    automobileTag: automobileTag ?? "",
   };
 
   let driverLicDoc;
@@ -1143,6 +1146,9 @@ const getUserBondsmanInfo = asyncHandler(
       },
       { path: "bondsman" },
     ]);
+
+    // console.log({ isBondsmanExist });
+    // isBondsmanExist.reminders.forEach((r) => {});
     if (!isBondsmanExist)
       return res.status(404).json({ message: "User not found" });
     const getChekInData = await CheckIn.find({ user: req.user?._id })
