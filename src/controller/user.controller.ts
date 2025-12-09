@@ -303,13 +303,15 @@ const changePassword = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
-  const { firstName, middleName, lastName, email, phoneNo } = req.body as {
-    firstName: string;
-    middleName: string;
-    lastName: string;
-    email: string;
-    phoneNo: string;
-  };
+  const { firstName, middleName, lastName, email, phoneNo, countryCode } =
+    req.body as {
+      firstName: string;
+      middleName: string;
+      lastName: string;
+      email: string;
+      phoneNo: string;
+      countryCode: string;
+    };
   // Data validation
   if (
     !firstName?.trim() ||
@@ -336,6 +338,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     phoneNo,
+    countryCode,
   };
 
   const updatedUser = await User.findByIdAndUpdate(
@@ -347,6 +350,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
         lastName: data.lastName,
         email: data.email.toLowerCase(),
         phoneNo: data.phoneNo,
+        countryCode: data.countryCode,
       },
     },
     {
@@ -876,6 +880,7 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     automobileColor,
     automobileMake,
     automobileModel,
+    automobileTag,
   } = req.body as {
     socialSecurityNumber: String;
     state: String;
@@ -884,6 +889,7 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     automobileColor: String;
     automobileMake: String;
     automobileModel: String;
+    automobileTag: String;
   };
   let { driverLicId } = req.body;
   if (!socialSecurityNumber.trim() || !state.trim() || !drivingLicenseNo.trim())
@@ -897,6 +903,7 @@ const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
     automobileColor: automobileColor ?? "",
     automobileMake: automobileMake ?? "",
     automobileModel: automobileModel ?? "",
+    automobileTag: automobileTag ?? "",
   };
 
   let driverLicDoc;
@@ -1139,6 +1146,9 @@ const getUserBondsmanInfo = asyncHandler(
       },
       { path: "bondsman" },
     ]);
+
+    // console.log({ isBondsmanExist });
+    // isBondsmanExist.reminders.forEach((r) => {});
     if (!isBondsmanExist)
       return res.status(404).json({ message: "User not found" });
     const getChekInData = await CheckIn.find({ user: req.user?._id })
@@ -1157,7 +1167,9 @@ const getUserBondsmanInfo = asyncHandler(
       refreshToken: refreshToken,
       isBondsmanExist,
       getChekInData:
-        getChekInData.length === 0 ? "No Check-in data found" : getChekInData[0],
+        getChekInData.length === 0
+          ? "No Check-in data found"
+          : getChekInData[0],
       getCheckOutData:
         getCheckOutData.length === 0
           ? "No Check-out data found"
@@ -1206,6 +1218,105 @@ const getHistory = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+// const createOrUpdateCheckIn = asyncHandler(
+//   async (req: Request, res: Response) => {
+//     console.log("API_HIT", req.body);
+
+//     const userId = req.user?._id;
+//     const { lat, long } = req.body;
+//     const now = new Date();
+
+//     const startOfToday = new Date();
+//     startOfToday.setHours(0, 0, 0, 0);
+
+//     const endOfToday = new Date();
+//     endOfToday.setHours(23, 59, 59, 999);
+
+//     // Get last checkout (today only)
+//     const lastCheckOut = await CheckOut.findOne({
+//       user: userId,
+//       isCheckOut: true,
+//       createdAt: { $gte: startOfToday, $lte: endOfToday },
+//     }).sort({ createdAt: -1 });
+
+//     // Prevent check-in if already checked-out today
+//     if (lastCheckOut) {
+//       return res.status(400).json({
+//         message: "You already checked out today. Come back tomorrow.",
+//       });
+//     }
+
+//     // Optional image upload
+//     let uploadedImageUrl: string;
+//     if (req.file && req.file.buffer) {
+//       const imgUpload = await uploadToCloudinary(req.file.buffer);
+//       if (!imgUpload)
+//         return res.status(400).json({ message: "Image upload failed" });
+//       uploadedImageUrl = imgUpload.secure_url;
+//     }
+
+//     // Find today's latest check-in
+//     let checkIn = await CheckIn.findOne({
+//       user: userId,
+//       isCheckIn: true,
+//       createdAt: { $gte: startOfToday, $lte: endOfToday },
+//     }).sort({ createdAt: -1 });
+
+//     if (checkIn) {
+//       const isDifferentDay =
+//         new Date(checkIn?.createdAt as any).getDate() !== now.getDate();
+
+//       if (isDifferentDay) {
+//         checkIn.isCheckIn = false;
+//         await checkIn.save();
+//         checkIn = null; // allow new check-in today
+//       }
+//     }
+
+//     if (checkIn) {
+//       // Update existing check-in
+//       const sameLat = Number(checkIn.location.lat) === Number(lat);
+//       const sameLong = Number(checkIn.location.long) === Number(long);
+//       const samePhoto =
+//         !uploadedImageUrl || uploadedImageUrl === checkIn.photoUrl;
+//       const isSameData = sameLat && sameLong && samePhoto;
+
+//       if (!isSameData) {
+//         checkIn.location = { lat, long };
+//         if (uploadedImageUrl) checkIn.photoUrl = uploadedImageUrl;
+//       }
+
+//       checkIn.set("updatedAt", now);
+//       await checkIn.save();
+//     } else {
+//       // Create new check-in
+//       checkIn = await CheckIn.create({
+//         user: userId,
+//         photoUrl: uploadedImageUrl ?? " ",
+//         location: { lat, long },
+//         isCheckIn: true,
+//       });
+
+//       // Reset any active checkout for safety
+//       await CheckOut.updateMany(
+//         { user: userId, isCheckOut: true },
+//         { isCheckOut: false }
+//       );
+//     }
+
+//     return res.status(200).json({
+//       message: "Check-in recorded",
+//       checkIn: {
+//         createdAt: checkIn.createdAt,
+//         updatedAt: checkIn.updatedAt,
+//         photoUrl: checkIn.photoUrl ?? " ",
+//         location: checkIn.location,
+//         isCheckIn: checkIn.isCheckIn,
+//       },
+//     });
+//   }
+// );
+
 const createOrUpdateCheckIn = asyncHandler(
   async (req: Request, res: Response) => {
     console.log("API_HIT", req.body);
@@ -1213,7 +1324,7 @@ const createOrUpdateCheckIn = asyncHandler(
     const userId = req.user?._id;
     const { lat, long } = req.body;
     const now = new Date();
-    const threeMinutes = 3 * 60 * 1000;
+    const threeMinutes = 60 * 1000;
 
     // Get the latest checkout
     const lastCheckOut = await CheckOut.findOne({
@@ -1302,133 +1413,6 @@ const createOrUpdateCheckIn = asyncHandler(
   }
 );
 
-// const createOrUpdateCheckIn = asyncHandler(
-//   async (req: Request, res: Response) => {
-//     console.log("API_HIT", req.body);
-
-//     const userId = req.user?._id;
-//     const { lat, long } = req.body;
-
-//     // const startOfToday = new Date();
-//     // startOfToday.setHours(0, 0, 0, 0); // 12.00 AM
-
-//     // const endOfToday = new Date();
-//     // endOfToday.setHours(23, 59, 59, 999); // 11.59 PM
-
-//     const now = new Date();
-//     const threeMinutes = 3 * 60 * 1000;
-//     const alreadyCheckOut = await CheckOut.findOne({
-//       user: userId,
-//       isCheckOut: true,
-//     }).sort({
-//       createdAt: -1,
-//     });
-
-//     // const alreadyCheckOut = await CheckOut.findOne({
-//     //   user: userId,
-//     //   createdAt: { $gte: startOfToday, $lte: endOfToday },
-//     // });
-
-//     // if (alreadyCheckOut) {
-//     //   return res.status(400).json({
-//     //     message: "You already checked out today. Come back tomorrow.",
-//     //   });
-//     // }
-//     if (alreadyCheckOut) {
-//       const diff =
-//         now.getTime() - new Date(alreadyCheckOut.createdAt as any).getTime();
-//       if (diff <= threeMinutes) {
-//         return res.status(400).json({
-//           message: "You already checked out today. Come back tomorrow.",
-//         });
-//       }
-//     }
-//     let uploadedImageUrl: string;
-
-//     // Optional image upload
-//     if (req.file && req.file.buffer) {
-//       const imgUpload = await uploadToCloudinary(req.file.buffer);
-//       if (!imgUpload)
-//         return res.status(400).json({ message: "Image upload failed" });
-
-//       uploadedImageUrl = imgUpload.secure_url;
-//     }
-//     // let checkIn = await CheckIn.findOne({
-//     //   user: userId,
-//     //   createdAt: { $gte: startOfToday, $lte: endOfToday },
-//     // });
-
-//     let checkIn = await CheckIn.findOne({ user: userId, isCheckIn: true }).sort(
-//       {
-//         createdAt: -1,
-//       }
-//     );
-
-//     // const isCheckOutAlready = await CheckOut.find({
-//     //   user: userId,
-//     //   createdAt: {
-//     //     $gte: startOfToday,
-//     //     $lte: endOfToday,
-//     //   },
-//     // });
-//     if (checkIn) {
-//       const diff = now.getTime() - new Date(checkIn.createdAt as any).getTime();
-
-//       // If old (>3 mins), reset
-//       if (diff > threeMinutes) {
-//         checkIn = null;
-//       }
-//     }
-//     if (checkIn) {
-//       // Compare existing values
-//       const sameLat = Number(checkIn.location.lat) === Number(lat);
-//       const sameLong = Number(checkIn.location.long) === Number(long);
-//       const samePhoto =
-//         !uploadedImageUrl || uploadedImageUrl === checkIn.photoUrl;
-
-//       const isSameData = sameLat && sameLong && samePhoto;
-
-//       if (isSameData) {
-//         checkIn.set("createdAt", now);
-//         checkIn.set("updatedAt", now);
-//       } else {
-//         checkIn.location.lat = lat;
-//         checkIn.location.long = long;
-
-//         if (uploadedImageUrl) {
-//           checkIn.photoUrl = uploadedImageUrl;
-//         }
-
-//         checkIn.set("updatedAt", now);
-//       }
-
-//       await checkIn.save();
-//     } else {
-//       // Create new document
-//       checkIn = await CheckIn.create({
-//         user: userId,
-//         photoUrl: uploadedImageUrl ?? " ",
-//         location: { lat, long },
-//       });
-//     }
-
-//     // let checkIn = await CheckIn.findOne({
-//     //   user: userId,
-//     //   createdAt: { $gte: startOfToday, $lte: endOfToday },
-//     // });
-
-//     return res.status(200).json({
-//       message: "Check-in recorded",
-//       checkIn: {
-//         createdAt: checkIn.createdAt,
-//         updatedAt: checkIn.updatedAt,
-//         photoUrl: checkIn.photoUrl ?? " ",
-//         location: checkIn.location,
-//       },
-//     });
-//   }
-// );
-
 const getUserCheckInStatus = asyncHandler(
   async (req: Request, res: Response) => {
     const getUserCheckIn = await CheckIn.find({ user: req.user?._id });
@@ -1450,106 +1434,67 @@ const getUserCheckInStatus = asyncHandler(
 //   const userId = req.user?._id;
 //   const { lat, long } = req.body;
 //   const now = new Date();
-//   const threeMinutes = 3 * 60 * 1000;
+//   // const threeMinutes = 60 * 1000;
 
-//   let checkOut = await CheckOut.findOne({ user: userId }).sort({
-//     createdAt: -1,
-//   });
-//   // Define today's date range
-//   // const startOfToday = new Date();
-//   // startOfToday.setHours(0, 0, 0, 0);
+//   const startOfToday = new Date();
+//   startOfToday.setHours(0, 0, 0, 0);
 
-//   // const endOfToday = new Date();
-//   // endOfToday.setHours(23, 59, 59, 999);
+//   const endOfToday = new Date();
+//   endOfToday.setHours(23, 59, 59, 999);
 
-//   // let checkOut = await CheckOut.findOne({
-//   //   user: userId,
-//   //   createdAt: { $gte: startOfToday, $lte: endOfToday },
-//   // });
-//   // if (checkOut) {
-//   //   return res.status(400).json({
-//   //     message: "You already checked out today.",
-//   //   });
-//   // }
+//   // Get today's last checkout
+//   let checkOut = await CheckOut.findOne({
+//     user: userId,
+//     createdAt: { $gte: startOfToday, $lte: endOfToday },
+//   }).sort({ createdAt: -1 });
 
 //   if (checkOut) {
-//     const diff = now.getTime() - new Date(checkOut.createdAt as any).getTime();
+//     const isDifferentDay =
+//       new Date(checkOut.createdAt as any).getDate() !== now.getDate();
 
-//     if (diff <= threeMinutes) {
-//       return res.status(400).json({
-//         message: "You already checked out today.",
-//       });
+//     // If checkout is from previous day → reset
+//     if (isDifferentDay) {
+//       checkOut.isCheckOut = false;
+//       await checkOut.save();
+//       checkOut = null;
 //     }
 //   }
 
-//   // const checkInToday = await CheckIn.findOne({
-//   //   user: userId,
-//   //   createdAt: { $gte: startOfToday, $lte: endOfToday },
-//   // });
-//   const checkInToday = await CheckIn.findOne({ user: userId }).sort({
-//     createdAt: -1,
-//   });
+//   // Get today's last check-in
+//   const lastCheckIn = await CheckIn.findOne({
+//     user: userId,
+//     isCheckIn: true,
+//     createdAt: { $gte: startOfToday, $lte: endOfToday },
+//   }).sort({ createdAt: -1 });
 
-//   if (!checkInToday) {
-//     return res.status(400).json({
-//       message: "You cannot check out without checking in.",
-//     });
+//   if (!lastCheckIn) {
+//     return res
+//       .status(400)
+//       .json({ message: "You cannot check out without checking in." });
 //   }
-//   let uploadedImageUrl: "";
 
 //   // Optional image upload
+//   let uploadedImageUrl: string = "";
 //   if (req.file && req.file.buffer) {
 //     const imgUpload = await uploadToCloudinary(req.file.buffer);
-
 //     if (!imgUpload)
 //       return res.status(400).json({ message: "Image upload failed" });
-
 //     uploadedImageUrl = imgUpload.secure_url;
 //   }
 
-//   // const checkIn = await CheckIn.findById(req.user?._id);
-//   // if(checkIn) return res.status(401).json({message:"You can't check out without check in"})
-//   // Check if today's checkout already exists
-//   // let checkOut = await CheckOut.findOne({
-//   //   user: userId,
-//   //   createdAt: { $gte: startOfToday, $lte: endOfToday },
-//   // });
-
-//   // const now = new Date();
-
-//   // if (checkOut) {
-//   //   // Compare existing data
-//   //   const sameLat = Number(checkOut.location.lat) === Number(lat);
-//   //   const sameLong = Number(checkOut.location.long) === Number(long);
-//   //   const samePhoto =
-//   //     !uploadedImageUrl || uploadedImageUrl === checkOut.photoUrl;
-
-//   //   const isSameData = sameLat && sameLong && samePhoto;
-
-//   //   if (isSameData) {
-//   //     // Refresh timestamps only
-//   //     checkOut.set("updatedAt", now);
-//   //   } else {
-//   //     // Update changed fields
-//   //     checkOut.location.lat = lat;
-//   //     checkOut.location.long = long;
-
-//   //     if (uploadedImageUrl) {
-//   //       checkOut.photoUrl = uploadedImageUrl;
-//   //     }
-
-//   //     checkOut.set("updatedAt", now);
-//   //   }
-
-//   //   await checkOut.save();
-//   // } else {
-//   // Create a new checkout record
+//   // Create new checkout
 //   checkOut = await CheckOut.create({
 //     user: userId,
 //     photoUrl: uploadedImageUrl ?? " ",
 //     location: { lat, long },
+//     isCheckOut: true,
 //   });
-//   // }
+
+//   // Mark check-in as false
+//   await CheckIn.updateMany(
+//     { user: userId, isCheckIn: true },
+//     { isCheckIn: false }
+//   );
 
 //   return res.status(200).json({
 //     message: "Checkout recorded",
@@ -1558,14 +1503,16 @@ const getUserCheckInStatus = asyncHandler(
 //       updatedAt: checkOut.updatedAt,
 //       photoUrl: checkOut.photoUrl ?? " ",
 //       location: checkOut.location,
+//       isCheckOut: checkOut.isCheckOut,
 //     },
 //   });
 // });
+
 const checkOut = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?._id;
   const { lat, long } = req.body;
   const now = new Date();
-  const threeMinutes = 3 * 60 * 1000;
+  const threeMinutes = 60 * 1000;
 
   // Get last checkout
   let checkOut = await CheckOut.findOne({ user: userId }).sort({

@@ -8,7 +8,6 @@ import {
 } from "../utils/dataValidators.js";
 import { User, CheckIn } from "../models/user.model.js";
 import { Admin } from "../models/admin.model.js";
-import { populate } from "dotenv";
 import { ContactUs, PrivacyPolicy } from "../models/content.model.js";
 
 const signUpAsBondsman = asyncHandler(async (req: Request, res: Response) => {
