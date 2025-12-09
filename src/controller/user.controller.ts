@@ -1,4 +1,3 @@
-import util from "util";
 import { DecodeToken } from "./../middlewares/auth.middlewares";
 import express, { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -25,6 +24,7 @@ import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
 import Blacklist from "../models/blacklist.model.js";
+import { ReminderNotification } from "../models/notification.model.js";
 
 const refreshAccessToken = async (req: Request, res: Response) => {
   const incomingRefreshToken = req.body.refreshToken;
@@ -1674,6 +1674,20 @@ const updateLatAndLong = asyncHandler(async (req: Request, res: Response) => {
     .json({ message: "Location updated successfully", updatedLocation });
 });
 
+const getReminderNotification = asyncHandler(
+  async (req: Request, res: Response) => {
+    const reminderNotification = await ReminderNotification.find({
+      user: req.user?._id,
+    });
+    if (reminderNotification.length === 0)
+      return res.status(200).json({ message: "No notification found" });
+
+    return res
+      .status(200)
+      .json({ message: "All Notifications found", reminderNotification });
+  }
+);
+
 export {
   registration,
   login,
@@ -1709,4 +1723,5 @@ export {
   userCheckInHistory,
   getHistory,
   refreshAccessToken,
+  getReminderNotification,
 };
