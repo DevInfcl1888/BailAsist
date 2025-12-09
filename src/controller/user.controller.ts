@@ -1,3 +1,4 @@
+import util from "util";
 import { DecodeToken } from "./../middlewares/auth.middlewares";
 import express, { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -1136,6 +1137,21 @@ const getEmployementStatus = asyncHandler(
 
 const getUserBondsmanInfo = asyncHandler(
   async (req: Request, res: Response) => {
+    const now = new Date();
+
+    await Reminder.updateMany(
+      { user: req.user?._id },
+      {
+        $pull: {
+          reminders: {
+            $or: [
+              { reminderDate: { $lt: now } },
+              { reminderTime: { $lt: now.getTime() } },
+            ],
+          },
+        },
+      }
+    );
     const isBondsmanExist = await User.findById(req.user?._id).populate([
       {
         path: "reminders",
@@ -1146,9 +1162,6 @@ const getUserBondsmanInfo = asyncHandler(
       },
       { path: "bondsman" },
     ]);
-
-    // console.log({ isBondsmanExist });
-    // isBondsmanExist.reminders.forEach((r) => {});
     if (!isBondsmanExist)
       return res.status(404).json({ message: "User not found" });
     const getChekInData = await CheckIn.find({ user: req.user?._id })
