@@ -25,6 +25,8 @@ import { uploadToCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
 import Blacklist from "../models/blacklist.model.js";
 import { ReminderNotification } from "../models/notification.model.js";
+import mongoose from "mongoose";
+import { PipelineStage } from "mongoose";
 
 const refreshAccessToken = async (req: Request, res: Response) => {
   const incomingRefreshToken = req.body.refreshToken;
@@ -33,21 +35,37 @@ const refreshAccessToken = async (req: Request, res: Response) => {
     return res.status(400).json({ message: "Refresh token required" });
   }
 
-  const decoded = jwt.verify(
-    incomingRefreshToken,
-    process.env.REFRESH_TOKEN_KEY
-  ) as DecodeToken;
+  let decoded: DecodeToken;
+  try {
+    // ⚠️ jwt.verify() checks for expiration automatically
+    decoded = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_KEY
+    ) as DecodeToken;
+  } catch (error) {
+    // This catches JWT errors (e.g., TokenExpiredError, JsonWebTokenError)
+    console.error("JWT Verification Failed:", error.message);
 
+    // Send 401 Unauthorized for invalid or expired tokens
+    return res
+      .status(401)
+      .json({ message: "Invalid or expired refresh token" });
+  }
+
+  // After successful verification:
   const user = await User.findById(decoded._id);
 
-  if (user.refreshToken !== incomingRefreshToken) {
-    return res.status(401).json({ message: "Invalid refresh token" });
+  if (!user || user.refreshToken !== incomingRefreshToken) {
+    // Token is valid but might be stolen/reused, or user deleted
+    return res
+      .status(401)
+      .json({ message: "Invalid refresh token or user not found" });
   }
 
   const newAccessToken = user.generateAccessToken();
 
   return res.status(200).json({
-    refreshToken: decoded,
+    refreshToken: incomingRefreshToken,
     accessToken: newAccessToken,
   });
 };
@@ -1137,13 +1155,22 @@ const getEmployementStatus = asyncHandler(
 
 const getUserBondsmanInfo = asyncHandler(
   async (req: Request, res: Response) => {
+    // 1. Pagination Setup
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const userId = new mongoose.Types.ObjectId(req.user!._id);
     const now = new Date();
 
+    // 2. ⭐️ ORIGINAL CLEANUP LOGIC (Maintain as requested) ⭐️
+    // Note: This logic seems to target the Reminder collection, not the User's array,
+    // and its effectiveness in pulling expired IDs from the User's array is uncertain.
     await Reminder.updateMany(
-      { user: req.user?._id },
+      { user: userId },
       {
         $pull: {
-          reminders: {
+          reminders: { // Assuming 'reminders' array exists in Reminder model? (Unlikely, but kept as requested)
             $or: [
               { reminderDate: { $lt: now } },
               { reminderTime: { $lt: now.getTime() } },
@@ -1152,48 +1179,196 @@ const getUserBondsmanInfo = asyncHandler(
         },
       }
     );
-    const isBondsmanExist = await User.findById(req.user?._id).populate([
-      {
-        path: "reminders",
-        populate: {
-          path: "court",
-          select: "courtName addressLine city state country reminder",
-        }, // <-- Nested populate
-      },
-      { path: "bondsman" },
+    // -------------------------------------------------------------
+
+    // 3. User Info (Bondsman and general user info)
+    // We fetch user info separately, excluding reminders for the main object.
+    const userInfo = await User.findById(userId)
+        .select("-reminders")
+        .populate("bondsman")
+        .lean();
+
+    if (!userInfo) return res.status(404).json({ message: "User not found" });
+
+    // 4. ⭐️ AGGREGATION FOR PAGINATED REMINDERS ⭐️
+    
+    // Total count calculation (must be done before skip/limit)
+    const totalRemindersCount = await User.aggregate([
+        { $match: { _id: userId } },
+        { $project: { count: { $size: "$reminders" } } },
     ]);
-    if (!isBondsmanExist)
-      return res.status(404).json({ message: "User not found" });
-    const getChekInData = await CheckIn.find({ user: req.user?._id })
-      .sort({ createdAt: -1 }) // newest first
-      .limit(1);
+    const totalCount = totalRemindersCount.length > 0 ? totalRemindersCount[0].count : 0;
 
-    const getCheckOutData = await CheckOut.find({ user: req.user?._id })
-      .sort({ createdAt: -1 }) // newest first
-      .limit(1);
-    const accessToken = isBondsmanExist.generateAccessToken();
-    const refreshToken = isBondsmanExist.generateRefreshToken();
+    let reminders: any[] = [];
+    
+    if (totalCount > 0) {
+        const reminderPipeline: PipelineStage[] = [
+            { $match: { _id: userId } },
+            
+            // Stage 1: Unwind the reminders array
+            { $unwind: "$reminders" },
 
+            // Stage 2: Lookup Reminder details (Populate)
+            {
+                $lookup: {
+                    from: "reminders", 
+                    localField: "reminders",
+                    foreignField: "_id",
+                    as: "reminderData",
+                },
+            },
+            // Use preserveNullAndEmptyArrays: true to prevent dropping documents if lookup fails
+            { $unwind: { path: "$reminderData", preserveNullAndEmptyArrays: true } }, 
+            { $match: { "reminderData": { "$ne": null } } }, // Filter out stale IDs
+
+            // Stage 3: Lookup Court details (Nested Populate)
+            {
+                $lookup: {
+                    from: "courts", 
+                    localField: "reminderData.court",
+                    foreignField: "_id",
+                    as: "courtData",
+                },
+            },
+            { $unwind: { path: "$courtData", preserveNullAndEmptyArrays: true } }, 
+            
+            // Stage 4: Sort (Recommended, using createdAt)
+            { $sort: { "reminderData.createdAt": -1 } },
+
+            // Stage 5: Apply Pagination
+            { $skip: skip },
+            { $limit: limit },
+
+            // Stage 6: Project the final output structure matching original populate select
+            {
+                $project: {
+                    _id: "$reminderData._id",
+                    // Reminder fields
+                    reminderTitle: "$reminderData.reminder",
+                    reminderDate: "$reminderData.reminderDate",
+                    reminderTime: "$reminderData.reminderTime",
+                    // Nested Court fields (matching original populate structure)
+                    court: {
+                        $ifNull: [
+                            {
+                                _id: "$courtData._id",
+                                courtName: "$courtData.courtName",
+                                addressLine: "$courtData.addressLine",
+                                city: "$courtData.city",
+                                state: "$courtData.state",
+                                country: "$courtData.country",
+                                reminder: "$courtData.reminder", 
+                            },
+                            null 
+                        ]
+                    },
+                },
+            },
+        ];
+
+        reminders = await User.aggregate(reminderPipeline);
+    }
+    // -------------------------------------------------------------
+
+    // 5. Check-In / Check-Out Data (Uses findOne and sort/limit for efficiency)
+    const getCheckInData = await CheckIn.findOne({ user: userId }).sort({ createdAt: -1 });
+    const getCheckOutData = await CheckOut.findOne({ user: userId }).sort({ createdAt: -1 });
+
+    // 6. Token Generation (Based on your original code structure)
+    // NOTE: This requires the User model instance, not the lean() object 'userInfo'. 
+    // We rely on the original logic structure here, but typically tokens are generated 
+    // from the non-lean Mongoose document. Since we already fetched userInfo as lean, 
+    // we'll fetch the Mongoose doc just for token generation, if needed.
+    const userDocForToken = await User.findById(userId);
+    
+    // Generate tokens only if userDocForToken is found and methods exist
+    const accessToken = userDocForToken?.generateAccessToken();
+    const refreshToken = userDocForToken?.generateRefreshToken();
+
+    // 7. Final Response
     return res.status(200).json({
       message: "Bondsman Information",
       accessToken: accessToken,
       refreshToken: refreshToken,
-      isBondsmanExist,
-      getChekInData:
-        getChekInData.length === 0
-          ? "No Check-in data found"
-          : getChekInData[0],
-      getCheckOutData:
-        getCheckOutData.length === 0
-          ? "No Check-out data found"
-          : getCheckOutData[0],
-      isCheckIn:
-        getChekInData.length === 0 ? false : getChekInData[0].isCheckIn,
-      isCheckOut:
-        getCheckOutData.length === 0 ? false : getCheckOutData[0].isCheckOut,
+      
+      // isBondsmanExist now holds userInfo + bondsman populated
+      isBondsmanExist: userInfo, 
+      
+      // PAGINATED REMINDERS
+      reminders: reminders,
+      totalReminders: totalCount,
+      page,
+      limit,
+
+      // Check-in/out data formatting matching original logic
+      getChekInData: getCheckInData || "No Check-in data found",
+      getCheckOutData: getCheckOutData || "No Check-out data found",
+
+      isCheckIn: getCheckInData?.isCheckIn || false,
+      isCheckOut: getCheckOutData?.isCheckOut || false,
     });
   }
 );
+
+// const getUserBondsmanInfo = asyncHandler(
+//   async (req: Request, res: Response) => {
+//     const now = new Date();
+
+//     await Reminder.updateMany(
+//       { user: req.user?._id },
+//       {
+//         $pull: {
+//           reminders: {
+//             $or: [
+//               { reminderDate: { $lt: now } },
+//               { reminderTime: { $lt: now.getTime() } },
+//             ],
+//           },
+//         },
+//       }
+//     );
+//     const isBondsmanExist = await User.findById(req.user?._id).populate([
+//       {
+//         path: "reminders",
+//         populate: {
+//           path: "court",
+//           select: "courtName addressLine city state country reminder",
+//         }, // <-- Nested populate
+//       },
+//       { path: "bondsman" },
+//     ]);
+//     if (!isBondsmanExist)
+//       return res.status(404).json({ message: "User not found" });
+//     const getChekInData = await CheckIn.find({ user: req.user?._id })
+//       .sort({ createdAt: -1 }) // newest first
+//       .limit(1);
+
+//     const getCheckOutData = await CheckOut.find({ user: req.user?._id })
+//       .sort({ createdAt: -1 }) // newest first
+//       .limit(1);
+//     const accessToken = isBondsmanExist.generateAccessToken();
+//     const refreshToken = isBondsmanExist.generateRefreshToken();
+
+//     return res.status(200).json({
+//       message: "Bondsman Information",
+//       accessToken: accessToken,
+//       refreshToken: refreshToken,
+//       isBondsmanExist,
+//       getChekInData:
+//         getChekInData.length === 0
+//           ? "No Check-in data found"
+//           : getChekInData[0],
+//       getCheckOutData:
+//         getCheckOutData.length === 0
+//           ? "No Check-out data found"
+//           : getCheckOutData[0],
+//       isCheckIn:
+//         getChekInData.length === 0 ? false : getChekInData[0].isCheckIn,
+//       isCheckOut:
+//         getCheckOutData.length === 0 ? false : getCheckOutData[0].isCheckOut,
+//     });
+//   }
+// );
 
 const getHistory = asyncHandler(async (req: Request, res: Response) => {
   const page = Number(req.query.page) || 1;
