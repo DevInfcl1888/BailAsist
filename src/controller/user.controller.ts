@@ -1170,7 +1170,8 @@ const getUserBondsmanInfo = asyncHandler(
       { user: userId },
       {
         $pull: {
-          reminders: { // Assuming 'reminders' array exists in Reminder model? (Unlikely, but kept as requested)
+          reminders: {
+            // Assuming 'reminders' array exists in Reminder model? (Unlikely, but kept as requested)
             $or: [
               { reminderDate: { $lt: now } },
               { reminderTime: { $lt: now.getTime() } },
@@ -1184,103 +1185,116 @@ const getUserBondsmanInfo = asyncHandler(
     // 3. User Info (Bondsman and general user info)
     // We fetch user info separately, excluding reminders for the main object.
     const userInfo = await User.findById(userId)
-        .select("-reminders")
-        .populate("bondsman")
-        .lean();
+      .select("-reminders")
+      .populate("bondsman")
+      .lean();
 
     if (!userInfo) return res.status(404).json({ message: "User not found" });
 
     // 4. ⭐️ AGGREGATION FOR PAGINATED REMINDERS ⭐️
-    
+
     // Total count calculation (must be done before skip/limit)
     const totalRemindersCount = await User.aggregate([
-        { $match: { _id: userId } },
-        { $project: { count: { $size: "$reminders" } } },
+      { $match: { _id: userId } },
+      { $project: { count: { $size: "$reminders" } } },
     ]);
-    const totalCount = totalRemindersCount.length > 0 ? totalRemindersCount[0].count : 0;
+    const totalCount =
+      totalRemindersCount.length > 0 ? totalRemindersCount[0].count : 0;
 
     let reminders: any[] = [];
-    
+
     if (totalCount > 0) {
-        const reminderPipeline: PipelineStage[] = [
-            { $match: { _id: userId } },
-            
-            // Stage 1: Unwind the reminders array
-            { $unwind: "$reminders" },
+      const reminderPipeline: PipelineStage[] = [
+        { $match: { _id: userId } },
 
-            // Stage 2: Lookup Reminder details (Populate)
-            {
-                $lookup: {
-                    from: "reminders", 
-                    localField: "reminders",
-                    foreignField: "_id",
-                    as: "reminderData",
+        // Stage 1: Unwind the reminders array
+        { $unwind: "$reminders" },
+
+        // Stage 2: Lookup Reminder details (Populate)
+        {
+          $lookup: {
+            from: "reminders",
+            localField: "reminders",
+            foreignField: "_id",
+            as: "reminderData",
+          },
+        },
+        // Use preserveNullAndEmptyArrays: true to prevent dropping documents if lookup fails
+        {
+          $unwind: { path: "$reminderData", preserveNullAndEmptyArrays: true },
+        },
+        { $match: { reminderData: { $ne: null } } }, // Filter out stale IDs
+
+        // Stage 3: Lookup Court details (Nested Populate)
+        {
+          $lookup: {
+            from: "courts",
+            localField: "reminderData.court",
+            foreignField: "_id",
+            as: "courtData",
+          },
+        },
+        { $unwind: { path: "$courtData", preserveNullAndEmptyArrays: true } },
+
+        // Stage 4: Sort (Recommended, using createdAt)
+        { $sort: { "reminderData.createdAt": -1 } },
+
+        // Stage 5: Apply Pagination
+        { $skip: skip },
+        { $limit: limit },
+
+        // Stage 6: Project the final output structure matching original populate select
+        {
+          $project: {
+            _id: "$reminderData._id",
+            // Reminder fields
+            reminderTitle: "$reminderData.reminder",
+            reminderDate: "$reminderData.reminderDate",
+            reminderTime: "$reminderData.reminderTime",
+            // Nested Court fields (matching original populate structure)
+            court: {
+              $ifNull: [
+                {
+                  _id: "$courtData._id",
+                  courtName: "$courtData.courtName",
+                  addressLine: "$courtData.addressLine",
+                  city: "$courtData.city",
+                  state: "$courtData.state",
+                  country: "$courtData.country",
+                  reminder: "$courtData.reminder",
                 },
+                null,
+              ],
             },
-            // Use preserveNullAndEmptyArrays: true to prevent dropping documents if lookup fails
-            { $unwind: { path: "$reminderData", preserveNullAndEmptyArrays: true } }, 
-            { $match: { "reminderData": { "$ne": null } } }, // Filter out stale IDs
+          },
+        },
+      ];
 
-            // Stage 3: Lookup Court details (Nested Populate)
-            {
-                $lookup: {
-                    from: "courts", 
-                    localField: "reminderData.court",
-                    foreignField: "_id",
-                    as: "courtData",
-                },
-            },
-            { $unwind: { path: "$courtData", preserveNullAndEmptyArrays: true } }, 
-            
-            // Stage 4: Sort (Recommended, using createdAt)
-            { $sort: { "reminderData.createdAt": -1 } },
-
-            // Stage 5: Apply Pagination
-            { $skip: skip },
-            { $limit: limit },
-
-            // Stage 6: Project the final output structure matching original populate select
-            {
-                $project: {
-                    _id: "$reminderData._id",
-                    // Reminder fields
-                    reminderTitle: "$reminderData.reminder",
-                    reminderDate: "$reminderData.reminderDate",
-                    reminderTime: "$reminderData.reminderTime",
-                    // Nested Court fields (matching original populate structure)
-                    court: {
-                        $ifNull: [
-                            {
-                                _id: "$courtData._id",
-                                courtName: "$courtData.courtName",
-                                addressLine: "$courtData.addressLine",
-                                city: "$courtData.city",
-                                state: "$courtData.state",
-                                country: "$courtData.country",
-                                reminder: "$courtData.reminder", 
-                            },
-                            null 
-                        ]
-                    },
-                },
-            },
-        ];
-
-        reminders = await User.aggregate(reminderPipeline);
+      reminders = await User.aggregate(reminderPipeline);
     }
     // -------------------------------------------------------------
 
     // 5. Check-In / Check-Out Data (Uses findOne and sort/limit for efficiency)
-    const getCheckInData = await CheckIn.findOne({ user: userId }).sort({ createdAt: -1 });
-    const getCheckOutData = await CheckOut.findOne({ user: userId }).sort({ createdAt: -1 });
+    // const getCheckInData = await CheckIn.findOne({ user: userId }).sort({ createdAt: -1 });
+    // const getCheckOutData = await CheckOut.findOne({ user: userId }).sort({ createdAt: -1 });
+    const getActiveCheckInData = await CheckIn.findOne({
+      user: userId,
+      isCheckIn: true, // ⭐️ CRITICAL FILTER: Only fetch active check-ins ⭐️
+    }).sort({ createdAt: -1 });
+
+    // Get the LATEST document where isCheckOut is TRUE
+    const getActiveCheckOutData = await CheckOut.findOne({
+      user: userId,
+      isCheckOut: true, // ⭐️ CRITICAL FILTER: Only fetch active check-outs ⭐️
+    }).sort({ createdAt: -1 });
 
     // 6. Token Generation (Based on your original code structure)
-    // NOTE: This requires the User model instance, not the lean() object 'userInfo'. 
-    // We rely on the original logic structure here, but typically tokens are generated 
-    // from the non-lean Mongoose document. Since we already fetched userInfo as lean, 
+    // NOTE: This requires the User model instance, not the lean() object 'userInfo'.
+    // We rely on the original logic structure here, but typically tokens are generated
+    // from the non-lean Mongoose document. Since we already fetched userInfo as lean,
     // we'll fetch the Mongoose doc just for token generation, if needed.
     const userDocForToken = await User.findById(userId);
-    
+
     // Generate tokens only if userDocForToken is found and methods exist
     const accessToken = userDocForToken?.generateAccessToken();
     const refreshToken = userDocForToken?.generateRefreshToken();
@@ -1290,10 +1304,10 @@ const getUserBondsmanInfo = asyncHandler(
       message: "Bondsman Information",
       accessToken: accessToken,
       refreshToken: refreshToken,
-      
+
       // isBondsmanExist now holds userInfo + bondsman populated
-      isBondsmanExist: userInfo, 
-      
+      isBondsmanExist: userInfo,
+
       // PAGINATED REMINDERS
       reminders: reminders,
       totalReminders: totalCount,
@@ -1301,11 +1315,11 @@ const getUserBondsmanInfo = asyncHandler(
       limit,
 
       // Check-in/out data formatting matching original logic
-      getChekInData: getCheckInData || "No Check-in data found",
-      getCheckOutData: getCheckOutData || "No Check-out data found",
+      getChekInData: getActiveCheckInData || "",
+      getCheckOutData: getActiveCheckOutData || "",
 
-      isCheckIn: getCheckInData?.isCheckIn || false,
-      isCheckOut: getCheckOutData?.isCheckOut || false,
+      isCheckIn: !!getActiveCheckInData, // True if document found, false otherwise
+      isCheckOut: !!getActiveCheckOutData, // True if document found, false otherwise
     });
   }
 );
