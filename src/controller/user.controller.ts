@@ -1251,6 +1251,7 @@ const getUserBondsmanInfo = asyncHandler(
             reminderTitle: "$reminderData.reminder",
             reminderDate: "$reminderData.reminderDate",
             reminderTime: "$reminderData.reminderTime",
+            roomNumber: "$courtData.roomNumber",
             // Nested Court fields (matching original populate structure)
             court: {
               $ifNull: [
@@ -1262,6 +1263,7 @@ const getUserBondsmanInfo = asyncHandler(
                   state: "$courtData.state",
                   country: "$courtData.country",
                   reminder: "$courtData.reminder",
+                  roomNumber: "$courtData.roomNumber",
                 },
                 null,
               ],
