@@ -43,6 +43,7 @@ interface ICourtReminder extends Document {
   roomNumber: string;
   reminderDate: string;
   reminderTime: string;
+  reminderDateTime: Date;
   reminderNote?: string;
   status: string;
   interval: string;
@@ -131,6 +132,10 @@ const ReminderSchema = new Schema<ICourtReminder>(
     roomNumber: { type: String },
     reminderDate: { type: String, required: true }, // YYYY-MM-DD
     reminderTime: { type: String, required: true }, // HH:mm
+    reminderDateTime: {
+      type: Date,
+      required: true,
+    },
     reminderNote: { type: String },
     status: {
       type: String,

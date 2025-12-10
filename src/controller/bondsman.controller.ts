@@ -436,12 +436,23 @@ const setCourtReminders = asyncHandler(async (req: Request, res: Response) => {
     return res
       .status(200)
       .json({ message: "This user has not assign any bondsman yet" });
+
+  const combinedDateTimeString = `${reminderDate}T${reminderTime}`;
+  const reminderDateTime = new Date(combinedDateTimeString);
+  console.log({ reminderDateTime });
+  // Check if the date conversion was valid
+  if (isNaN(reminderDateTime.getTime())) {
+    return res
+      .status(400)
+      .json({ message: "Invalid date or time format provided." });
+  }
   const createReminder = await Reminder.create({
     user: userId,
     court: courtId,
     roomNumber: roomNumber ? roomNumber : " ",
     reminderDate,
     reminderTime,
+    reminderDateTime,
     reminderNote: reminderNote ? reminderNote : " ",
     status,
     interval,
