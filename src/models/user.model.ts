@@ -107,6 +107,8 @@ interface signUp extends Document {
   countryCode: string;
   reminders: Schema.Types.ObjectId[];
   latUpdatedAt: Date;
+  lastInactivityEmailSentAt: Date;
+  lastTokenInvalidSMSAt: Date;
   subId: string; // Google UID
   authProvider: string; // google/manual/etc
   isCorrectPassword(password: string): Promise<boolean>;
@@ -510,6 +512,14 @@ const userSchema = new Schema<signUp>(
     court: {
       type: Schema.Types.ObjectId,
       ref: "Court",
+    },
+    lastInactivityEmailSentAt: {
+      type: Date,
+      default: null,
+    },
+    lastTokenInvalidSMSAt: {
+      type: Date,
+      default: null,
     },
     subId: { type: String }, // Google UID
     authProvider: {
