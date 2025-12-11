@@ -1166,20 +1166,38 @@ const getUserBondsmanInfo = asyncHandler(
     // 2. ⭐️ ORIGINAL CLEANUP LOGIC (Maintain as requested) ⭐️
     // Note: This logic seems to target the Reminder collection, not the User's array,
     // and its effectiveness in pulling expired IDs from the User's array is uncertain.
-    await Reminder.updateMany(
-      { user: userId },
-      {
-        $pull: {
-          reminders: {
-            // Assuming 'reminders' array exists in Reminder model? (Unlikely, but kept as requested)
-            $or: [
-              { reminderDate: { $lt: now } },
-              { reminderTime: { $lt: now.getTime() } },
-            ],
-          },
+    const expiredReminderDocs = await Reminder.find({
+      user: userId,
+      reminderDateTime: { $lt: now },
+      // $or: [
+      //   { reminderDate: { $lt: now } },
+      //   { reminderTime: { $lt: now.getTime() } },
+      // ],
+    }).select("_id");
+
+    const expiredReminderIds = expiredReminderDocs.map((doc) => doc._id);
+    console.log({ expiredReminderIds });
+    if (expiredReminderIds.length > 0) {
+      // 2. 🗑️ Clean up the User's reminders array (Update the User Collection)
+      // We use User.updateOne/updateMany to pull IDs from the User's array
+      await User.updateOne(
+        { _id: userId },
+        {
+          $pullAll: { reminders: expiredReminderIds },
+        }
+      );
+
+      // 3. 📝 Deactivate the Reminder documents (Update the Reminder Collection)
+      // We update the Reminder documents themselves to set isActive: false
+      await Reminder.updateMany(
+        {
+          _id: { $in: expiredReminderIds }, // Filter Reminders by their actual IDs
         },
-      }
-    );
+        {
+          $set: { isActive: false },
+        }
+      );
+    }
     // -------------------------------------------------------------
 
     // 3. User Info (Bondsman and general user info)
@@ -1251,6 +1269,7 @@ const getUserBondsmanInfo = asyncHandler(
             reminderTitle: "$reminderData.reminder",
             reminderDate: "$reminderData.reminderDate",
             reminderTime: "$reminderData.reminderTime",
+            roomNumber: "$reminderData.roomNumber",
             // Nested Court fields (matching original populate structure)
             court: {
               $ifNull: [
@@ -1262,6 +1281,7 @@ const getUserBondsmanInfo = asyncHandler(
                   state: "$courtData.state",
                   country: "$courtData.country",
                   reminder: "$courtData.reminder",
+                  // roomNumber: "$courtData.roomNumber",
                 },
                 null,
               ],

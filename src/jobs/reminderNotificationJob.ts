@@ -97,23 +97,23 @@ cron.schedule("* * * * *", async () => {
             `✅ Push notification sent for reminder ${reminder._id} to user ${user._id}`
           );
 
-          await ReminderNotification.create({
-            user: user._id,
-            reminderId: reminder._id,
-            deviceToken: user.deviceToken,
-            title: notificationTitle,
-            body: notificationBody,
-            status: "sent",
-            sentAt: new Date(),
-            error: null,
-            retries: 0,
-            metadata: {
-              reminderDate: reminder.reminderDate,
-              reminderTime: reminder.reminderTime,
-              reminderNote: reminder.reminderNote || "",
-              type: "reminder",
-            },
-          });
+          // await ReminderNotification.create({
+          //   user: user._id,
+          //   reminderId: reminder._id,
+          //   deviceToken: user.deviceToken,
+          //   title: notificationTitle,
+          //   body: notificationBody,
+          //   status: "sent",
+          //   sentAt: new Date(),
+          //   error: null,
+          //   retries: 0,
+          //   metadata: {
+          //     reminderDate: reminder.reminderDate,
+          //     reminderTime: reminder.reminderTime,
+          //     reminderNote: reminder.reminderNote || "",
+          //     type: "reminder",
+          //   },
+          // });
         } catch (error: any) {
           const errCode = error?.errorInfo?.code;
 
