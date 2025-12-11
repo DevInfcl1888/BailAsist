@@ -25,7 +25,7 @@ import { uploadToCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
 import Blacklist from "../models/blacklist.model.js";
 import { ReminderNotification } from "../models/notification.model.js";
-import mongoose from "mongoose";
+import mongoose, { mongo } from "mongoose";
 import { PipelineStage } from "mongoose";
 
 const refreshAccessToken = async (req: Request, res: Response) => {
@@ -1883,17 +1883,55 @@ const updateLatAndLong = asyncHandler(async (req: Request, res: Response) => {
     .json({ message: "Location updated successfully", updatedLocation });
 });
 
+// const getReminderNotification = asyncHandler(
+//   async (req: Request, res: Response) => {
+//     const reminderNotification = await ReminderNotification.find({
+//       user: req.user?._id,
+//     });
+//     if (reminderNotification.length === 0)
+//       return res.status(200).json({ message: "No notification found" });
+
+//     return res
+//       .status(200)
+//       .json({ message: "All Notifications found", reminderNotification });
+//   }
+// );
+
 const getReminderNotification = asyncHandler(
   async (req: Request, res: Response) => {
-    const reminderNotification = await ReminderNotification.find({
+    const limit = parseInt(req.query.limit as string) || 10;
+    const lastId = req.query.lastId as string | undefined;
+
+    const queryFilter: any = {
       user: req.user?._id,
-    });
-    if (reminderNotification.length === 0)
+    };
+
+    if (lastId) {
+      queryFilter._id = { $gt: new mongoose.Types.ObjectId(lastId) };
+    }
+
+    const reminderNotifications = await ReminderNotification.find(queryFilter)
+      .sort({ _id: 1 })
+      .limit(limit);
+    console.log({ reminderNotifications });
+    let nextCursorId: string | undefined = undefined;
+    console.log({ nextCursorId });
+
+    if (reminderNotifications.length === limit) {
+      nextCursorId =
+        reminderNotifications[reminderNotifications.length - 1]._id.toString();
+    }
+    console.log("1", nextCursorId);
+
+    if (reminderNotifications.length === 0 && !lastId)
       return res.status(200).json({ message: "No notification found" });
 
-    return res
-      .status(200)
-      .json({ message: "All Notifications found", reminderNotification });
+    return res.status(200).json({
+      message: "Notifications found",
+      limit: limit,
+      nextCursorId: nextCursorId,
+      reminderNotifications,
+    });
   }
 );
 
