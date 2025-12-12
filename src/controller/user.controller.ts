@@ -1546,7 +1546,7 @@ const createOrUpdateCheckIn = asyncHandler(
     const userId = req.user?._id;
     const { lat, long } = req.body;
     const now = new Date();
-    const threeMinutes = 60 * 1000;
+    const threeMinutes = 2 * 60 * 1000;
 
     // Get the latest checkout
     const lastCheckOut = await CheckOut.findOne({
@@ -1580,9 +1580,9 @@ const createOrUpdateCheckIn = asyncHandler(
     let checkIn = await CheckIn.findOne({ user: userId, isCheckIn: true }).sort(
       { createdAt: -1 }
     );
-
+    let diff;
     if (checkIn) {
-      const diff = now.getTime() - new Date(checkIn.createdAt as any).getTime();
+      diff = now.getTime() - new Date(checkIn.createdAt as any).getTime();
       if (diff > threeMinutes) {
         // Reset old check-in
         checkIn.isCheckIn = false;
@@ -1590,6 +1590,21 @@ const createOrUpdateCheckIn = asyncHandler(
         checkIn = null;
       }
     }
+    setInterval(async () => {
+      if (diff > threeMinutes) {
+        // Reset old check-in
+        checkIn.isCheckIn = false;
+        await checkIn.save();
+
+        // 1. Create a new CheckOut record for the automatic checkout
+        await CheckOut.create({
+          user: userId,
+          isCheckOut: true,
+        });
+
+        checkIn = null; // Prepare for new check-in creation below
+      }
+    }, threeMinutes);
 
     if (checkIn) {
       // Update existing check-in
@@ -1734,7 +1749,7 @@ const checkOut = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?._id;
   const { lat, long } = req.body;
   const now = new Date();
-  const threeMinutes = 60 * 1000;
+  const threeMinutes = 2 * 60 * 1000;
 
   // Get last checkout
   let checkOut = await CheckOut.findOne({ user: userId }).sort({
