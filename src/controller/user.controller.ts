@@ -87,7 +87,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     countryCode,
   } = req.body as {
     firstName: string;
-    middleName: string;
+    middleName?: string;
     lastName: string;
     email: string;
     password: string;
@@ -103,7 +103,6 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
   // Data validation
   if (
     !firstName?.trim() ||
-    !middleName?.trim() ||
     !lastName?.trim() ||
     !email?.trim() ||
     !password?.trim() ||
@@ -146,7 +145,7 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
   // User created
   const createdUser = await User.create({
     firstName,
-    middleName,
+    middleName: middleName ? middleName : "",
     lastName,
     email: normalizedEmail,
     password,
@@ -325,7 +324,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
   const { firstName, middleName, lastName, email, phoneNo, countryCode } =
     req.body as {
       firstName: string;
-      middleName: string;
+      middleName?: string;
       lastName: string;
       email: string;
       phoneNo: string;
@@ -334,7 +333,6 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
   // Data validation
   if (
     !firstName?.trim() ||
-    !middleName?.trim() ||
     !lastName?.trim() ||
     !email?.trim() ||
     !phoneNo?.trim()
@@ -365,7 +363,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     {
       $set: {
         firstName: data.firstName,
-        middleName: data.middleName,
+        middleName: data.middleName ?? "",
         lastName: data.lastName,
         email: data.email.toLowerCase(),
         phoneNo: data.phoneNo,
@@ -633,7 +631,7 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
   const { firstName, middleName, lastName, email, phoneNo, countryCode } =
     req.body as {
       firstName: string;
-      middleName: string;
+      middleName?: string;
       lastName: string;
       email: string;
       phoneNo: string;
@@ -641,7 +639,6 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
     };
   if (
     !firstName.trim() ||
-    !middleName.trim() ||
     !lastName.trim() ||
     !email.trim() ||
     !phoneNo.trim() ||
@@ -651,7 +648,6 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
 
   if (
     !isValidData(firstName) ||
-    !isValidData(middleName) ||
     !isValidData(lastName)
   )
     return res.status(400).json({
@@ -1255,7 +1251,7 @@ const getUserBondsmanInfo = asyncHandler(
         { $unwind: { path: "$courtData", preserveNullAndEmptyArrays: true } },
 
         // Stage 4: Sort (Recommended, using createdAt)
-        { $sort: { "reminderData.createdAt": -1 } },
+        { $sort: { "reminderData.reminderDateTime": 1 } },
 
         // Stage 5: Apply Pagination
         { $skip: skip },
@@ -1448,24 +1444,34 @@ const getHistory = asyncHandler(async (req: Request, res: Response) => {
 //     const { lat, long } = req.body;
 //     const now = new Date();
 
-//     const startOfToday = new Date();
-//     startOfToday.setHours(0, 0, 0, 0);
+//     /* ----------------------------------
+//        TIME WINDOW (12:00 AM → 11:59:59 PM)
+//     -----------------------------------*/
+//     const startOfDay = new Date();
+//     startOfDay.setHours(0, 0, 0, 0);
 
-//     const endOfToday = new Date();
-//     endOfToday.setHours(23, 59, 59, 999);
+//     const endOfDay = new Date();
+//     endOfDay.setHours(23, 59, 59, 999);
 
-//     // Get last checkout (today only)
+//     const isWithinTodayWindow = (date: Date) =>
+//       date >= startOfDay && date <= endOfDay;
+
+//     // Get the latest checkout
 //     const lastCheckOut = await CheckOut.findOne({
 //       user: userId,
 //       isCheckOut: true,
-//       createdAt: { $gte: startOfToday, $lte: endOfToday },
 //     }).sort({ createdAt: -1 });
 
-//     // Prevent check-in if already checked-out today
+//     // Disable check-in if last checkout is within today window
 //     if (lastCheckOut) {
-//       return res.status(400).json({
-//         message: "You already checked out today. Come back tomorrow.",
-//       });
+//       const lastCheckOutTime = new Date(lastCheckOut.createdAt as any);
+
+//       if (isWithinTodayWindow(lastCheckOutTime)) {
+//         return res.status(400).json({
+//           message:
+//             "You already checked out today. Come back tomorrow.",
+//         });
+//       }
 //     }
 
 //     // Optional image upload
@@ -1477,21 +1483,19 @@ const getHistory = asyncHandler(async (req: Request, res: Response) => {
 //       uploadedImageUrl = imgUpload.secure_url;
 //     }
 
-//     // Find today's latest check-in
-//     let checkIn = await CheckIn.findOne({
-//       user: userId,
-//       isCheckIn: true,
-//       createdAt: { $gte: startOfToday, $lte: endOfToday },
-//     }).sort({ createdAt: -1 });
+//     // Find the latest check-in
+//     let checkIn = await CheckIn.findOne({ user: userId, isCheckIn: true }).sort(
+//       { createdAt: -1 }
+//     );
 
 //     if (checkIn) {
-//       const isDifferentDay =
-//         new Date(checkIn?.createdAt as any).getDate() !== now.getDate();
+//       const checkInTime = new Date(checkIn.createdAt as any);
 
-//       if (isDifferentDay) {
+//       // Reset old check-in if it does NOT belong to today window
+//       if (!isWithinTodayWindow(checkInTime)) {
 //         checkIn.isCheckIn = false;
 //         await checkIn.save();
-//         checkIn = null; // allow new check-in today
+//         checkIn = null;
 //       }
 //     }
 
@@ -1590,21 +1594,26 @@ const createOrUpdateCheckIn = asyncHandler(
         checkIn = null;
       }
     }
-    setInterval(async () => {
-      if (diff > threeMinutes) {
-        // Reset old check-in
-        checkIn.isCheckIn = false;
-        await checkIn.save();
+    if (checkIn) {
+      const checkInId = checkIn._id;
 
-        // 1. Create a new CheckOut record for the automatic checkout
-        await CheckOut.create({
-          user: userId,
-          isCheckOut: true,
-        });
+      // setTimeout(async () => {
+      //   const currentCheckIn = await CheckIn.findById(checkInId);
 
-        checkIn = null; // Prepare for new check-in creation below
-      }
-    }, threeMinutes);
+      //   if (currentCheckIn && currentCheckIn.isCheckIn === true) {
+      //     console.log(
+      //       `Auto-checkout for user ${userId} and checkIn ${checkInId}`
+      //     ); // Reset old check-in
+      //     currentCheckIn.isCheckIn = false;
+      //     await currentCheckIn.save(); // Create a new CheckOut record for the automatic checkout
+
+      //     await CheckOut.create({
+      //       user: userId,
+      //       isCheckOut: true,
+      //     });
+      //   }
+      // }, threeMinutes);
+    }
 
     if (checkIn) {
       // Update existing check-in
@@ -1671,37 +1680,39 @@ const getUserCheckInStatus = asyncHandler(
 //   const userId = req.user?._id;
 //   const { lat, long } = req.body;
 //   const now = new Date();
-//   // const threeMinutes = 60 * 1000;
 
-//   const startOfToday = new Date();
-//   startOfToday.setHours(0, 0, 0, 0);
+//   /* ----------------------------------
+//      TIME WINDOW (12:00 AM → 11:59:59 PM)
+//   -----------------------------------*/
+//   const startOfDay = new Date();
+//   startOfDay.setHours(0, 0, 0, 0);
 
-//   const endOfToday = new Date();
-//   endOfToday.setHours(23, 59, 59, 999);
+//   const endOfDay = new Date();
+//   endOfDay.setHours(23, 59, 59, 999);
 
-//   // Get today's last checkout
-//   let checkOut = await CheckOut.findOne({
-//     user: userId,
-//     createdAt: { $gte: startOfToday, $lte: endOfToday },
-//   }).sort({ createdAt: -1 });
+//   const isWithinTodayWindow = (date: Date) =>
+//     date >= startOfDay && date <= endOfDay;
 
-//   if (checkOut) {
-//     const isDifferentDay =
-//       new Date(checkOut.createdAt as any).getDate() !== now.getDate();
+//   // Get last checkout
+//   let checkOut = await CheckOut.findOne({ user: userId }).sort({
+//     createdAt: -1,
+//   });
 
-//     // If checkout is from previous day → reset
-//     if (isDifferentDay) {
-//       checkOut.isCheckOut = false;
-//       await checkOut.save();
-//       checkOut = null;
+//   // Block checkout if already done today
+//   if (checkOut && checkOut.isCheckOut) {
+//     const lastCheckoutTime = new Date(checkOut.createdAt as any);
+
+//     if (isWithinTodayWindow(lastCheckoutTime)) {
+//       return res.status(400).json({
+//         message: "You already checked out today.",
+//       });
 //     }
 //   }
 
-//   // Get today's last check-in
+//   // Get last active check-in
 //   const lastCheckIn = await CheckIn.findOne({
 //     user: userId,
 //     isCheckIn: true,
-//     createdAt: { $gte: startOfToday, $lte: endOfToday },
 //   }).sort({ createdAt: -1 });
 
 //   if (!lastCheckIn) {
@@ -1725,13 +1736,17 @@ const getUserCheckInStatus = asyncHandler(
 //     photoUrl: uploadedImageUrl ?? " ",
 //     location: { lat, long },
 //     isCheckOut: true,
+//     checkInID: lastCheckIn._id,
 //   });
 
-//   // Mark check-in as false
+//   // Mark active check-in as false
 //   await CheckIn.updateMany(
 //     { user: userId, isCheckIn: true },
 //     { isCheckIn: false }
 //   );
+
+//   // ⛔ setTimeout REMOVED
+//   // ✅ Reset handled by CRON using same time window logic
 
 //   return res.status(200).json({
 //     message: "Checkout recorded",
@@ -1791,6 +1806,7 @@ const checkOut = asyncHandler(async (req: Request, res: Response) => {
     photoUrl: uploadedImageUrl ?? " ",
     location: { lat, long },
     isCheckOut: true,
+    checkInID: lastCheckIn?._id,
   });
 
   // Mark check-in as false

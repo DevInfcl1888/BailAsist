@@ -514,22 +514,14 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     phoneNo,
-    // homeAddress,
-    // street,
-    // ZipCode,
     countryCode,
-    // isActive,
   } = req.body as {
     firstName?: string;
     middleName?: string;
     lastName?: string;
     email?: string;
     phoneNo?: string;
-    // homeAddress?: string;
-    // street?: string;
-    // ZipCode?: string;
     countryCode?: string;
-    // isActive?: boolean;
   };
 
   const updateFields: any = {};
@@ -540,14 +532,6 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     if (!isValidData(firstName))
       return res.status(400).json({ message: "Invalid first name" });
     updateFields.firstName = firstName.trim();
-  }
-
-  if (middleName !== undefined) {
-    if (!middleName.trim())
-      return res.status(400).json({ message: "Middle name can't be empty" });
-    if (!isValidData(middleName))
-      return res.status(400).json({ message: "Invalid middle name" });
-    updateFields.middleName = middleName.trim();
   }
 
   if (lastName !== undefined) {
@@ -572,33 +556,11 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     updateFields.phoneNo = phoneNo.trim();
   }
 
-  // if (homeAddress !== undefined) {
-  //   if (!homeAddress.trim())
-  //     return res.status(400).json({ message: "Home address can't be empty" });
-  //   updateFields.homeAddress = homeAddress.trim();
-  // }
-
-  // if (street !== undefined) {
-  //   if (!street.trim())
-  //     return res.status(400).json({ message: "Street can't be empty" });
-  //   updateFields.street = street.trim();
-  // }
-
-  // if (ZipCode !== undefined) {
-  //   if (!ZipCode.trim())
-  //     return res.status(400).json({ message: "Zip code can't be empty" });
-  //   updateFields.ZipCode = ZipCode.trim();
-  // }
-
   if (countryCode !== undefined) {
     if (!countryCode.trim())
       return res.status(400).json({ message: "Country code can't be empty" });
     updateFields.countryCode = countryCode.trim();
   }
-
-  // if (isActive !== undefined) {
-  //   updateFields.isActive = isActive;
-  // }
 
   if (Object.keys(updateFields).length === 0)
     return res.status(400).json({ message: "No fields provided to update" });

@@ -3,16 +3,25 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { Request, Response } from "express";
 
 const ssoLogin = asyncHandler(async (req: Request, res: Response) => {
-  const { email, given_name, family_name, name, picture, subId, authProvider } =
-    req.body as {
-      email: string;
-      given_name: string;
-      family_name: string;
-      name: string;
-      picture: string;
-      subId: string;
-      authProvider: string;
-    };
+  const {
+    email,
+    given_name,
+    family_name,
+    name,
+    picture,
+    subId,
+    authProvider,
+    deviceToken,
+  } = req.body as {
+    email: string;
+    given_name: string;
+    family_name: string;
+    name: string;
+    picture: string;
+    subId: string;
+    authProvider: string;
+    deviceToken: string;
+  };
 
   if (!email || !subId) {
     return res.status(400).json({ message: "email & subId missing" });
@@ -33,7 +42,7 @@ const ssoLogin = asyncHandler(async (req: Request, res: Response) => {
       firstName: given_name, // actual name
       middleName: family_name, // last name or surname
       email: normalizeEmail,
-      //   deviceToken: deviceToken ? deviceToken : "",
+      deviceToken,
       subId,
       SSOimg: picture,
       password: null,

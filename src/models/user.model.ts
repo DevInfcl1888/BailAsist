@@ -85,7 +85,7 @@ interface employementInfo extends Document {
 //  --------------------- Sign Up Information --------------------
 interface signUp extends Document {
   firstName: string;
-  middleName: string;
+  middleName?: string;
   lastName: string;
   email: string;
   password: string;
@@ -141,6 +141,7 @@ interface ICheckOut extends Document {
   location?: { lat: number; long: number };
   createdAt: Date;
   updatedAt: Date;
+  checkInID: Schema.Types.ObjectId;
   isCheckOut: boolean;
 }
 
@@ -178,6 +179,7 @@ const CheckOutSchema = new Schema<ICheckOut>(
       default: false,
       required: true,
     },
+    checkInID: { type: Schema.Types.ObjectId, ref: "CheckIn", required: true },
   },
   {
     timestamps: true,
@@ -419,9 +421,6 @@ const userSchema = new Schema<signUp>(
     },
     middleName: {
       type: String,
-      required: function () {
-        return this.authProvider === "manual";
-      },
       trim: true,
     },
     lastName: {
