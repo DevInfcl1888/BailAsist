@@ -41,22 +41,17 @@ cron.schedule("* * * * *", async () => {
           );
           continue;
         }
-        // --- 2. DATE AND INTERVAL CHECK (Implements the 5-day logic) ---
+        // --- 2. DATE AND INTERVAL CHECK ---
 
-        // Reminder Date ko Date object mein convert karein
         const reminderDateObj = new Date(reminder.reminderDate);
 
-        // Current Date (today) aur Reminder Date ke beech ka difference nikalen
         const diffDays = differenceInDays(reminderDateObj, today);
 
-        // Get the lookback interval (e.g., 5 days, from the body: "interval": "5")
         const interval = parseInt(reminder.interval) || 0;
 
-        // Logic: Agar aaj ki date 0 days (Target Date) aur Interval days pehle ke beech mein hai, toh hi send karo.
         const shouldSend = diffDays >= 0 && diffDays <= interval;
 
         if (!shouldSend) {
-          // Agar aaj ki date interval window se bahar hai, toh skip karo.
           continue;
         }
 
@@ -68,14 +63,13 @@ cron.schedule("* * * * *", async () => {
           "deviceToken firstName lastName email"
         );
 
-        if (!user || !user.deviceToken || user.deviceToken.trim() === "") {
+        if (!user || user.email.trim() === "") {
           console.log(
             `⚠️ Skipping reminder ${reminder._id} - user ${reminder.user} not found`
           );
           continue;
         }
 
-        // Check if user has a device token
         if (!user.deviceToken || user.deviceToken.trim() === "") {
           console.log(
             `⚠️ Skipping reminder ${reminder._id} - user ${reminder.user} has no device token`

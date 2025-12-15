@@ -1914,20 +1914,6 @@ const updateLatAndLong = asyncHandler(async (req: Request, res: Response) => {
     .json({ message: "Location updated successfully", updatedLocation });
 });
 
-// const getReminderNotification = asyncHandler(
-//   async (req: Request, res: Response) => {
-//     const reminderNotification = await ReminderNotification.find({
-//       user: req.user?._id,
-//     });
-//     if (reminderNotification.length === 0)
-//       return res.status(200).json({ message: "No notification found" });
-
-//     return res
-//       .status(200)
-//       .json({ message: "All Notifications found", reminderNotification });
-//   }
-// );
-
 const getReminderNotification = asyncHandler(
   async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 10;
