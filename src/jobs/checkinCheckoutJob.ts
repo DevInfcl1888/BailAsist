@@ -37,7 +37,7 @@ cron.schedule("* * * * *", async () => {
           checkInID: checkin._id,
           photoUrl: "",
           location: checkin.location, // ✅ LAST CHECKIN LOCATION
-          isCheckOut: true,
+          isCheckOut: false,
           createdAt: now,
           updatedAt: now,
         });

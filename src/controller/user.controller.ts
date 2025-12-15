@@ -646,10 +646,7 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
   )
     return res.status(404).json({ message: "All fields are required" });
 
-  if (
-    !isValidData(firstName) ||
-    !isValidData(lastName)
-  )
+  if (!isValidData(firstName) || !isValidData(lastName))
     return res.status(400).json({
       message: "Invalid data",
     });
