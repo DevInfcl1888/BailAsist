@@ -128,31 +128,37 @@ const logoutAsBondsman = asyncHandler(async (req: Request, res: Response) => {
 const searchByPhoneNumber = asyncHandler(
   async (req: Request, res: Response) => {
     const { search } = req.query;
-    if (!search)
-      return res.status(404).json({ message: "Search can't be empty" });
+    const bondsmanId = req.user?._id;
+
+    // 1️⃣ Get bondsman with associated users
+    const bondsman = await Bondsman.findById(bondsmanId).select("user");
+
+    if (!bondsman || !bondsman.user || bondsman.user.length === 0) {
+      return res.status(200).json({
+        message: "No users associated with this bondsman",
+      });
+    }
+
+    // 2️⃣ Search only within bondsman users
     const searchedUser = await User.find({
+      _id: { $in: bondsman.user }, // ✅ IMPORTANT FIX
+      isActive: true,
       $or: [
-        {
-          phoneNo: { $regex: search, $options: "i" },
-        },
-        {
-          firstName: { $regex: search, $options: "i" },
-        },
-        {
-          lastName: { $regex: search, $options: "i" },
-        },
-        {
-          middleName: { $regex: search, $options: "i" },
-        },
+        { phoneNo: { $regex: search, $options: "i" } },
+        { firstName: { $regex: search, $options: "i" } },
+        { lastName: { $regex: search, $options: "i" } },
+        { middleName: { $regex: search, $options: "i" } },
       ],
-    }).select("-password");
-    if (searchedUser.length === 0)
+    }).select(
+      "_id firstName middleName lastName email phoneNo street ZipCode countryCode"
+    );
+
+    if (searchedUser.length === 0) {
       return res.status(404).json({ message: "No result found" });
+    }
+
     return res.status(200).json({
-      message:
-        searchedUser.length === 0
-          ? "No data found while searching"
-          : `${searchedUser.length} Users found`,
+      message: `${searchedUser.length} users found`,
       searchedUser,
     });
   }

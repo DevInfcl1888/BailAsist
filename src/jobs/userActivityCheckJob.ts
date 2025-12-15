@@ -68,7 +68,9 @@ cron.schedule("*/5 * * * *", async () => {
         const emailBody = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #333;">Inactivity Alert</h2>
-            <p>Dear ${user.firstName} ${user.lastName},</p>
+            <p>Dear ${user.firstName} ${
+          user.lastName || user.middleName || " "
+        },</p>
             <p>We noticed that you haven't been active on the BailAsist platform for more than 5 minutes.</p>
             <p>Please ensure you are active and update your location if needed.</p>
             <p>If you have any questions or concerns, please contact support.</p>
