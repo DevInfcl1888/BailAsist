@@ -12,22 +12,18 @@ cron.schedule("*/5 * * * *", async () => {
   try {
     const now = new Date();
     // 5 Hours in milliseconds
-    const fiveHoursMs = 60 * 60 * 1000;
+    const fiveHoursMs = 5 * 60 * 60 * 1000;
 
     const fiveHoursAgo = new Date(now.getTime() - fiveHoursMs);
 
-    // LOGIC:
-    // 1. User active hona chahiye.
-    // 2. Location update hue 5 ghante se zyada ho gaye (latUpdatedAt <= fiveHoursAgo)
-    // 3. IMPORTANT: Last email bheje hue bhi 5 ghante ho gaye ho, YA kabhi email bheja hi na ho.
     const inactiveUsers = await User.find({
       isActive: true,
       latitude: { $exists: true, $ne: null },
-      latUpdatedAt: { $lte: fiveHoursAgo }, // Location purani hai
+      latUpdatedAt: { $lte: fiveHoursAgo }, 
       $or: [
-        { lastInactivityEmailSentAt: { $exists: false } }, // Field hi nahi hai
-        { lastInactivityEmailSentAt: null }, // Field null hai
-        { lastInactivityEmailSentAt: { $lte: fiveHoursAgo } }, // Last email bhi 5 ghante pehle gaya tha
+        { lastInactivityEmailSentAt: { $exists: false } }, 
+        { lastInactivityEmailSentAt: null }, 
+        { lastInactivityEmailSentAt: { $lte: fiveHoursAgo } }, 
       ],
     });
     if (inactiveUsers.length === 0) {
@@ -38,30 +34,11 @@ cron.schedule("*/5 * * * *", async () => {
     }
 
     console.log(`⚠️ Found ${inactiveUsers.length} inactive user(s)`);
-    // Send email to each inactive user
     for (const user of inactiveUsers) {
       if (!user.email) {
         console.log(`⚠️ Skipping user ${user._id} - no email address`);
         continue;
       }
-
-      // Check if we've notified this user recently (within the last hour)
-      // const userId = user._id.toString();
-      // const lastNotificationTime = recentlyNotifiedUsers.get(userId);
-      // const now = Date.now();
-
-      // if (
-      //   lastNotificationTime &&
-      //   now - lastNotificationTime < NOTIFICATION_COOLDOWN
-      // ) {
-      //   const minutesSinceLastNotification = Math.floor(
-      //     (now - lastNotificationTime) / 60000
-      //   );
-      //   console.log(
-      //     `⏭️ Skipping ${user.email} - already notified ${minutesSinceLastNotification} minutes ago`
-      //   );
-      //   continue;
-      // }
 
       try {
         const emailSubject = "Inactivity Alert - BailAsist";
@@ -93,13 +70,6 @@ cron.schedule("*/5 * * * *", async () => {
         console.error(`❌ Error sending email to ${user.email}:`, error);
       }
     }
-
-    // Clean up old entries from the cache (older than 1 hour)
-    // for (const [userId, timestamp] of recentlyNotifiedUsers.entries()) {
-    //   if (Date.now() - timestamp > NOTIFICATION_COOLDOWN) {
-    //     recentlyNotifiedUsers.delete(userId);
-    //   }
-    // }
 
     console.log(
       `✅ User activity check completed. Processed ${inactiveUsers.length} user(s).`

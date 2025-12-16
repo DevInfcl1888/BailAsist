@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import Blacklist from "../models/blacklist.model.js";
+import { User } from "../models/user.model.js";
 
 // create payload interface
 export interface DecodeToken extends JwtPayload {

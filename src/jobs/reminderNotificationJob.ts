@@ -126,7 +126,7 @@ cron.schedule("* * * * *", async () => {
           await ReminderNotification.create({
             user: user._id,
             reminderId: reminder._id,
-            deviceToken: user.deviceToken,
+            deviceToken: user.deviceToken ? user.deviceToken : "",
             title: notificationTitle,
             body: notificationBody,
             status: "sent",
@@ -137,6 +137,7 @@ cron.schedule("* * * * *", async () => {
               reminderDate: reminder.reminderDate,
               reminderTime: reminder.reminderTime,
               reminderNote: reminder.reminderNote || "",
+              roomNumber: reminder.roomNumber || "",
               type: "reminder",
             },
           });

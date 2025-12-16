@@ -1,21 +1,28 @@
 import nodemailer from "nodemailer";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
+import { User } from "../models/user.model.js";
 dotenv.config();
 
-export const otpStore = new Map<string, { hash: string; expiresAt: number }>();
 
 // generate OTP
 export const generateOTP = async (email: string): Promise<string> => {
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   const hashedOTP = await bcrypt.hash(otp, 10);
-  otpStore.set(email, {
-    hash: hashedOTP,
-    expiresAt:
-      Date.now() + (Number(process.env.OTP_EXPIRE_TIME!) || 120) * 1000, // 1 min
-  });
 
-  // console.log("OTP store updated:", otpStore);
+  const expiresAt = new Date(
+    Date.now() + (Number(process.env.OTP_EXPIRE_TIME!) || 300) * 1000
+  );
+
+  await User.findOneAndUpdate(
+    { email: email.toLowerCase() },
+    {
+      otpHash: hashedOTP,
+      otpExpiresAt: expiresAt,
+    },
+    { new: true }
+  );
+
   return otp;
 };
 

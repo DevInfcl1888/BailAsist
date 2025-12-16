@@ -19,7 +19,7 @@ import {
   CheckOut,
 } from "../models/user.model.js";
 import { Bondsman, Court, Reminder } from "../models/bondsman.model.js";
-import { generateOTP, sendOTPfun, otpStore } from "../utils/OTPsender.js";
+import { generateOTP, sendOTPfun } from "../utils/OTPsender.js";
 import bcrypt from "bcryptjs";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
@@ -252,8 +252,6 @@ const logout = asyncHandler(async (req: Request, res: Response) => {
     const expiresAt = decoded.exp
       ? new Date(decoded.exp * 1000)
       : new Date(Date.now() + 60 * 60 * 1000);
-    console.log({ decoded });
-    console.log({ expiresAt });
     const a = await Blacklist.create({ token: accessToken, expiresAt });
     console.log({ a });
   }
@@ -424,36 +422,50 @@ const sendOTP = asyncHandler(async (req: Request, res: Response) => {
 const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
   const { email, otp } = req.body;
 
-  if (!email || !otp)
+  if (!email || !otp) {
     return res.status(400).json({ message: "Missing fields" });
-  const normalizedEmail = email.toLowerCase();
-  const stored = otpStore.get(normalizedEmail);
-  if (!stored)
-    return res.status(400).json({ message: "OTP not found or expired" });
-  // console.log("stored", stored);
+  }
 
-  if (Date.now() > stored.expiresAt) {
-    otpStore.delete(normalizedEmail);
+  const normalizedEmail = email.toLowerCase();
+
+  const user = await User.findOne({ email: normalizedEmail }).select(
+    "otpHash otpExpiresAt"
+  );
+
+  if (!user || !user.otpHash || !user.otpExpiresAt) {
+    return res.status(400).json({ message: "OTP not found or expired" });
+  }
+
+  if (Date.now() > new Date(user.otpExpiresAt as any).getTime()) {
+    // cleanup expired OTP
+    user.otpHash = "";
+    user.otpExpiresAt = null;
+    await user.save({ validateBeforeSave: false });
+
     return res.status(400).json({ message: "OTP expired" });
   }
 
-  const isMatch = await bcrypt.compare(otp, stored.hash);
-  if (!isMatch) return res.status(400).json({ message: "Invalid OTP" });
+  const isMatch = await bcrypt.compare(otp, user.otpHash as string);
+  if (!isMatch) {
+    return res.status(400).json({ message: "Invalid OTP" });
+  }
 
-  // success
-  otpStore.delete(normalizedEmail);
+  // ✅ success → cleanup OTP
+  user.otpHash = "";
+  user.otpExpiresAt = null;
+  await user.save({ validateBeforeSave: false });
 
-  // create short lived token (10 min)
+  // short lived reset token
   const resetToken = jwt.sign(
-    { normalizedEmail },
+    { email: normalizedEmail },
     process.env.RESET_TOKEN_SECRET!,
-    {
-      expiresIn: "10m",
-    }
+    { expiresIn: "10m" }
   );
-  return res
-    .status(200)
-    .json({ message: "OTP verified successfully ✅", resetToken });
+
+  return res.status(200).json({
+    message: "OTP verified successfully ✅",
+    resetToken,
+  });
 });
 
 const getdata = async (req: Request, res: Response) => {
@@ -646,10 +658,7 @@ const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
   )
     return res.status(404).json({ message: "All fields are required" });
 
-  if (
-    !isValidData(firstName) ||
-    !isValidData(lastName)
-  )
+  if (!isValidData(firstName) || !isValidData(lastName))
     return res.status(400).json({
       message: "Invalid data",
     });
