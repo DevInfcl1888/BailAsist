@@ -422,12 +422,23 @@ const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
   if (!isAdmin)
     return res.status(403).json({ message: "only admin can allow this route" });
   const { id } = req.params;
+
+  const user = await User.findById(id).select("refreshToken deviceToken");
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
   const deletedUserInfo = await User.deleteOne({ _id: id });
 
   if (deletedUserInfo.deletedCount !== 1)
     return res
       .status(401)
       .json({ message: "User profile can't be deleted", deletedUserInfo });
+
+  // 2️⃣ Invalidate session tokens
+  user.refreshToken = "";
+  user.deviceToken = "";
+  await user.save({ validateBeforeSave: false });
+
   return res
     .status(200)
     .json({ message: "User profile deleted", deletedUserInfo });
@@ -508,21 +519,15 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
   if (!userId) return res.status(400).json({ message: "User Id is empty" });
 
-  const {
-    firstName,
-    middleName,
-    lastName,
-    email,
-    phoneNo,
-    countryCode,
-  } = req.body as {
-    firstName?: string;
-    middleName?: string;
-    lastName?: string;
-    email?: string;
-    phoneNo?: string;
-    countryCode?: string;
-  };
+  const { firstName, middleName, lastName, email, phoneNo, countryCode } =
+    req.body as {
+      firstName?: string;
+      middleName?: string;
+      lastName?: string;
+      email?: string;
+      phoneNo?: string;
+      countryCode?: string;
+    };
 
   const updateFields: any = {};
 
@@ -680,8 +685,8 @@ const getPrivacyPolicy = asyncHandler(async (req: Request, res: Response) => {
 
   const isAdmin = await Admin.findById(userId);
   if (isAdmin) role = "Admin";
-  
-  const privacyPolicy = await PrivacyPolicy.findOne({ role })
+
+  const privacyPolicy = await PrivacyPolicy.findOne({ role });
 
   if (!privacyPolicy)
     return res

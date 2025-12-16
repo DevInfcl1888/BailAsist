@@ -109,6 +109,8 @@ interface signUp extends Document {
   latUpdatedAt: Date;
   lastInactivityEmailSentAt: Date;
   lastTokenInvalidSMSAt: Date;
+  otpHash: String;
+  otpExpiresAt: Date;
   subId: string; // Google UID
   authProvider: string; // google/manual/etc
   isCorrectPassword(password: string): Promise<boolean>;
@@ -499,6 +501,15 @@ const userSchema = new Schema<signUp>(
     refreshToken: {
       type: String,
     },
+    otpHash: {
+      type: String,
+      default: "",
+    },
+    otpExpiresAt: {
+      type: Date,
+      default: null,
+    },
+
     bondsman: { type: Schema.Types.ObjectId, ref: "Bondsman" },
     image: {
       type: String, // cloudinary url

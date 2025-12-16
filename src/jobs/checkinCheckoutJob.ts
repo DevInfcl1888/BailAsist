@@ -27,7 +27,7 @@ cron.schedule("* * * * *", async () => {
 
       // create checkout if not exists
       const exists = await CheckOut.findOne({
-        checkinID: checkin._id,
+        checkInID: checkin._id,
         user: checkin.user,
       });
 
@@ -37,7 +37,7 @@ cron.schedule("* * * * *", async () => {
           checkInID: checkin._id,
           photoUrl: "",
           location: checkin.location, // ✅ LAST CHECKIN LOCATION
-          isCheckOut: false,
+          isCheckOut: true,
           createdAt: now,
           updatedAt: now,
         });
@@ -66,7 +66,7 @@ cron.schedule("* * * * *", async () => {
           _id: checkout.checkInID,
           user: checkout.user,
         },
-        { $set: { isCheckIn: true } }
+        { $set: { isCheckIn: true } } // false
       );
     }
   }
