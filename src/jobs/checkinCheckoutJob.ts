@@ -131,15 +131,6 @@ cron.schedule("* * * * *", async () => {
 //         { _id: checkout._id },
 //         { $set: { isCheckOut: false } }
 //       );
-
-//       // reset checkin to ready state
-//       await CheckIn.updateOne(
-//         {
-//           _id: checkout.checkInID,
-//           user: checkout.user,
-//         },
-//         { $set: { isCheckIn: true } }
-//       );
 //     }
 //   }
 // });
