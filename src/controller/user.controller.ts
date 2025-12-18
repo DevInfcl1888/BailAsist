@@ -27,6 +27,7 @@ import Blacklist from "../models/blacklist.model.js";
 import { ReminderNotification } from "../models/notification.model.js";
 import mongoose, { mongo } from "mongoose";
 import { PipelineStage } from "mongoose";
+import { getNotificationTime } from "../utils/getNotificationTimeInFormate.js";
 
 const refreshAccessToken = async (req: Request, res: Response) => {
   const incomingRefreshToken = req.body.refreshToken;
@@ -1944,21 +1945,24 @@ const getReminderNotification = asyncHandler(
     };
 
     if (lastId) {
-      queryFilter._id = { $gt: new mongoose.Types.ObjectId(lastId) };
+      const lastNotification = await ReminderNotification.findById(
+        lastId
+      ).select("sentAt");
+
+      if (lastNotification) {
+        queryFilter.sentAt = { $lt: lastNotification.sentAt };
+      }
     }
 
     const reminderNotifications = await ReminderNotification.find(queryFilter)
-      .sort({ _id: 1 })
+      .sort({ sentAt: -1 })
       .limit(limit);
-    console.log({ reminderNotifications });
     let nextCursorId: string | undefined = undefined;
-    console.log({ nextCursorId });
 
     if (reminderNotifications.length === limit) {
       nextCursorId =
         reminderNotifications[reminderNotifications.length - 1]._id.toString();
     }
-    console.log("1", nextCursorId);
 
     if (reminderNotifications.length === 0 && !lastId)
       return res.status(200).json({ message: "No notification found" });
@@ -1977,13 +1981,21 @@ const getReminderNotification = asyncHandler(
         },
       }
     );
+    const formattedNotifications = reminderNotifications.map((n) => {
+      const obj = n.toObject();
+
+      return {
+        ...obj,
+        timeAgo: getNotificationTime(obj.sentAt),
+      };
+    });
 
     return res.status(200).json({
       message: "Notifications found",
       success: true,
       limit: limit,
       nextCursorId: nextCursorId,
-      reminderNotifications,
+      reminderNotifications: formattedNotifications,
     });
   }
 );
