@@ -13,20 +13,33 @@ export interface IReminderNotification extends Document {
   metadata?: Record<string, any>;
   createdAt?: Date;
   updatedAt?: Date;
+  isSeen: boolean;
 }
 
 const ReminderNotificationSchema = new Schema<IReminderNotification>(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    reminderId: { type: Schema.Types.ObjectId, ref: "Reminder", required: true },
+    reminderId: {
+      type: Schema.Types.ObjectId,
+      ref: "Reminder",
+      required: true,
+    },
     deviceToken: { type: String, required: true },
     title: { type: String, required: true },
     body: { type: String, required: true },
-    status: { type: String, enum: ["pending", "sent", "failed"], default: "pending" },
+    status: {
+      type: String,
+      enum: ["pending", "sent", "failed"],
+      default: "pending",
+    },
     sentAt: { type: Date },
     error: { type: String, default: null },
     retries: { type: Number, default: 0 },
     metadata: { type: Schema.Types.Mixed, default: {} }, // store extra info like reminderDate, reminderTime, note
+    isSeen: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

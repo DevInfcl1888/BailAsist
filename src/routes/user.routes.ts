@@ -43,6 +43,7 @@ import {
   getHistory,
   refreshAccessToken,
   getReminderNotification,
+  getUnreadNotificationCount,
 } from "../controller/user.controller.js";
 
 import { ssoLogin } from "../controller/sso.controller.js";
@@ -120,4 +121,8 @@ router.route("/SSO-Login").post(ssoLogin);
 router
   .route("/getReminderNotification")
   .get(authMiddleware, getReminderNotification);
+router
+  .route("/notification/unread-count")
+  .get(authMiddleware, getUnreadNotificationCount);
+
 export default router;

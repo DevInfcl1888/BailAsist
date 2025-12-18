@@ -3,7 +3,7 @@ import { messaging } from "../config/firebase.js";
 import { sendSMS } from "../utils/twilio.js";
 import { User } from "../models/user.model.js"; // ✅ using your existing model
 
-const TOKEN_INVALID_COOLDOWN_MS = 1 * 60 * 60 * 1000; // 1 hours
+const TOKEN_INVALID_COOLDOWN_MS = 5 * 60 * 60 * 1000; // 5 hours
 cron.schedule("*/10 * * * *", async () => {
   console.log("🕐 Running token validation job...");
 

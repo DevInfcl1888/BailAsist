@@ -347,6 +347,15 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
       .status(404)
       .json({ message: "User not found or maybe you logout" });
 
+  const existingEmailUser = await User.findOne({
+    email: email.toLowerCase(),
+    _id: { $ne: req.user?._id }, // exclude current user
+  });
+
+  if (existingEmailUser) {
+    return res.status(409).json({ message: "Email already exists" });
+  }
+
   let data = {
     firstName,
     middleName,
@@ -414,6 +423,8 @@ const sendOTP = asyncHandler(async (req: Request, res: Response) => {
   // generate OTP
   const generate_OTP: string = await generateOTP(email);
   const send_OTP: string = await sendOTPfun(email, generate_OTP);
+  console.log("user", generate_OTP);
+  console.log("user", send_OTP);
   return res.status(200).json({
     message: `OTP send successfully to your registered email : ${email.toLowerCase()}`,
   });
@@ -1952,11 +1963,41 @@ const getReminderNotification = asyncHandler(
     if (reminderNotifications.length === 0 && !lastId)
       return res.status(200).json({ message: "No notification found" });
 
+    const fetchedIds = reminderNotifications.map((n) => n._id);
+
+    await ReminderNotification.updateMany(
+      {
+        _id: { $in: fetchedIds },
+        user: req.user?._id,
+        isSeen: false,
+      },
+      {
+        $set: {
+          isSeen: true,
+        },
+      }
+    );
+
     return res.status(200).json({
       message: "Notifications found",
+      success: true,
       limit: limit,
       nextCursorId: nextCursorId,
       reminderNotifications,
+    });
+  }
+);
+
+const getUnreadNotificationCount = asyncHandler(
+  async (req: Request, res: Response) => {
+    const unreadCount = await ReminderNotification.countDocuments({
+      user: req.user?._id,
+      isSeen: false,
+    });
+
+    return res.status(200).json({
+      success: true,
+      unreadCount,
     });
   }
 );
@@ -1997,4 +2038,5 @@ export {
   getHistory,
   refreshAccessToken,
   getReminderNotification,
+  getUnreadNotificationCount,
 };
