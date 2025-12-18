@@ -1963,11 +1963,41 @@ const getReminderNotification = asyncHandler(
     if (reminderNotifications.length === 0 && !lastId)
       return res.status(200).json({ message: "No notification found" });
 
+    const fetchedIds = reminderNotifications.map((n) => n._id);
+
+    await ReminderNotification.updateMany(
+      {
+        _id: { $in: fetchedIds },
+        user: req.user?._id,
+        isSeen: false,
+      },
+      {
+        $set: {
+          isSeen: true,
+        },
+      }
+    );
+
     return res.status(200).json({
       message: "Notifications found",
+      success: true,
       limit: limit,
       nextCursorId: nextCursorId,
       reminderNotifications,
+    });
+  }
+);
+
+const getUnreadNotificationCount = asyncHandler(
+  async (req: Request, res: Response) => {
+    const unreadCount = await ReminderNotification.countDocuments({
+      user: req.user?._id,
+      isSeen: false,
+    });
+
+    return res.status(200).json({
+      success: true,
+      unreadCount,
     });
   }
 );
@@ -2008,4 +2038,5 @@ export {
   getHistory,
   refreshAccessToken,
   getReminderNotification,
+  getUnreadNotificationCount,
 };
