@@ -22,10 +22,26 @@ export function getNotificationTime(sentAt: string | Date): string {
   const weeks = Math.floor(diffMs / WEEK);
   const years = Math.floor(diffMs / YEAR);
 
-  if (minutes < 60) return `${Math.max(minutes, 1)} min ago`;
-  if (hours < 24) return `${hours} hr ago`;
-  if (days < 7) return `${days} day ago`;
-  if (weeks < 52) return `${weeks} week ago`;
+  if (minutes < 60) {
+    return `${Math.max(minutes, 1)} min ago`;
+  }
 
-  return `${Math.max(years, 1)} Yr ago`;
+  if (hours < 24) {
+    return hours === 1 ? `${hours} hour ago` : `${hours} hours ago`;
+  }
+
+  if (days < 7) {
+    return days === 1 ? `${days} day ago` : `${days} days ago`;
+  }
+
+  if (weeks < 4) {
+    return weeks === 1 ? `${weeks} week ago` : `${weeks} weeks ago`;
+  }
+
+  if (weeks < 52) {
+    const months = Math.floor(weeks / 4);
+    return months === 1 ? `${months} month ago` : `${months} months ago`;
+  }
+
+  return years === 1 ? `${years} Year ago` : `${years} Years ago`;
 }
