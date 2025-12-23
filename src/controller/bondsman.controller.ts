@@ -370,6 +370,15 @@ const updateUserDetailsByBondsman = asyncHandler(
     if (Object.keys(updateFields).length === 0)
       return res.status(400).json({ message: "No fields provided to update" });
 
+    const existingEmailUser = await User.findOne({
+      email: email.toLowerCase(),
+      _id: { $ne: userId }, // exclude current user
+    });
+
+    if (existingEmailUser) {
+      return res.status(409).json({ message: "Email already exists" });
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       {
