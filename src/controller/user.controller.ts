@@ -1,26 +1,75 @@
+import { DecodeToken } from "./../middlewares/auth.middlewares";
 import express, { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {
+  isDateValid,
   isValidData,
   isValidEmail,
   isValidPassword,
-  isValidPhone,
 } from "../utils/dataValidators.js";
 import {
-  ResidenceType,
   ResidenceInfo,
   LegalInfo,
   User,
-  ContactInfo,
-  RACE,
-  GENDER,
-  EYE_COLOR,
-  HAIR_COLOR,
-  MARITAL_STATUS,
   PersonalInfo,
+  DriversLicInfo,
+  personalRefrenceInfo,
+  EmployementInfo,
+  CheckIn,
+  CheckOut,
 } from "../models/user.model.js";
-import { generateOTP, sendOTPfun, otpStore } from "../utils/OTPsender.js";
+import { Bondsman, Court, Reminder } from "../models/bondsman.model.js";
+import { generateOTP, sendOTPfun } from "../utils/OTPsender.js";
 import bcrypt from "bcryptjs";
+import { uploadToCloudinary } from "../utils/cloudinary.js";
+import jwt from "jsonwebtoken";
+import Blacklist from "../models/blacklist.model.js";
+import { ReminderNotification } from "../models/notification.model.js";
+import mongoose, { mongo } from "mongoose";
+import { PipelineStage } from "mongoose";
+import { getNotificationTime } from "../utils/getNotificationTimeInFormate.js";
+
+const refreshAccessToken = async (req: Request, res: Response) => {
+  const incomingRefreshToken = req.body.refreshToken;
+
+  if (!incomingRefreshToken) {
+    return res.status(400).json({ message: "Refresh token required" });
+  }
+
+  let decoded: DecodeToken;
+  try {
+    // ⚠️ jwt.verify() checks for expiration automatically
+    decoded = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_KEY
+    ) as DecodeToken;
+  } catch (error) {
+    // This catches JWT errors (e.g., TokenExpiredError, JsonWebTokenError)
+    console.error("JWT Verification Failed:", error.message);
+
+    // Send 401 Unauthorized for invalid or expired tokens
+    return res
+      .status(401)
+      .json({ message: "Invalid or expired refresh token" });
+  }
+
+  // After successful verification:
+  const user = await User.findById(decoded._id);
+
+  if (!user || user.refreshToken !== incomingRefreshToken) {
+    // Token is valid but might be stolen/reused, or user deleted
+    return res
+      .status(401)
+      .json({ message: "Invalid refresh token or user not found" });
+  }
+
+  const newAccessToken = user.generateAccessToken();
+
+  return res.status(200).json({
+    refreshToken: incomingRefreshToken,
+    accessToken: newAccessToken,
+  });
+};
 
 const registration = asyncHandler(async (req: Request, res: Response) => {
   const {
@@ -29,61 +78,66 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     password,
+    confirmPassword,
     phoneNo,
     homeAddress,
     street,
     deviceToken,
     ZipCode,
     isAgreed,
+    countryCode,
   } = req.body as {
     firstName: string;
-    middleName: string;
+    middleName?: string;
     lastName: string;
     email: string;
     password: string;
+    confirmPassword: string;
     phoneNo: string;
     deviceToken?: string;
     homeAddress: string;
     street: string;
     ZipCode: string;
     isAgreed: boolean;
+    countryCode: string;
   };
   // Data validation
   if (
     !firstName?.trim() ||
-    !middleName?.trim() ||
     !lastName?.trim() ||
     !email?.trim() ||
     !password?.trim() ||
+    !confirmPassword?.trim() ||
     !phoneNo?.trim() ||
     !homeAddress?.trim() ||
     !street?.trim() ||
     !ZipCode?.trim() ||
+    !countryCode?.trim() ||
     isAgreed === false
   ) {
-    return res.status(400).json({ msg: "All credentials are required" });
+    return res.status(400).json({ message: "All credentials are required" });
   }
   if (!isValidEmail(email)) {
-    console.log("k", isValidEmail(email));
-    return res.status(404).json({ message: "Invalid email" });
+    return res.status(400).json({ message: "Invalid email" });
   }
-  if (!isValidPassword(password))
-    return res.status(401).json({
+  if (!isValidPassword(password) || !isValidPassword(confirmPassword))
+    return res.status(400).json({
       message:
         "Password must contain at least 1 uppercase, lowercase, number, and special character, and password should be upto 8 characters long",
     });
-  if (phoneNo.length !== 10 || !isValidPhone(phoneNo)) {
-    return res.status(404).json({ message: "Invalid phone no." });
-  }
   if (homeAddress.length < 10 || homeAddress.length > 100)
     return res.status(400).json({
-      Message: "Home address must be between 10 and 100 characters long.",
+      message: "Home address must be between 10 and 100 characters long.",
     });
   if (street.length > 100 || ZipCode.length > 11)
-    return res.status(400).json({ Message: "Street or ZIP code is too long" });
-
+    return res.status(400).json({ message: "Street or ZIP code is too long" });
+  if (password !== confirmPassword)
+    return res
+      .status(400)
+      .json({ message: "Confirm password should be same as password" });
+  const normalizedEmail = email.toLowerCase();
   const checkUserExistence = await User.findOne({
-    email,
+    email: normalizedEmail,
   });
 
   if (checkUserExistence)
@@ -92,11 +146,12 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
   // User created
   const createdUser = await User.create({
     firstName,
-    middleName,
+    middleName: middleName ? middleName : "",
     lastName,
-    email,
+    email: normalizedEmail,
     password,
     phoneNo,
+    countryCode,
     deviceToken: deviceToken ? deviceToken : "",
     homeAddress,
     street,
@@ -108,16 +163,19 @@ const registration = asyncHandler(async (req: Request, res: Response) => {
   const isUserRegisteredSuccessFully = await User.findById(
     createdUser?._id
   ).select("-password -refreshToken");
-  console.log("isUserRegisteredSuccessFully", isUserRegisteredSuccessFully);
 
   if (!isUserRegisteredSuccessFully)
     return res
       .status(400)
       .json({ message: "Internal server error during registration" });
-
+  const accessToken = createdUser.generateAccessToken();
   return res.status(200).json({
     message: "User registred successfully",
-    isUserRegisteredSuccessFully,
+    data: {
+      isUserRegisteredSuccessFully,
+      accessToken: accessToken,
+      deviceToken: deviceToken,
+    },
   });
 });
 
@@ -130,17 +188,17 @@ const login = asyncHandler(async (req: Request, res: Response) => {
   };
   // Data validation
   if (!email || !password)
-    return res.status(401).json({ message: "Credentials are missing" });
+    return res.status(400).json({ message: "Credentials are missing" });
 
   if (!isValidEmail(email))
-    return res.status(404).json({ message: "Invalid email" });
+    return res.status(400).json({ message: "Invalid email" });
 
   if (!isValidPassword(password))
-    return res.status(401).json({ message: "Invalid password" });
+    return res.status(400).json({ message: "Invalid password" });
 
+  const normalizedEmail = email.toLowerCase();
   // check user existence
-  const user = await User.findOne({ email: email });
-  console.log(user);
+  const user = await User.findOne({ email: normalizedEmail });
 
   if (!user)
     return res
@@ -172,44 +230,54 @@ const login = asyncHandler(async (req: Request, res: Response) => {
   // sending response
   return res.status(200).json({
     message: "User login successfully",
-    user: `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim(),
-    accessToken: `${accessToken}`,
-    refreshToken: `${refreshToken}`,
-    deviceToken: deviceToken ? deviceToken : "",
-    email: user?.email,
+    data: {
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      deviceToken: deviceToken ? deviceToken : "",
+    },
   });
 });
 
 const logout = asyncHandler(async (req: Request, res: Response) => {
-  // Extract refresh token from request body or authorization header
-  const { refreshToken } = req.body as { refreshToken?: string };
+  const accessToken = req.headers.authorization?.split(" ")[1]; // Bearer token
+  const refreshToken = (req.body || {}).refreshToken;
+  console.log({ accessToken });
+  if (!accessToken && !refreshToken) {
+    return res.status(400).json({ message: "No token found" });
+  }
 
-  // If not in body, try to get from current user's token
+  // Add access token to blacklist
+  if (accessToken) {
+    const decoded: any = jwt.decode(accessToken);
+
+    const expiresAt = decoded.exp
+      ? new Date(decoded.exp * 1000)
+      : new Date(Date.now() + 60 * 60 * 1000);
+    const a = await Blacklist.create({ token: accessToken, expiresAt });
+    console.log({ a });
+  }
+
+  console.log({ accessToken });
+  // Existing refresh token invalidation
   let tokenToInvalidate = refreshToken;
+  const user = await User.findById(req.user?._id).select(
+    "refreshToken deviceToken"
+  );
+  if (!tokenToInvalidate && user?.refreshToken)
+    tokenToInvalidate = user.refreshToken;
 
-  if (!tokenToInvalidate && req.user?._id) {
-    // Get refreshToken from user document
-    const user = await User.findById(req.user._id);
-    if (user && user.refreshToken) {
-      tokenToInvalidate = user.refreshToken;
+  if (tokenToInvalidate) {
+    const u = await User.findOne({ refreshToken: tokenToInvalidate });
+    if (u) {
+      u.refreshToken = "";
+      u.deviceToken = "";
+      await u.save({ validateBeforeSave: false });
     }
   }
 
-  if (!tokenToInvalidate)
-    return res.status(404).json({ message: "No refresh token found" });
-
-  // Step 1: Remove refresh token from DB (by matching token)
-  const user = await User.findOne({ refreshToken: tokenToInvalidate });
-
-  if (user) {
-    // Step 2: Clear refreshToken in DB
-    user.refreshToken = "";
-    await user.save({ validateBeforeSave: false });
-  }
-
-  // Step 3: Return response
   return res.status(200).json({
-    message: "User logged out successfully",
+    message: "Logged out successfully",
+    refreshToken: tokenToInvalidate,
   });
 });
 
@@ -245,63 +313,49 @@ const changePassword = asyncHandler(async (req: Request, res: Response) => {
       message:
         "Internal Server error so password is not changed. try again !..",
     });
+
   return res.status(200).json({
-    message: "Password changed successfully, please login again"
+    message: "Password changed successfully, please login again",
   });
 });
 
 const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
-  const {
-    firstName,
-    middleName,
-    lastName,
-    email,
-    phoneNo,
-    // homeAddress,
-    street,
-    ZipCode,
-  } = req.body as {
-    firstName: string;
-    middleName: string;
-    lastName: string;
-    email: string;
-    phoneNo: string;
-    // homeAddress: string;
-    street: string;
-    ZipCode: string;
-  };
+  const { firstName, middleName, lastName, email, phoneNo, countryCode } =
+    req.body as {
+      firstName: string;
+      middleName?: string;
+      lastName: string;
+      email: string;
+      phoneNo: string;
+      countryCode: string;
+    };
   // Data validation
   if (
     !firstName?.trim() ||
-    !middleName?.trim() ||
     !lastName?.trim() ||
     !email?.trim() ||
-    !phoneNo?.trim() ||
-    // !homeAddress?.trim() ||
-    !street?.trim() ||
-    !ZipCode?.trim()
+    !phoneNo?.trim()
   ) {
-    return res.status(400).json({ msg: "All credentials are required" });
+    return res.status(400).json({ message: "All credentials are required" });
   }
   if (!isValidEmail(email)) {
-    console.log("k", isValidEmail(email));
     return res.status(404).json({ message: "Invalid email" });
   }
-  if (phoneNo.length !== 10 || !/^\d{10}$/.test(phoneNo)) {
-    return res.status(404).json({ message: "Invalid phone no." });
-  }
-  // if (homeAddress.length < 10 || homeAddress.length > 100)
-  //   return res.status(400).json({
-  //     Message: "Home address must be between 10 and 100 characters long.",
-  //   });
-  if (street.length > 100 || ZipCode.length > 11)
-    return res.status(400).json({ Message: "Street or ZIP code is too long" });
 
   const user = await User.findById(req.user?._id);
   if (!user)
     return res
       .status(404)
-      .json({ Message: "User not found or maybe you logout" });
+      .json({ message: "User not found or maybe you logout" });
+
+  const existingEmailUser = await User.findOne({
+    email: email.toLowerCase(),
+    _id: { $ne: req.user?._id }, // exclude current user
+  });
+
+  if (existingEmailUser) {
+    return res.status(409).json({ message: "Email already exists" });
+  }
 
   let data = {
     firstName,
@@ -309,9 +363,7 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     lastName,
     email,
     phoneNo,
-    // homeAddress,
-    street,
-    ZipCode,
+    countryCode,
   };
 
   const updatedUser = await User.findByIdAndUpdate(
@@ -319,13 +371,11 @@ const updateUserDetails = asyncHandler(async (req: Request, res: Response) => {
     {
       $set: {
         firstName: data.firstName,
-        middleName: data.middleName,
+        middleName: data.middleName ?? "",
         lastName: data.lastName,
-        email: data.email,
+        email: data.email.toLowerCase(),
         phoneNo: data.phoneNo,
-        // "signUp.homeAddress": data.homeAddress,
-        street: data.street,
-        ZipCode: data.ZipCode,
+        countryCode: data.countryCode,
       },
     },
     {
@@ -353,7 +403,7 @@ const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
   if (!user)
     return res
       .status(404)
-      .json({ message: "User not foundor maybe you logout" });
+      .json({ message: "User not found or maybe you logout" });
   return res.status(200).json({
     message: "User Profile",
     user,
@@ -365,58 +415,99 @@ const sendOTP = asyncHandler(async (req: Request, res: Response) => {
   // email existence check
   if (!email || !isValidEmail(email))
     return res.status(401).json({ message: "Inavlid email" });
+  const user = await User.find({ email: email.toLowerCase() });
+  console.log("user", user);
+  if (user.length === 0)
+    return res
+      .status(404)
+      .json({ message: "OTP send only to registered mail" });
   // generate OTP
   const generate_OTP: string = await generateOTP(email);
-  // console.log("generate_OTP", generate_OTP);
-
   const send_OTP: string = await sendOTPfun(email, generate_OTP);
-  // console.log("send_OTP", send_OTP);
-
+  console.log("user", generate_OTP);
+  console.log("user", send_OTP);
   return res.status(200).json({
-    message: `OTP send successfully to your registered email : ${email}`,
+    message: `OTP send successfully to your registered email : ${email.toLowerCase()}`,
   });
 });
 
 const verifyOTP = asyncHandler(async (req: Request, res: Response) => {
   const { email, otp } = req.body;
 
-  if (!email || !otp)
+  if (!email || !otp) {
     return res.status(400).json({ message: "Missing fields" });
+  }
 
-  const stored = otpStore.get(email);
-  if (!stored)
+  const normalizedEmail = email.toLowerCase();
+
+  const user = await User.findOne({ email: normalizedEmail }).select(
+    "otpHash otpExpiresAt"
+  );
+
+  if (!user || !user.otpHash || !user.otpExpiresAt) {
     return res.status(400).json({ message: "OTP not found or expired" });
-  // console.log("stored", stored);
+  }
 
-  if (Date.now() > stored.expiresAt) {
-    otpStore.delete(email);
+  if (Date.now() > new Date(user.otpExpiresAt as any).getTime()) {
+    // cleanup expired OTP
+    user.otpHash = "";
+    user.otpExpiresAt = null;
+    await user.save({ validateBeforeSave: false });
+
     return res.status(400).json({ message: "OTP expired" });
   }
 
-  const isMatch = await bcrypt.compare(otp, stored.hash);
-  if (!isMatch) return res.status(400).json({ message: "Invalid OTP" });
+  const isMatch = await bcrypt.compare(otp, user.otpHash as string);
+  if (!isMatch) {
+    return res.status(400).json({ message: "Invalid OTP" });
+  }
 
-  // success
-  otpStore.delete(email);
-  return res.status(200).json({ message: "OTP verified successfully ✅" });
+  // ✅ success → cleanup OTP
+  user.otpHash = "";
+  user.otpExpiresAt = null;
+  await user.save({ validateBeforeSave: false });
+
+  // short lived reset token
+  const resetToken = jwt.sign(
+    { email: normalizedEmail },
+    process.env.RESET_TOKEN_SECRET!,
+    { expiresIn: "10m" }
+  );
+
+  return res.status(200).json({
+    message: "OTP verified successfully ✅",
+    resetToken,
+  });
 });
 
 const getdata = async (req: Request, res: Response) => {
   if (req.user?._id) {
-    return res.status(200).json({ msg: "user still login" });
+    return res.status(200).json({ message: "user still login" });
   }
 }; // This is only for checking that user still logged in or not
 
 const resetPassword = asyncHandler(async (req: Request, res: Response) => {
-  const { email, newPassword, confirmPassword } = req.body as {
-    email: string;
+  const { token, newPassword, confirmPassword } = req.body as {
+    token: string;
     newPassword: string;
     confirmPassword: string;
   };
+
+  if (!token) return res.status(400).json({ message: "Reset token missing" });
+
+  // decode token
+  let payload;
+  try {
+    payload = jwt.verify(token, process.env.RESET_TOKEN_SECRET!);
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid or expired reset token" });
+  }
+
+  const email = payload.normalizedEmail;
+  console.log({ email });
   const user = await User.findOne({ email: email });
 
-  if (!user)
-    return res.status(404).json({ message: "User not found or maybe logout" });
+  if (!user) return res.status(404).json({ message: "User not found" });
   if (!isValidPassword(newPassword))
     return res.status(401).json({ message: "Invalid password" });
   if (newPassword !== confirmPassword)
@@ -441,12 +532,31 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
-  const deletedUserInfo = await User.deleteOne({ _id: req.user?._id });
+  const userId = req.user?._id;
+  const deletedUserInfo = await User.deleteOne({ _id: userId });
 
   if (deletedUserInfo.deletedCount !== 1)
     return res
       .status(401)
       .json({ message: "User profile can't be deleted", deletedUserInfo });
+
+  await Promise.all([
+    EmployementInfo.deleteOne({ user: userId }),
+    ResidenceInfo.deleteOne({ user: userId }),
+    DriversLicInfo.deleteOne({ user: userId }),
+    LegalInfo.deleteOne({ user: userId }),
+    PersonalInfo.deleteMany({ user: userId }),
+    personalRefrenceInfo.deleteOne({ user: userId }),
+    Reminder.deleteOne({ user: userId }),
+    Bondsman.updateOne(
+      {},
+      {
+        $pull: {
+          user: userId,
+        },
+      }
+    ),
+  ]);
   return res
     .status(200)
     .json({ message: "User profile deleted", deletedUserInfo });
@@ -455,103 +565,166 @@ const deleteUserProfile = asyncHandler(async (req: Request, res: Response) => {
 const addResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
   const {
     yearsAtCurrentAddress,
-    residenceType,
     landlordName,
     landlordAddress,
+    homeOwnership,
   } = req.body as {
     yearsAtCurrentAddress: string;
-    residenceType: ResidenceType;
     landlordName: string;
     landlordAddress: string;
+    homeOwnership: string;
   };
+  const { residenceId } = req.body;
   if (
     !yearsAtCurrentAddress.trim() ||
+    !homeOwnership.trim() ||
     !landlordName.trim() ||
     !landlordAddress.trim()
   ) {
-    return res.status(404).json({ Message: "Fields can't be empty" });
-  }
-  if (!Object.values(ResidenceType).includes(residenceType)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid residence type. Must be one of: ${Object.values(
-        ResidenceType
-      ).join(", ")}`,
-    });
+    return res.status(404).json({ message: "Fields can't be empty" });
   }
   if (!isValidData(landlordName))
     return res
       .status(400)
-      .json({ Message: "Invalid landlord name. please use only alphabets" });
-  const residenceInfoCreate = await ResidenceInfo.create({
-    yearsAtCurrentAddress: `${yearsAtCurrentAddress} Yr`,
-    residenceType,
-    landlordName,
-    landlordAddress,
-  });
+      .json({ message: "Invalid landlord name. please use only alphabets" });
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
 
-  const isResidenceInfoExist = await ResidenceInfo.findById(
-    residenceInfoCreate?._id
-  );
-  if (!isResidenceInfoExist)
-    return res.status(500).json({ Message: "Error occur during submit data." });
+  const data = {
+    user: req.user?._id,
+    yearsAtCurrentAddress: yearsAtCurrentAddress,
+    landlordName,
+    homeOwnership,
+    landlordAddress,
+  };
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+  let residenceDoc;
+  if (residenceId) {
+    residenceDoc = await ResidenceInfo.findByIdAndUpdate(
+      residenceId,
+      {
+        $set: data,
+      },
+      {
+        new: true,
+      }
+    );
+
+    if (!residenceDoc)
+      return res.status(404).json({ message: "Data not found or created" });
+  } else {
+    residenceDoc = await ResidenceInfo.findOneAndUpdate(
+      { user: req.user?._id }, // find existing record for user
+      { $set: data },
+      { new: true, upsert: true } // create if not found
+    );
+  }
+
+  if (!residenceDoc)
+    return res.status(500).json({ message: "Error data can't create" });
 
   return res.status(200).json({
-    Message: "Data save successfully",
-    isResidenceInfoExist,
+    message: residenceId ? "Updated succesfully" : "Data save successfully",
+    residenceDoc,
+    accessToken: accessToken,
+    refreshToken: refreshToken,
+  });
+});
+
+const getResidenceInfo = asyncHandler(async (req: Request, res: Response) => {
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  const residenceInfo = await ResidenceInfo.find({ user: req.user?._id });
+  if (residenceInfo.length === 0)
+    return res.status(200).json({
+      message: "No residence info found",
+      residenceInfo: residenceInfo,
+    });
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+  return res.status(200).json({
+    message: "Residence data fetched",
+    residenceInfo: residenceInfo[0],
+    accessToken: accessToken,
+    refreshToken: refreshToken,
   });
 });
 
 const addContactInfo = asyncHandler(async (req: Request, res: Response) => {
-  const { firstName, middleName, lastName, email, phoneNo } = req.body as {
-    firstName: string;
-    middleName: string;
-    lastName: string;
-    email: string;
-    phoneNo: string;
-  };
+  const { firstName, middleName, lastName, email, phoneNo, countryCode } =
+    req.body as {
+      firstName: string;
+      middleName?: string;
+      lastName: string;
+      email: string;
+      phoneNo: string;
+      countryCode: string;
+    };
   if (
     !firstName.trim() ||
-    !middleName.trim() ||
     !lastName.trim() ||
     !email.trim() ||
-    !phoneNo.trim()
+    !phoneNo.trim() ||
+    !countryCode.trim()
   )
-    return res.status(404).json({ Message: "All fields are required" });
+    return res.status(404).json({ message: "All fields are required" });
 
-  if (
-    !isValidData(firstName) ||
-    !isValidData(middleName) ||
-    !isValidData(lastName)
-  )
+  if (!isValidData(firstName) || !isValidData(lastName))
     return res.status(400).json({
-      Message:
-        "firstName, middleName or lastName has invalid type. please include only alphabets and length should be more then 3 char ",
+      message: "Invalid data",
     });
   if (!isValidEmail(email))
-    return res.status(400).json({ Message: "Invalid email" });
-  if (!isValidPhone(phoneNo))
-    return res.status(400).json({ Message: "Invalid phone" });
-
-  const contactInfoCreate = await ContactInfo.create({
+    return res.status(400).json({ message: "Invalid email" });
+  const data = {
     firstName,
     middleName,
     lastName,
     email,
     phoneNo,
-  });
-
-  const isContactInfoCreate = await ContactInfo.findById(
-    contactInfoCreate?._id
+    countryCode,
+  };
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        data,
+      },
+    },
+    {
+      new: true,
+    }
   );
-  if (!isContactInfoCreate)
-    return res.status(500).json({ Message: "Error occur during submit data." });
-
+  if (!user) return res.status(404).json({ message: "User not found" });
+  if (!user)
+    return res.status(500).json({ message: "Error occur during submit data." });
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
-    Message: "Contact info saved",
-    isContactInfoCreate,
+    message: user ? "Updated successfully" : "Data save successfully",
+    accessToken: accessToken,
+    refreshToken: refreshToken,
   });
-  // ContactInfo
+});
+
+const getContactInfo = asyncHandler(async (req: Request, res: Response) => {
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  const contactInfo = await User.findById(req.user?._id).select(
+    "firstName middleName lastName email phoneNo countryCode"
+  );
+  if (!contactInfo)
+    return res
+      .status(200)
+      .json({ message: "No Contact data found", contactInfo: contactInfo });
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+  return res.status(200).json({
+    message: "Contact info data fetched",
+    contactInfo: contactInfo,
+    accessToken: accessToken,
+    refreshToken: refreshToken,
+  });
 });
 
 const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
@@ -560,31 +733,82 @@ const addLegalInfo = asyncHandler(async (req: Request, res: Response) => {
     attorneyAddress: string;
     attorneyPhoneNo: string;
   };
+  const { legalInfoId } = req.body;
   if (
     !attorneyName.trim() ||
     !attorneyAddress.trim() ||
     !attorneyPhoneNo.trim()
   )
-    return res.status(404).json({ Message: "Fields can't be empty" });
+    return res.status(404).json({ message: "Fields can't be empty" });
   if (!isValidData(attorneyName))
     return res.status(400).json({
-      Message:
+      message:
         "Invalid attorney name. please use only alphabets and it should be more then 3 charater",
     });
-  if (!isValidPhone(attorneyPhoneNo))
-    return res.status(400).json({ Message: "Phone no is Invalid" });
-
-  const legalInfoCreate = await LegalInfo.create({
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  let legalInfoDoc;
+  const data = {
+    user: req.user?._id,
     attorneyName,
     attorneyAddress,
     attorneyPhoneNo,
-  });
-  const isLegalInfoCreate = await LegalInfo.findById(legalInfoCreate?._id);
-  if (!isLegalInfoCreate)
-    return res.status(500).json({ Message: "Internal server error." });
+  };
+  if (legalInfoId) {
+    legalInfoDoc = await LegalInfo.findByIdAndUpdate(
+      legalInfoId,
+      {
+        $set: data,
+      },
+      {
+        new: true,
+      }
+    );
+    if (!legalInfoDoc)
+      return res.status(404).json({ message: "Data not found or created" });
+  } else {
+    legalInfoDoc = await LegalInfo.findOneAndUpdate(
+      { user: req.user?._id }, // find existing record for user
+      { $set: data },
+      { new: true, upsert: true } // create if not found
+    );
+  }
+
+  if (!legalInfoDoc)
+    return res.status(500).json({ message: "Internal server error." });
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
-    Message: "Data submitted",
-    isLegalInfoCreate,
+    message: legalInfoId ? "Updated successfully" : "Data save successfully",
+    accessToken: accessToken,
+    refreshToken: refreshToken,
+  });
+});
+
+const getLegalInfo = asyncHandler(async (req: Request, res: Response) => {
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  if (!user.bondsman)
+    return res.status(200).json({ message: "No bondsman assign yet" });
+  const legalInfo = await User.find({
+    _id: user._id,
+    bondsman: user?.bondsman,
+  })
+    .populate([
+      { path: "bondsman", select: "name address phoneNo countryCode" },
+    ])
+    .select("bondsman");
+  if (legalInfo.length === 0)
+    return res
+      .status(200)
+      .json({ message: "No Legal data found", legalInfo: legalInfo });
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+  return res.status(200).json({
+    message: "Legal info data fetched",
+    legalInfo: legalInfo[0],
+    accessToken: accessToken,
+    refreshToken: refreshToken,
   });
 });
 
@@ -603,89 +827,16 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
     maritalStatus,
     spouseName,
     spouseOccupation,
-    spouseEmployer, // The name of the company where your husband or wife works.
-    items,
-    isResponsible, // Responsible for anyone else support
-    dependents,
-  } = req.body as {
-    weight: string;
-    height: string;
-    race: RACE;
-    gender: GENDER;
-    eyeColor: EYE_COLOR;
-    hairColor: HAIR_COLOR;
-    birthPlace: string;
-    birthDate: string;
-    UScitizen: boolean;
-    nickname: string;
-    maritalStatus: MARITAL_STATUS;
-    spouseName: string;
-    spouseOccupation: string;
-    spouseEmployer: string; // The name of the company
-    items?: { childName: string; childAge: string; childSchool: string }[];
-    isResponsible: boolean; // Responsible for anyone else support
-    dependents: string;
-  };
-  if (
-    !weight.trim() ||
-    !height.trim() ||
-    !birthPlace.trim() ||
-    !birthDate.trim() ||
-    !nickname.trim()
-  )
-    return res.status(404).json({ Message: "Required field missing" });
+    spouseEmployer,
+    child,
+    isResponsible,
+    responsibleDescription,
+  } = req.body;
 
-  if (!Object.values(RACE).includes(race)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid race type. Must be one of: ${Object.values(RACE).join(
-        ", "
-      )}`,
-    });
-  }
-  if (!Object.values(GENDER).includes(gender)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid gender type. Must be one of: ${Object.values(
-        GENDER
-      ).join(", ")}`,
-    });
-  }
-  if (!Object.values(EYE_COLOR).includes(eyeColor)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid eye color type. Must be one of: ${Object.values(
-        EYE_COLOR
-      ).join(", ")}`,
-    });
-  }
-  if (!Object.values(HAIR_COLOR).includes(hairColor)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid hair color type. Must be one of: ${Object.values(
-        HAIR_COLOR
-      ).join(", ")}`,
-    });
-  }
-  if (!Object.values(MARITAL_STATUS).includes(maritalStatus)) {
-    return res.status(400).json({
-      success: false,
-      message: `Invalid marital status type. Must be one of: ${Object.values(
-        MARITAL_STATUS
-      ).join(", ")}`,
-    });
-  }
+  const { personalInfoId } = req.body;
 
-  let content: string = " ";
-  if (isResponsible) {
-    if (!dependents)
-      return res
-        .status(400)
-        .json({ Message: "Please provide details of dependents" });
-    content = dependents;
-  }
-
-  const personalInfoCreate = await PersonalInfo.create({
+  const data = {
+    user: req.user?._id,
     weight,
     height,
     race,
@@ -697,38 +848,1171 @@ const addPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
     UScitizen,
     nickname,
     maritalStatus,
-    spouseName: spouseName ? spouseName : " ",
-    spouseOccupation: spouseOccupation ? spouseOccupation : "",
-    spouseEmployer: spouseEmployer ? spouseEmployer : " ",
-    isResponsible, // Responsible for anyone else support
-    dependents: content,
-  });
+    spouseName: maritalStatus ? spouseName : "",
+    spouseOccupation: maritalStatus ? spouseOccupation : "",
+    spouseEmployer: maritalStatus ? spouseEmployer : "",
+    child,
+    isResponsible,
+    responsibleDescription,
+  };
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  let personalInfoDoc;
 
-  console.log("personalInfoCreate", personalInfoCreate);
+  // ✅ If personalInfoId exists, update
+  if (personalInfoId) {
+    personalInfoDoc = await PersonalInfo.findByIdAndUpdate(
+      personalInfoId,
+      { $set: data },
+      { new: true }
+    );
 
-  const isPersonalInfoCreate = await PersonalInfo.findOne({
-    _id: personalInfoCreate?._id,
-  });
-  console.log("personalInfoCreate", isPersonalInfoCreate);
-
-  if (isPersonalInfoCreate) {
-    if (items) {
-      // console.log("...items", ...items);
-      // console.log("items", items);
-
-      isPersonalInfoCreate.child?.push(...items);
-      await isPersonalInfoCreate.save();
+    if (!personalInfoDoc) {
+      return res.status(404).json({ message: "Personal info not found" });
     }
   }
 
-  if (!isPersonalInfoCreate)
-    return res.status(500).json({ Message: "Internal server error" });
-
+  // ✅ If no ID passed, create new document
+  else {
+    personalInfoDoc = await PersonalInfo.findOneAndUpdate(
+      { user: req.user?._id }, // find existing record for user
+      { $set: data },
+      { new: true, upsert: true } // create if not found
+    );
+  }
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
   return res.status(200).json({
-    Message: "Data submitted",
-    isPersonalInfoCreate,
+    message: personalInfoId ? "Updated successfully" : "Data save successfully",
+    accessToken: accessToken,
+    refreshToken: refreshToken,
   });
 });
+
+const getPersonalInfo = asyncHandler(async (req: Request, res: Response) => {
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  const personalInfo = await PersonalInfo.find({ user: req.user?._id });
+  if (personalInfo.length === 0)
+    return res
+      .status(200)
+      .json({ message: "No Personal data found", personalInfo: personalInfo });
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+  return res.status(200).json({
+    message: "Personal info data fetched",
+    personalInfo: personalInfo[0],
+    accessToken: accessToken,
+    refreshToken: refreshToken,
+  });
+});
+
+const addDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
+  const {
+    socialSecurityNumber,
+    state,
+    drivingLicenseNo,
+    havingYourOwnAutomobile, //  if yes then fill further info
+    automobileColor,
+    automobileMake,
+    automobileModel,
+    automobileTag,
+  } = req.body as {
+    socialSecurityNumber: String;
+    state: String;
+    drivingLicenseNo: String;
+    havingYourOwnAutomobile: String; //  if yes then fill further info
+    automobileColor: String;
+    automobileMake: String;
+    automobileModel: String;
+    automobileTag: String;
+  };
+  let { driverLicId } = req.body;
+  if (!socialSecurityNumber.trim() || !state.trim() || !drivingLicenseNo.trim())
+    return res.status(404).json({ message: "Required fields can't be empty" });
+  const data = {
+    user: req.user?._id,
+    socialSecurityNumber,
+    state,
+    drivingLicenseNo,
+    havingYourOwnAutomobile, //  if yes then fill further info
+    automobileColor: automobileColor ?? "",
+    automobileMake: automobileMake ?? "",
+    automobileModel: automobileModel ?? "",
+    automobileTag: automobileTag ?? "",
+  };
+
+  let driverLicDoc;
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  // ✅ If driverLicId exists, update
+  if (driverLicId) {
+    driverLicDoc = await DriversLicInfo.findByIdAndUpdate(
+      driverLicId,
+      { $set: data },
+      { new: true }
+    );
+
+    if (!driverLicDoc) {
+      return res.status(404).json({ message: "Driver Lic. info not found" });
+    }
+  } else {
+    driverLicDoc = await DriversLicInfo.findOneAndUpdate(
+      { user: req.user?._id }, // find existing record for user
+      { $set: data },
+      { new: true, upsert: true } // create if not found
+    );
+  }
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+  return res.status(200).json({
+    message: driverLicId ? "Updated successfully" : "Data save successfully",
+    accessToken: accessToken,
+    refreshToken: refreshToken,
+  });
+});
+
+const getDriverLicInfo = asyncHandler(async (req: Request, res: Response) => {
+  const user = await User.findById(req.user?._id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  const driversLicInfo = await DriversLicInfo.find({ user: req.user?._id });
+  if (driversLicInfo.length === 0)
+    return res.status(200).json({
+      message: "No Driver Lic data found",
+      driversLicInfo: driversLicInfo,
+    });
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+  return res.status(200).json({
+    message: "Driver Lic info data fetched",
+    driversLicInfo: driversLicInfo[0],
+    accessToken: accessToken,
+    refreshToken: refreshToken,
+  });
+});
+
+const addPersonalRefrenceInfo = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { familyMembers, personalRefId } = req.body;
+    console.log("familyMembers", familyMembers);
+    // Validate array
+    if (!Array.isArray(familyMembers) || familyMembers.length === 0) {
+      return res.status(400).json({ message: "Family members required" });
+    }
+
+    // Validate each member
+    for (const m of familyMembers) {
+      if (!isValidData(m.name)) {
+        return res.status(400).json({ message: `${m.name} is Invalid name` });
+      }
+    }
+
+    // Format knownDuration → add "Yr"
+    const formattedMembers = familyMembers.map((m) => ({
+      name: m.name,
+      address: m.address,
+      phoneNo: m.phoneNo,
+      countryCode: m.countryCode,
+      knownDuration: m.knownDuration,
+    }));
+    console.log("formattedMembers", formattedMembers);
+    const user = await User.findById(req.user?._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    console.log("user", user);
+    let personalRefDoc;
+
+    // Update
+    if (personalRefId) {
+      personalRefDoc = await personalRefrenceInfo.findByIdAndUpdate(
+        personalRefId,
+        { $set: { user: req.user._id, familyMembers: formattedMembers } },
+        { new: true }
+      );
+    }
+    // Create / upsert
+    else {
+      personalRefDoc = await personalRefrenceInfo.findOneAndUpdate(
+        { user: req.user._id },
+        { $set: { familyMembers: formattedMembers } },
+        { new: true, upsert: true }
+      );
+    }
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+    if (!personalRefDoc)
+      return res.status(500).json({ message: "Internal server error" });
+
+    return res.status(200).json({
+      message: personalRefId
+        ? "Updated successfully"
+        : "Data saved successfully",
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      personalRefDoc: personalRefDoc,
+    });
+  }
+);
+
+const getPersonalRefrenceInfo = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = await User.findById(req.user?._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    const personalRefInfo = await personalRefrenceInfo.find({
+      user: req.user?._id,
+    });
+    if (personalRefInfo.length === 0)
+      return res.status(200).json({
+        message: "No Personal Ref Info Lic data found",
+        personalRefInfo: personalRefInfo,
+      });
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+    return res.status(200).json({
+      message: "Personal Ref Info data fetched",
+      personalRefInfo: personalRefInfo,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    });
+  }
+);
+
+const addEmployementStatus = asyncHandler(
+  async (req: Request, res: Response) => {
+    const {
+      employementStatus, // if yes then fill further info
+      employerName,
+      employerSupervisorName,
+      employerAddress,
+      employerWorkingPeriod,
+      automobileColor,
+      previousEmployer,
+    } = req.body as {
+      employementStatus: string; // if yes then fill further info
+      employerName: string;
+      employerSupervisorName: string;
+      employerAddress: string;
+      employerWorkingPeriod: string;
+      automobileColor: string;
+      previousEmployer: string;
+    };
+    const { employeeId } = req.body;
+
+    const data = {
+      user: req.user?._id,
+      employementStatus, // if yes then fill further info
+      employerName: employerName ?? " ",
+      employerSupervisorName: employerSupervisorName ?? " ",
+      employerAddress: employerAddress ?? " ",
+      employerWorkingPeriod: employerWorkingPeriod
+        ? employerWorkingPeriod
+        : " ",
+      automobileColor: automobileColor ?? " ",
+      previousEmployer: previousEmployer ?? " ",
+    };
+
+    let employeeDoc;
+    const user = await User.findById(req.user?._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (employeeId) {
+      employeeDoc = await EmployementInfo.findByIdAndUpdate(
+        employeeId,
+        {
+          $set: data,
+        },
+        {
+          new: true,
+        }
+      );
+
+      if (!employeeDoc)
+        return res.status(404).json({ message: "Data not found or update" });
+    } else {
+      employeeDoc = await EmployementInfo.findOneAndUpdate(
+        { user: req.user?._id }, // find existing record for user
+        { $set: data },
+        { new: true, upsert: true } // create if not found
+      );
+    }
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+    if (!employeeDoc)
+      return res.status(500).json({
+        message: "Internal server error occur during submitting data",
+      });
+    return res.status(200).json({
+      message: employeeId ? "Updated successfully" : "Data save successfully",
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    });
+  }
+);
+
+const getEmployementStatus = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = await User.findById(req.user?._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    const employementInfo = await EmployementInfo.find({
+      user: req.user?._id,
+    });
+    if (employementInfo.length === 0)
+      return res.status(200).json({
+        message: "No Employement data found",
+        employementInfo: employementInfo,
+      });
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+    return res.status(200).json({
+      message: "Employement data fetched",
+      employementInfo: employementInfo[0],
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    });
+  }
+);
+
+const getUserBondsmanInfo = asyncHandler(
+  async (req: Request, res: Response) => {
+    // 1. Pagination Setup
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const userId = new mongoose.Types.ObjectId(req.user!._id);
+    const now = new Date();
+
+    // 2. ⭐️ ORIGINAL CLEANUP LOGIC (Maintain as requested) ⭐️
+    // Note: This logic seems to target the Reminder collection, not the User's array,
+    // and its effectiveness in pulling expired IDs from the User's array is uncertain.
+    const expiredReminderDocs = await Reminder.find({
+      user: userId,
+      reminderDateTime: { $lt: now },
+      // $or: [
+      //   { reminderDate: { $lt: now } },
+      //   { reminderTime: { $lt: now.getTime() } },
+      // ],
+    }).select("_id");
+
+    const expiredReminderIds = expiredReminderDocs.map((doc) => doc._id);
+    console.log({ expiredReminderIds });
+    if (expiredReminderIds.length > 0) {
+      // 2. 🗑️ Clean up the User's reminders array (Update the User Collection)
+      // We use User.updateOne/updateMany to pull IDs from the User's array
+      await User.updateOne(
+        { _id: userId },
+        {
+          $pullAll: { reminders: expiredReminderIds },
+        }
+      );
+
+      // 3. 📝 Deactivate the Reminder documents (Update the Reminder Collection)
+      // We update the Reminder documents themselves to set isActive: false
+      await Reminder.updateMany(
+        {
+          _id: { $in: expiredReminderIds }, // Filter Reminders by their actual IDs
+        },
+        {
+          $set: { isActive: false },
+        }
+      );
+    }
+    // -------------------------------------------------------------
+
+    // 3. User Info (Bondsman and general user info)
+    // We fetch user info separately, excluding reminders for the main object.
+    const userInfo = await User.findById(userId)
+      .select("-reminders")
+      .populate("bondsman")
+      .lean();
+
+    if (!userInfo) return res.status(404).json({ message: "User not found" });
+
+    // 4. ⭐️ AGGREGATION FOR PAGINATED REMINDERS ⭐️
+
+    // Total count calculation (must be done before skip/limit)
+    const totalRemindersCount = await User.aggregate([
+      { $match: { _id: userId } },
+      { $project: { count: { $size: "$reminders" } } },
+    ]);
+    const totalCount =
+      totalRemindersCount.length > 0 ? totalRemindersCount[0].count : 0;
+
+    let reminders: any[] = [];
+
+    if (totalCount > 0) {
+      const reminderPipeline: PipelineStage[] = [
+        { $match: { _id: userId } },
+
+        // Stage 1: Unwind the reminders array
+        { $unwind: "$reminders" },
+
+        // Stage 2: Lookup Reminder details (Populate)
+        {
+          $lookup: {
+            from: "reminders",
+            localField: "reminders",
+            foreignField: "_id",
+            as: "reminderData",
+          },
+        },
+        // Use preserveNullAndEmptyArrays: true to prevent dropping documents if lookup fails
+        {
+          $unwind: { path: "$reminderData", preserveNullAndEmptyArrays: true },
+        },
+        { $match: { reminderData: { $ne: null } } }, // Filter out stale IDs
+
+        // Stage 3: Lookup Court details (Nested Populate)
+        {
+          $lookup: {
+            from: "courts",
+            localField: "reminderData.court",
+            foreignField: "_id",
+            as: "courtData",
+          },
+        },
+        { $unwind: { path: "$courtData", preserveNullAndEmptyArrays: true } },
+
+        // Stage 4: Sort (Recommended, using createdAt)
+        { $sort: { "reminderData.reminderDateTime": 1 } },
+
+        // Stage 5: Apply Pagination
+        { $skip: skip },
+        { $limit: limit },
+
+        // Stage 6: Project the final output structure matching original populate select
+        {
+          $project: {
+            _id: "$reminderData._id",
+            // Reminder fields
+            reminderTitle: "$reminderData.reminder",
+            reminderDate: "$reminderData.reminderDate",
+            reminderTime: "$reminderData.reminderTime",
+            roomNumber: "$reminderData.roomNumber",
+            // Nested Court fields (matching original populate structure)
+            court: {
+              $ifNull: [
+                {
+                  _id: "$courtData._id",
+                  courtName: "$courtData.courtName",
+                  addressLine: "$courtData.addressLine",
+                  city: "$courtData.city",
+                  state: "$courtData.state",
+                  country: "$courtData.country",
+                  reminder: "$courtData.reminder",
+                  // roomNumber: "$courtData.roomNumber",
+                },
+                null,
+              ],
+            },
+          },
+        },
+      ];
+
+      reminders = await User.aggregate(reminderPipeline);
+    }
+    // -------------------------------------------------------------
+
+    // 5. Check-In / Check-Out Data (Uses findOne and sort/limit for efficiency)
+    // const getCheckInData = await CheckIn.findOne({ user: userId }).sort({ createdAt: -1 });
+    // const getCheckOutData = await CheckOut.findOne({ user: userId }).sort({ createdAt: -1 });
+    const getActiveCheckInData = await CheckIn.findOne({
+      user: userId,
+      isCheckIn: true, // ⭐️ CRITICAL FILTER: Only fetch active check-ins ⭐️
+    }).sort({ createdAt: -1 });
+
+    // Get the LATEST document where isCheckOut is TRUE
+    const getActiveCheckOutData = await CheckOut.findOne({
+      user: userId,
+      isCheckOut: true, // ⭐️ CRITICAL FILTER: Only fetch active check-outs ⭐️
+    }).sort({ createdAt: -1 });
+
+    // 6. Token Generation (Based on your original code structure)
+    // NOTE: This requires the User model instance, not the lean() object 'userInfo'.
+    // We rely on the original logic structure here, but typically tokens are generated
+    // from the non-lean Mongoose document. Since we already fetched userInfo as lean,
+    // we'll fetch the Mongoose doc just for token generation, if needed.
+    const userDocForToken = await User.findById(userId);
+
+    // Generate tokens only if userDocForToken is found and methods exist
+    const accessToken = userDocForToken?.generateAccessToken();
+    const refreshToken = userDocForToken?.generateRefreshToken();
+
+    // 7. Final Response
+    return res.status(200).json({
+      message: "Bondsman Information",
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+
+      // isBondsmanExist now holds userInfo + bondsman populated
+      isBondsmanExist: userInfo,
+
+      // PAGINATED REMINDERS
+      reminders: reminders,
+      totalReminders: totalCount,
+      page,
+      limit,
+
+      // Check-in/out data formatting matching original logic
+      getChekInData: getActiveCheckInData || "",
+      getCheckOutData: getActiveCheckOutData || "",
+
+      isCheckIn: !!getActiveCheckInData, // True if document found, false otherwise
+      isCheckOut: !!getActiveCheckOutData, // True if document found, false otherwise
+    });
+  }
+);
+
+// const getUserBondsmanInfo = asyncHandler(
+//   async (req: Request, res: Response) => {
+//     const now = new Date();
+
+//     await Reminder.updateMany(
+//       { user: req.user?._id },
+//       {
+//         $pull: {
+//           reminders: {
+//             $or: [
+//               { reminderDate: { $lt: now } },
+//               { reminderTime: { $lt: now.getTime() } },
+//             ],
+//           },
+//         },
+//       }
+//     );
+//     const isBondsmanExist = await User.findById(req.user?._id).populate([
+//       {
+//         path: "reminders",
+//         populate: {
+//           path: "court",
+//           select: "courtName addressLine city state country reminder",
+//         }, // <-- Nested populate
+//       },
+//       { path: "bondsman" },
+//     ]);
+//     if (!isBondsmanExist)
+//       return res.status(404).json({ message: "User not found" });
+//     const getChekInData = await CheckIn.find({ user: req.user?._id })
+//       .sort({ createdAt: -1 }) // newest first
+//       .limit(1);
+
+//     const getCheckOutData = await CheckOut.find({ user: req.user?._id })
+//       .sort({ createdAt: -1 }) // newest first
+//       .limit(1);
+//     const accessToken = isBondsmanExist.generateAccessToken();
+//     const refreshToken = isBondsmanExist.generateRefreshToken();
+
+//     return res.status(200).json({
+//       message: "Bondsman Information",
+//       accessToken: accessToken,
+//       refreshToken: refreshToken,
+//       isBondsmanExist,
+//       getChekInData:
+//         getChekInData.length === 0
+//           ? "No Check-in data found"
+//           : getChekInData[0],
+//       getCheckOutData:
+//         getCheckOutData.length === 0
+//           ? "No Check-out data found"
+//           : getCheckOutData[0],
+//       isCheckIn:
+//         getChekInData.length === 0 ? false : getChekInData[0].isCheckIn,
+//       isCheckOut:
+//         getCheckOutData.length === 0 ? false : getCheckOutData[0].isCheckOut,
+//     });
+//   }
+// );
+
+const getHistory = asyncHandler(async (req: Request, res: Response) => {
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+  const getChekInData = await CheckIn.find({ user: req.user?._id })
+    .lean()
+    .populate("user", "firstName middleName lastName");
+  const getCheckOutData = await CheckOut.find({ user: req.user?._id })
+    .lean()
+    .populate("user", "firstName middleName lastName");
+
+  const checkInMapped = getChekInData.map((item) => ({
+    ...item,
+    type: "checkIn",
+  }));
+  const checkOutMapped = getCheckOutData.map((item) => ({
+    ...item,
+    type: "checkOut",
+  }));
+
+  const timeLine = [...checkInMapped, ...checkOutMapped];
+  timeLine.sort(
+    (a, b) =>
+      new Date(b.createdAt as any).getTime() -
+      new Date(a.createdAt as any).getTime()
+  );
+
+  const paginated = timeLine.slice(skip, skip + limit);
+  res.json({
+    total: timeLine.length,
+    page,
+    limit,
+    data: paginated,
+  });
+});
+
+// const createOrUpdateCheckIn = asyncHandler(
+//   async (req: Request, res: Response) => {
+//     console.log("API_HIT", req.body);
+
+//     const userId = req.user?._id;
+//     const { lat, long } = req.body;
+//     const now = new Date();
+
+//     /* ----------------------------------
+//        TIME WINDOW (12:00 AM → 11:59:59 PM)
+//     -----------------------------------*/
+//     const startOfDay = new Date();
+//     startOfDay.setHours(0, 0, 0, 0);
+
+//     const endOfDay = new Date();
+//     endOfDay.setHours(23, 59, 59, 999);
+
+//     const isWithinTodayWindow = (date: Date) =>
+//       date >= startOfDay && date <= endOfDay;
+
+//     // Get the latest checkout
+//     const lastCheckOut = await CheckOut.findOne({
+//       user: userId,
+//       isCheckOut: true,
+//     }).sort({ createdAt: -1 });
+
+//     // Disable check-in if last checkout is within today window
+//     if (lastCheckOut) {
+//       const lastCheckOutTime = new Date(lastCheckOut.createdAt as any);
+
+//       if (isWithinTodayWindow(lastCheckOutTime)) {
+//         return res.status(400).json({
+//           message:
+//             "You already checked out today. Come back tomorrow.",
+//         });
+//       }
+//     }
+
+//     // Optional image upload
+//     let uploadedImageUrl: string;
+//     if (req.file && req.file.buffer) {
+//       const imgUpload = await uploadToCloudinary(req.file.buffer);
+//       if (!imgUpload)
+//         return res.status(400).json({ message: "Image upload failed" });
+//       uploadedImageUrl = imgUpload.secure_url;
+//     }
+
+//     // Find the latest check-in
+//     let checkIn = await CheckIn.findOne({ user: userId, isCheckIn: true }).sort(
+//       { createdAt: -1 }
+//     );
+
+//     if (checkIn) {
+//       const checkInTime = new Date(checkIn.createdAt as any);
+
+//       // Reset old check-in if it does NOT belong to today window
+//       if (!isWithinTodayWindow(checkInTime)) {
+//         checkIn.isCheckIn = false;
+//         await checkIn.save();
+//         checkIn = null;
+//       }
+//     }
+
+//     if (checkIn) {
+//       // Update existing check-in
+//       const sameLat = Number(checkIn.location.lat) === Number(lat);
+//       const sameLong = Number(checkIn.location.long) === Number(long);
+//       const samePhoto =
+//         !uploadedImageUrl || uploadedImageUrl === checkIn.photoUrl;
+//       const isSameData = sameLat && sameLong && samePhoto;
+
+//       if (!isSameData) {
+//         checkIn.location = { lat, long };
+//         if (uploadedImageUrl) checkIn.photoUrl = uploadedImageUrl;
+//       }
+
+//       checkIn.set("updatedAt", now);
+//       await checkIn.save();
+//     } else {
+//       // Create new check-in
+//       checkIn = await CheckIn.create({
+//         user: userId,
+//         photoUrl: uploadedImageUrl ?? " ",
+//         location: { lat, long },
+//         isCheckIn: true,
+//       });
+
+//       // Reset any active checkout for safety
+//       await CheckOut.updateMany(
+//         { user: userId, isCheckOut: true },
+//         { isCheckOut: false }
+//       );
+//     }
+
+//     return res.status(200).json({
+//       message: "Check-in recorded",
+//       checkIn: {
+//         createdAt: checkIn.createdAt,
+//         updatedAt: checkIn.updatedAt,
+//         photoUrl: checkIn.photoUrl ?? " ",
+//         location: checkIn.location,
+//         isCheckIn: checkIn.isCheckIn,
+//       },
+//     });
+//   }
+// );
+
+const createOrUpdateCheckIn = asyncHandler(
+  async (req: Request, res: Response) => {
+    console.log("API_HIT", req.body);
+
+    const userId = req.user?._id;
+    const { lat, long } = req.body;
+    const now = new Date();
+    const threeMinutes = 2 * 60 * 1000;
+
+    // Get the latest checkout
+    const lastCheckOut = await CheckOut.findOne({
+      user: userId,
+      isCheckOut: true,
+    }).sort({ createdAt: -1 });
+
+    // Disable check-in if last checkout is within 3 minutes
+    if (lastCheckOut) {
+      const diff =
+        now.getTime() - new Date(lastCheckOut.createdAt as any).getTime();
+
+      if (diff <= threeMinutes) {
+        return res.status(400).json({
+          message:
+            "You already checked out recently. Come back after 3 minutes.",
+        });
+      }
+    }
+
+    // Optional image upload
+    let uploadedImageUrl: string;
+    if (req.file && req.file.buffer) {
+      const imgUpload = await uploadToCloudinary(req.file.buffer);
+      if (!imgUpload)
+        return res.status(400).json({ message: "Image upload failed" });
+      uploadedImageUrl = imgUpload.secure_url;
+    }
+
+    // Find the latest check-in
+    let checkIn = await CheckIn.findOne({ user: userId, isCheckIn: true }).sort(
+      { createdAt: -1 }
+    );
+    let diff;
+    if (checkIn) {
+      diff = now.getTime() - new Date(checkIn.createdAt as any).getTime();
+      if (diff > threeMinutes) {
+        // Reset old check-in
+        checkIn.isCheckIn = false;
+        await checkIn.save();
+        checkIn = null;
+      }
+    }
+    if (checkIn) {
+      const checkInId = checkIn._id;
+
+      // setTimeout(async () => {
+      //   const currentCheckIn = await CheckIn.findById(checkInId);
+
+      //   if (currentCheckIn && currentCheckIn.isCheckIn === true) {
+      //     console.log(
+      //       `Auto-checkout for user ${userId} and checkIn ${checkInId}`
+      //     ); // Reset old check-in
+      //     currentCheckIn.isCheckIn = false;
+      //     await currentCheckIn.save(); // Create a new CheckOut record for the automatic checkout
+
+      //     await CheckOut.create({
+      //       user: userId,
+      //       isCheckOut: true,
+      //     });
+      //   }
+      // }, threeMinutes);
+    }
+
+    if (checkIn) {
+      // Update existing check-in
+      const sameLat = Number(checkIn.location.lat) === Number(lat);
+      const sameLong = Number(checkIn.location.long) === Number(long);
+      const samePhoto =
+        !uploadedImageUrl || uploadedImageUrl === checkIn.photoUrl;
+      const isSameData = sameLat && sameLong && samePhoto;
+
+      if (!isSameData) {
+        checkIn.location = { lat, long };
+        if (uploadedImageUrl) checkIn.photoUrl = uploadedImageUrl;
+      }
+
+      checkIn.set("updatedAt", now);
+      await checkIn.save();
+    } else {
+      // Create new check-in
+      checkIn = await CheckIn.create({
+        user: userId,
+        photoUrl: uploadedImageUrl ?? " ",
+        location: { lat, long },
+        isCheckIn: true,
+      });
+
+      // Reset any active checkout for safety
+      await CheckOut.updateMany(
+        { user: userId, isCheckOut: true },
+        { isCheckOut: false }
+      );
+    }
+
+    return res.status(200).json({
+      message: "Check-in recorded",
+      checkIn: {
+        createdAt: checkIn.createdAt,
+        updatedAt: checkIn.updatedAt,
+        photoUrl: checkIn.photoUrl ?? " ",
+        location: checkIn.location,
+        isCheckIn: checkIn.isCheckIn,
+      },
+    });
+  }
+);
+
+const getUserCheckInStatus = asyncHandler(
+  async (req: Request, res: Response) => {
+    const getUserCheckIn = await CheckIn.find({ user: req.user?._id });
+    if (getUserCheckIn.length === 0)
+      return res.status(404).json({
+        message: "No CheckIn found",
+      });
+    return res.status(200).json({
+      message:
+        getUserCheckIn.length === 0
+          ? "No check-in found"
+          : `${getUserCheckIn.length} Check-in found`,
+      getUserCheckIn: getUserCheckIn[0],
+    });
+  }
+);
+
+// const checkOut = asyncHandler(async (req: Request, res: Response) => {
+//   const userId = req.user?._id;
+//   const { lat, long } = req.body;
+//   const now = new Date();
+
+//   /* ----------------------------------
+//      TIME WINDOW (12:00 AM → 11:59:59 PM)
+//   -----------------------------------*/
+//   const startOfDay = new Date();
+//   startOfDay.setHours(0, 0, 0, 0);
+
+//   const endOfDay = new Date();
+//   endOfDay.setHours(23, 59, 59, 999);
+
+//   const isWithinTodayWindow = (date: Date) =>
+//     date >= startOfDay && date <= endOfDay;
+
+//   // Get last checkout
+//   let checkOut = await CheckOut.findOne({ user: userId }).sort({
+//     createdAt: -1,
+//   });
+
+//   // Block checkout if already done today
+//   if (checkOut && checkOut.isCheckOut) {
+//     const lastCheckoutTime = new Date(checkOut.createdAt as any);
+
+//     if (isWithinTodayWindow(lastCheckoutTime)) {
+//       return res.status(400).json({
+//         message: "You already checked out today.",
+//       });
+//     }
+//   }
+
+//   // Get last active check-in
+//   const lastCheckIn = await CheckIn.findOne({
+//     user: userId,
+//     isCheckIn: true,
+//   }).sort({ createdAt: -1 });
+
+//   if (!lastCheckIn) {
+//     return res
+//       .status(400)
+//       .json({ message: "You cannot check out without checking in." });
+//   }
+
+//   // Optional image upload
+//   let uploadedImageUrl: string = "";
+//   if (req.file && req.file.buffer) {
+//     const imgUpload = await uploadToCloudinary(req.file.buffer);
+//     if (!imgUpload)
+//       return res.status(400).json({ message: "Image upload failed" });
+//     uploadedImageUrl = imgUpload.secure_url;
+//   }
+
+//   // Create new checkout
+//   checkOut = await CheckOut.create({
+//     user: userId,
+//     photoUrl: uploadedImageUrl ?? " ",
+//     location: { lat, long },
+//     isCheckOut: true,
+//     checkInID: lastCheckIn._id,
+//   });
+
+//   // Mark active check-in as false
+//   await CheckIn.updateMany(
+//     { user: userId, isCheckIn: true },
+//     { isCheckIn: false }
+//   );
+
+//   // ⛔ setTimeout REMOVED
+//   // ✅ Reset handled by CRON using same time window logic
+
+//   return res.status(200).json({
+//     message: "Checkout recorded",
+//     checkOut: {
+//       createdAt: checkOut.createdAt,
+//       updatedAt: checkOut.updatedAt,
+//       photoUrl: checkOut.photoUrl ?? " ",
+//       location: checkOut.location,
+//       isCheckOut: checkOut.isCheckOut,
+//     },
+//   });
+// });
+
+const checkOut = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?._id;
+  const { lat, long } = req.body;
+  const now = new Date();
+  const threeMinutes = 2 * 60 * 1000;
+
+  // Get last checkout
+  let checkOut = await CheckOut.findOne({ user: userId }).sort({
+    createdAt: -1,
+  });
+
+  if (checkOut) {
+    const diff = now.getTime() - new Date(checkOut.createdAt as any).getTime();
+    if (diff <= threeMinutes && checkOut.isCheckOut) {
+      return res
+        .status(400)
+        .json({ message: "You already checked out recently." });
+    }
+  }
+
+  // Get last check-in
+  const lastCheckIn = await CheckIn.findOne({
+    user: userId,
+    isCheckIn: true,
+  }).sort({ createdAt: -1 });
+  if (!lastCheckIn) {
+    return res
+      .status(400)
+      .json({ message: "You cannot check out without checking in." });
+  }
+
+  // Optional image upload
+  let uploadedImageUrl: string = "";
+  if (req.file && req.file.buffer) {
+    const imgUpload = await uploadToCloudinary(req.file.buffer);
+    if (!imgUpload)
+      return res.status(400).json({ message: "Image upload failed" });
+    uploadedImageUrl = imgUpload.secure_url;
+  }
+
+  // Create new checkout
+  checkOut = await CheckOut.create({
+    user: userId,
+    photoUrl: uploadedImageUrl ?? " ",
+    location: { lat, long },
+    isCheckOut: true,
+    checkInID: lastCheckIn?._id,
+  });
+
+  // Mark check-in as false
+  await CheckIn.updateMany(
+    { user: userId, isCheckIn: true },
+    { isCheckIn: false }
+  );
+
+  // Auto-reset isCheckOut after 3 minutes
+  setTimeout(async () => {
+    // Step 1: reset checkout
+    await CheckOut.findByIdAndUpdate(checkOut._id, { isCheckOut: false });
+
+    // Step 2: enable check-in again
+    await CheckIn.updateMany({ user: userId }, { isCheckIn: false });
+
+    console.log("Auto-reset: checkout false, checkin true");
+  }, threeMinutes);
+
+  return res.status(200).json({
+    message: "Checkout recorded",
+    checkOut: {
+      createdAt: checkOut.createdAt,
+      updatedAt: checkOut.updatedAt,
+      photoUrl: checkOut.photoUrl ?? " ",
+      location: checkOut.location,
+      isCheckOut: checkOut.isCheckOut,
+    },
+  });
+});
+
+const userCheckInHistory = asyncHandler(async (req: Request, res: Response) => {
+  const isUserExist = await CheckIn.find({ user: req.user?._id }).sort({
+    createdAt: -1,
+  });
+  if (!isUserExist) return res.status(404).json({ message: "User not found" });
+  // const history = await CheckIn.find({ user: userId });
+  console.log("user", isUserExist);
+  if (!isUserExist || isUserExist.length === 0)
+    return res.status(404).json({ message: "No check-in history found" });
+  return res.status(200).json({ message: "History found", isUserExist });
+});
+
+// User update their home address and send a picture to their bondsman as proof
+const updateAddressAndSendPictureAsProof = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { homeAddress } = req.body as { homeAddress: String };
+    if (!homeAddress)
+      return res.status(401).json({
+        message: "Home address can't be empty",
+      });
+
+    const uploads = await uploadToCloudinary(req.file?.buffer!);
+    if (!uploads)
+      return res.status(401).json({ message: "eror during upload img" });
+    console.log("uploads", uploads);
+
+    const updateUserAddress = await User.findByIdAndUpdate(
+      req.user?._id,
+      {
+        $set: {
+          homeAddress: homeAddress,
+          image: uploads.secure_url,
+        },
+      },
+      {
+        new: true,
+      }
+    );
+    const isUserAddressUpdated = await User.findById(
+      updateUserAddress?._id
+    ).select("-refreshToken -password");
+    if (!isUserAddressUpdated)
+      return res
+        .status(400)
+        .json({ message: "Address or image can't be update" });
+
+    return res
+      .status(200)
+      .json({ message: "Address submitted", isUserAddressUpdated });
+  }
+);
+
+const updateLatAndLong = asyncHandler(async (req: Request, res: Response) => {
+  const { latitude, longitude } = req.body as {
+    latitude: number;
+    longitude: number;
+  };
+  if (!latitude || !longitude) {
+    return res
+      .status(400)
+      .json({ message: "Please provide latitude and longitude" });
+  }
+
+  const user = await User.findById(req.user?._id);
+  user.latitude = latitude;
+  user.longitude = longitude;
+  const updatedLocation = await user.save({ validateBeforeSave: true });
+
+  // if (!updatedLocation)
+  //   return res.status(400).json({ message: "Location couldn't be updated" });
+
+  return res
+    .status(200)
+    .json({ message: "Location updated successfully", updatedLocation });
+});
+
+const getReminderNotification = asyncHandler(
+  async (req: Request, res: Response) => {
+    const limit = parseInt(req.query.limit as string) || 10;
+    const lastId = req.query.lastId as string | undefined;
+
+    const queryFilter: any = {
+      user: req.user?._id,
+    };
+
+    if (lastId) {
+      const lastNotification = await ReminderNotification.findById(
+        lastId
+      ).select("sentAt");
+
+      if (lastNotification) {
+        queryFilter.sentAt = { $lt: lastNotification.sentAt };
+      }
+    }
+
+    const reminderNotifications = await ReminderNotification.find(queryFilter)
+      .sort({ sentAt: -1 })
+      .limit(limit);
+    let nextCursorId: string | undefined = undefined;
+
+    if (reminderNotifications.length === limit) {
+      nextCursorId =
+        reminderNotifications[reminderNotifications.length - 1]._id.toString();
+    }
+
+    if (reminderNotifications.length === 0 && !lastId)
+      return res.status(200).json({ message: "No notification found" });
+
+    const fetchedIds = reminderNotifications.map((n) => n._id);
+
+    await ReminderNotification.updateMany(
+      {
+        _id: { $in: fetchedIds },
+        user: req.user?._id,
+        isSeen: false,
+      },
+      {
+        $set: {
+          isSeen: true,
+        },
+      }
+    );
+    const formattedNotifications = reminderNotifications.map((n) => {
+      const obj = n.toObject();
+
+      return {
+        ...obj,
+        timeAgo: getNotificationTime(obj.sentAt),
+      };
+    });
+
+    return res.status(200).json({
+      message: "Notifications found",
+      success: true,
+      limit: limit,
+      nextCursorId: nextCursorId,
+      reminderNotifications: formattedNotifications,
+    });
+  }
+);
+
+const getUnreadNotificationCount = asyncHandler(
+  async (req: Request, res: Response) => {
+    const unreadCount = await ReminderNotification.countDocuments({
+      user: req.user?._id,
+      isSeen: false,
+    });
+
+    return res.status(200).json({
+      success: true,
+      unreadCount,
+    });
+  }
+);
 
 export {
   registration,
@@ -746,4 +2030,25 @@ export {
   addContactInfo,
   addLegalInfo,
   addPersonalInfo,
+  addDriverLicInfo,
+  addPersonalRefrenceInfo,
+  addEmployementStatus,
+  getUserBondsmanInfo,
+  createOrUpdateCheckIn,
+  updateAddressAndSendPictureAsProof,
+  updateLatAndLong,
+  getResidenceInfo,
+  getContactInfo,
+  getLegalInfo,
+  getPersonalInfo,
+  getDriverLicInfo,
+  getPersonalRefrenceInfo,
+  getEmployementStatus,
+  getUserCheckInStatus,
+  checkOut,
+  userCheckInHistory,
+  getHistory,
+  refreshAccessToken,
+  getReminderNotification,
+  getUnreadNotificationCount,
 };

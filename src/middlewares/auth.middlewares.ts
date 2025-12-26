@@ -1,9 +1,11 @@
 import { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import Blacklist from "../models/blacklist.model.js";
+import { User } from "../models/user.model.js";
 
 // create payload interface
-interface DecodeToken extends JwtPayload {
+export interface DecodeToken extends JwtPayload {
   _id: string;
   name: string;
   email: string;
@@ -24,7 +26,9 @@ export const authMiddleware = asyncHandler(
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "Authorization token is missing or invalid format" });
+      return res
+        .status(401)
+        .json({ message: "Authorization token is missing or invalid format" });
     }
 
     const token = authHeader.split(" ")[1];
@@ -32,7 +36,12 @@ export const authMiddleware = asyncHandler(
     if (!token) {
       return res.status(401).json({ message: "Token is missing" });
     }
-
+    const isBlacklisted = await Blacklist.findOne({ token });
+    if (isBlacklisted) {
+      return res
+        .status(401)
+        .json({ message: "Token expired or invalid (blacklisted)" });
+    }
     try {
       // verify token
       const decode = jwt.verify(
@@ -51,3 +60,29 @@ export const authMiddleware = asyncHandler(
     }
   }
 );
+// export const authMiddleware = asyncHandler(
+//   async (req: Request, res: Response, next: NextFunction) => {
+//     console.log(req.cookies);
+//     // console.log(res.cookies);
+
+//     if (!req.cookies?.accessToken)
+//       return res.status(401).json({ message: "Token is missing" });
+//     let token = req.cookies?.accessToken;
+//     try {
+//       // verify token
+//       const decode = jwt.verify(
+//         token,
+//         process.env.ACCESS_TOKEN_KEY!
+//       ) as DecodeToken;
+
+//       if (!decode._id) {
+//         return res.status(403).json({ message: "Invalid token type" });
+//       }
+
+//       req.user = decode;
+//       next();
+//     } catch (error) {
+//       return res.status(401).json({ message: "Invalid or expired token" });
+//     }
+//   }
+// );
